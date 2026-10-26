@@ -1,3 +1,16 @@
+   79) PR #3510 towards #868. Implement support for custom function spaces
+   with user-defined multi-data fields and number of layers.
+
+   78) PR #3656. Bump ITs to use oneAPI 2026.2.
+ 
+   77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
+ 
+   76) PR #3627 for #3626. Ensure that elemental routines are also marked
+   as pure and forbid HoistLocalArraysTrans on pure routines.
+ 
+   75) PR #3595 for #3315. Extends LFRicLoopFuseTrans to attempt to resolve
+   'any-space' function spaces and conditionally fuse if that fails.
+ 
    74) PR #3511. Add --keep-comments in some NEMO integration tests.
 
    73) PR #3633 for #2927. Ensures the profiling wrapper libs are

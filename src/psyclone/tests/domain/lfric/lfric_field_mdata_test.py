@@ -255,28 +255,28 @@ def test_arg_descriptor_field(fortran_reader):
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.access == "gh_inc"
     assert field_descriptor.stencil is None
-    assert field_descriptor.nlevels is None
+    assert field_descriptor.nlayers == ""
     assert field_descriptor.ndata == "1"
     assert field_descriptor.fortran_string() == (
         "arg_type(gh_field, gh_real, gh_inc, w1)")
 
 
-def test_fld_nlevels(fortran_reader):
+def test_fld_nlayers(fortran_reader):
     '''
-    Test a field argument with the optional 'nlevels' metatadata.
+    Test a field argument with the optional 'nlayers' metatadata.
     '''
     code = FIELD_CODE.replace(
         "arg_type(gh_scalar, gh_integer, gh_read)",
-        "arg_type(gh_field, gh_real, gh_read, w3, nlevels='double')", 1)
+        "arg_type(gh_field, gh_real, gh_read, w3, nlayers='double')", 1)
     psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     mdata = create_lfric_metadata(psyir, name=name)
-    # By default, nlevels is left as None.
+    # By default, nlayers is an empty string.
     field_descriptor = mdata.meta_args[5]
-    assert field_descriptor.nlevels is None
-    # The seventh argument has nlevels specified as "double"
+    assert field_descriptor.nlayers == ""
+    # The seventh argument has nlayers specified as "double".
     field_descriptor = mdata.meta_args[6]
-    assert field_descriptor.nlevels == "double"
+    assert field_descriptor.nlayers == "double"
 
 
 def test_fld_ndata(fortran_reader):

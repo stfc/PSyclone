@@ -142,15 +142,22 @@ def test_argument_metadata_classes():
         "GH_REAL", "GH_READ", "W0", "XORY1D", "NL", 2)
     assert field.fortran_string() == (
         "arg_type(gh_field, gh_real, gh_read, w0, stencil(xory1d), "
-        "nlevels='nl', ndata='2')")
+        "nlayers='nl', ndata='2')")
+    assert FieldArgMetadata(
+        "gh_real", "gh_write", "w0", nlayers=None).nlayers == ""
     assert FieldArgMetadata(
         "gh_real", "gh_write", "w0", ndata=None).ndata == "1"
+    for name, value in (("nlayers", "not a valid name"),
+                        ("ndata", "0")):
+        with pytest.raises(ValueError, match=name):
+            FieldArgMetadata(
+                "gh_real", "gh_write", "w0", **{name: value})
 
     vector = FieldVectorArgMetadata(
         "gh_real", "gh_read", "w1", "3", "cross", "nl", "2")
     assert vector.fortran_string() == (
         "arg_type(gh_field*3, gh_real, gh_read, w1, stencil(cross), "
-        "nlevels='nl', ndata='2')")
+        "nlayers='nl', ndata='2')")
     for length in (None, "bad", "1"):
         with pytest.raises(ValueError, match="Vector length"):
             FieldVectorArgMetadata("gh_real", "gh_read", "w0", length)
@@ -160,9 +167,9 @@ def test_argument_metadata_classes():
     assert intergrid.fortran_string().endswith(
         "ndata='2', mesh_arg=gh_coarse)")
     intergrid_vector = InterGridVectorArgMetadata(
-        "gh_real", "gh_read", "w1", "GH_FINE", "2", nlevels="nl")
+        "gh_real", "gh_read", "w1", "GH_FINE", "2", nlayers="nl")
     assert intergrid_vector.fortran_string().endswith(
-        "nlevels='nl', mesh_arg=gh_fine)")
+        "nlayers='nl', mesh_arg=gh_fine)")
 
     operator = OperatorArgMetadata(
         "GH_REAL", "GH_READ", "W0", "W1")
@@ -378,7 +385,7 @@ def test_parse_arg_variants():
         ("arg_type(gh_field*2, gh_real, gh_read, w0, "
          "mesh_arg=gh_fine)", InterGridVectorArgMetadata),
         ("arg_type(gh_field, gh_real, gh_read, w0, stencil(x1d), "
-         "nlevels='nl', ndata='2')", FieldArgMetadata),
+         "nlayers='nl', ndata='2')", FieldArgMetadata),
     ]
     for expression, expected_type in cases:
         assert isinstance(

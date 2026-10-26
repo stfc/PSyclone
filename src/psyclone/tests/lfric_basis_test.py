@@ -18,6 +18,7 @@ from psyclone.lfric import LFRicBasisFunctions
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import create_lfric_metadata
@@ -175,8 +176,7 @@ def test_single_kern_eval(tmpdir):
     assert "    integer(kind=i_def) :: loop0_start" in code
     assert "    integer(kind=i_def) :: loop0_stop" in code
     assert "    integer(kind=i_def) :: df_nodal" in code
-    assert "    integer(kind=i_def) :: df_w0" in code
-    assert "    integer(kind=i_def) :: df_w1" in code
+    assert "    integer(kind=i_def) :: df" in code
     assert ("    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)"
             in code)
     assert ("    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
@@ -236,15 +236,15 @@ def test_single_kern_eval(tmpdir):
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_w0(:,df_w0,df_nodal) = "
-        "f0_proxy%vspace%call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df,df_nodal) = "
+        "f0_proxy%vspace%call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = cmap_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "\n"
@@ -288,8 +288,7 @@ def test_single_kern_eval_op(tmpdir):
     assert "integer(kind=i_def) :: loop0_start" in code
     assert "integer(kind=i_def) :: loop0_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
-    assert "integer(kind=i_def) :: df_w2" in code
-    assert "integer(kind=i_def) :: df_w3" in code
+    assert "integer(kind=i_def) :: df" in code
     assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
             in code)
@@ -319,15 +318,15 @@ def test_single_kern_eval_op(tmpdir):
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
-        "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w0(:,df,df_nodal) = op1_proxy%fs_from%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w0(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
     )
@@ -518,14 +517,15 @@ def test_two_qr_same_shape(tmpdir):
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
         "np_xy_qr2, np_z_qr2, weights_xy_qr2, weights_z_qr2)\n"
-        "    enddo\n"
-        "\n"
+        "    enddo\n")
+    assert expected_kern_call in code
+    expected_dealloc = (
         "    ! Deallocate basis arrays\n"
-        "    DEALLOCATE(basis_w1_qr, basis_w1_qr2, basis_w3_qr, "
-        "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
+        "    DEALLOCATE(basis_w1_qr, basis_w1_qr2, basis_w3_qr, basis_w3_qr2, "
+        "diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
         "diff_basis_w3_qr2)\n"
     )
-    assert expected_kern_call in code
+    assert expected_dealloc in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -708,8 +708,7 @@ def test_qr_plus_eval(tmpdir):
     assert "integer(kind=i_def) :: loop1_start" in code
     assert "integer(kind=i_def) :: loop1_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
-    assert "integer(kind=i_def) :: df_w0" in code
-    assert "integer(kind=i_def) :: df_w1" in code
+    assert "integer(kind=i_def) :: df" in code
     assert "real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
             in code)
@@ -797,15 +796,15 @@ def test_qr_plus_eval(tmpdir):
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
-        "call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df,df_nodal) = f0_proxy%vspace%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    call qr%compute_function(BASIS, f1_proxy%vspace, "
@@ -866,15 +865,15 @@ def test_two_eval_same_space(tmpdir):
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
-        "call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df,df_nodal) = f0_proxy%vspace%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "\n"
@@ -936,27 +935,27 @@ def test_two_eval_diff_space(tmpdir):
     expected_code = (
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
-        "call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df,df_nodal) = f0_proxy%vspace%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
-        "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w0(:,df,df_nodal) = op1_proxy%fs_from%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = f2_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w0(:,df,df_nodal) = f2_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "\n"
@@ -995,24 +994,24 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert code.count(
-        "ndf_ads1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_ads1_f0__1 = f0_proxy%vspace%get_ndf()") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_ads1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
-        "%call_function(BASIS, df_w0, nodes_ads1_f0(:,df_nodal))\n"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_ads1_f0__1(:,df,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS, df, nodes_ads1_f0__1(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_ads1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0(:,"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_ads1_f0__1(:,df,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS, df, nodes_ads1_f0__1(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "DEALLOCATE(basis_w0_on_ads1_f0, diff_basis_w1_on_ads1_f0)") == 1
+        "DEALLOCATE(basis_w0_on_ads1_f0__1, diff_basis_w1_on_ads1_f0__1)") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1066,33 +1065,33 @@ def test_two_eval_op_to_space(tmpdir):
     # requires them on W2 and W3.
     basis_comp = (
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
-        "call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df,df_nodal) = f0_proxy%vspace%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
-        "call_function(BASIS, df_w2, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w3(:,df,df_nodal) = op1_proxy%fs_to%"
+        "call_function(BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        diff_basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
-        "call_function(DIFF_BASIS, df_w2, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        diff_basis_w2_on_w3(:,df,df_nodal) = op1_proxy%fs_to%"
+        "call_function(DIFF_BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w3(:,df_w3,df_nodal) = f2_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w3(:,df,df_nodal) = f2_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n")
     assert basis_comp in code
@@ -1154,39 +1153,39 @@ def test_eval_diff_nodal_space(tmpdir):
     assert expected_alloc in code
     expected_compute = (
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
-        "call_function(BASIS, df_w2, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w3(:,df,df_nodal) = op2_proxy%fs_to%"
+        "call_function(BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        diff_basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
-        "call_function(DIFF_BASIS, df_w2, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        diff_basis_w2_on_w3(:,df,df_nodal) = op2_proxy%fs_to%"
+        "call_function(DIFF_BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w3, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w3(:,df_w3,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w3(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w3(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
-        "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w0(:,df,df_nodal) = op1_proxy%fs_to%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        diff_basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
-        "call_function(DIFF_BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        diff_basis_w2_on_w0(:,df,df_nodal) = op1_proxy%fs_to%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = f0_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w0(:,df,df_nodal) = f0_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
     )
@@ -1273,8 +1272,8 @@ def test_2eval_2fs(tmpdir):
                           f"ndf_w1,ndf_w{idx}))") == 1
 
         assert code.count(
-            f"diff_basis_w1_on_w{idx}(:,df_w1,df_nodal) = f1_proxy%vspace%"
-            f"call_function(DIFF_BASIS, df_w1, nodes_w{idx}(:,df_nodal))") == 1
+            f"diff_basis_w1_on_w{idx}(:,df,df_nodal) = f1_proxy%vspace%"
+            f"call_function(DIFF_BASIS, df, nodes_w{idx}(:,df_nodal))") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1317,24 +1316,24 @@ def test_2eval_1qr_2fs(tmpdir):
 
     assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
-        "f1_proxy%vspace%call_function(DIFF_BASIS, df_w1, nodes_w0(:,"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df,df_nodal) = "
+        "f1_proxy%vspace%call_function(DIFF_BASIS, df, nodes_w0(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
         "    do df_nodal = 1, ndf_w1, 1\n"
-        "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w1, nodes_w1(:,df_nodal))\n"
+        "      do df = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w1(:,df,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w1(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
-        "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w0(:,df,df_nodal) = m2_proxy%vspace%"
+        "call_function(DIFF_BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
 
@@ -1347,9 +1346,9 @@ def test_2eval_1qr_2fs(tmpdir):
 
     assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
-        "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
-        "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      do df = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w0(:,df,df_nodal) = op1_proxy%fs_from%"
+        "call_function(BASIS, df, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
 
@@ -1407,8 +1406,8 @@ def test_eval_agglomerate(tmpdir):
     code = str(psy.gen)
     # We should compute differential basis functions for W1 evaluated on both
     # W0 and W1.
-    assert code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
-    assert code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
+    assert code.count("diff_basis_w1_on_w0(:,df,df_nodal) = ") == 1
+    assert code.count("diff_basis_w1_on_w1(:,df,df_nodal) = ") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1467,10 +1466,11 @@ def test_basis_evaluator(fortran_writer, fortran_reader):
     code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
-        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
-        "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
+        "subroutine dummy_code(cell, nlayers_field_1, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, "
+        "field_5_wtheta, op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, "
+        "op_8, field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
+        "op_12_ncell_3d, op_12, "
         "ndf_w0, undf_w0, map_w0, basis_w0_on_w0, ndf_w1, basis_w1_on_w0, "
         "ndf_w2, undf_w2, map_w2, basis_w2_on_w0, ndf_w3, basis_w3_on_w0, "
         "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_on_w0, ndf_w2h, "
@@ -1479,7 +1479,7 @@ def test_basis_evaluator(fortran_writer, fortran_reader):
         "basis_wchi_on_w0, ndf_w2trace, basis_w2trace_on_w0, ndf_w2vtrace, "
         "undf_w2vtrace, map_w2vtrace, basis_w2vtrace_on_w0, ndf_w2htrace, "
         "basis_w2htrace_on_w0)" in code)
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) "
             ":: map_w0" in code)
@@ -1680,7 +1680,8 @@ def test_diff_basis(fortran_writer, fortran_reader):
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2htrace, op_12_ncell_3d, op_12, "
@@ -1697,7 +1698,7 @@ def test_diff_basis(fortran_writer, fortran_reader):
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "    use constants_mod\n") in code
 
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0"
             in code)
@@ -1857,7 +1858,8 @@ def test_diff_basis_eval(fortran_writer, fortran_reader):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1874,7 +1876,7 @@ def test_diff_basis_eval(fortran_writer, fortran_reader):
     assert output_args in generated_code
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -1969,7 +1971,8 @@ def test_2eval_stubgen(fortran_writer, fortran_reader):
     generated_code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
         "field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
@@ -1992,7 +1995,7 @@ def test_2eval_stubgen(fortran_writer, fortran_reader):
         generated_code)
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -2157,6 +2160,13 @@ def test_lfricbasisfns_unsupp_qr(monkeypatch, fortran_reader):
     dbasis = LFRicBasisFunctions(kernel)
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
+    # The code assumes that the various 'ndf' variables have already
+    # been added to the SymbolTable so we have to do that manually.
+    for idx in ["w0", "w1", "w2", "w2h", "w2v", "w2broken", "w2trace",
+                "w2htrace", "w2vtrace", "wchi", "w3", "wtheta"]:
+        kernel._stub_symbol_table.add(
+            DataSymbol(f"ndf_{idx}", ScalarType.integer_type()),
+            tag=f"ndf:{idx}")
     with pytest.raises(InternalError) as err:
         dbasis.stub_declarations()
     assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "

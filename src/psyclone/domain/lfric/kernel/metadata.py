@@ -27,7 +27,7 @@ dataclasses, built from language-level PSyIR:
                 access: str
                 function_space: str
                 stencil: Optional[str]
-                nlevels: Optional[str]
+                nlayers: Optional[str]
                 ndata: Optional[str]
             FieldVectorArgMetadata:
                 datatype: str
@@ -35,7 +35,7 @@ dataclasses, built from language-level PSyIR:
                 function_space: str
                 vector_length: str
                 stencil: Optional[str]
-                nlevels: Optional[str]
+                nlayers: Optional[str]
                 ndata: Optional[str]
             InterGridArgMetadata:
                 datatype: str
@@ -43,7 +43,7 @@ dataclasses, built from language-level PSyIR:
                 function_space: str
                 mesh_arg: str
                 stencil: Optional[str]
-                nlevels: Optional[str]
+                nlayers: Optional[str]
                 ndata: Optional[str]
             InterGridVectorArgMetadata:
                 datatype: str
@@ -52,7 +52,7 @@ dataclasses, built from language-level PSyIR:
                 mesh_arg: str
                 vector_length: str
                 stencil: Optional[str]
-                nlevels: Optional[str]
+                nlayers: Optional[str]
                 ndata: Optional[str]
             OperatorArgMetadata:
                 datatype: str
@@ -123,6 +123,38 @@ class LFRicArgMetadata:  # pylint: disable=too-few-public-methods
     def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
         return LFRicConstants().ACCESS_MAPPING[getattr(self, "access")]
+
+
+def _normalise_label(value: object, description: str, default: str) -> str:
+    """Normalise a layer/data-count label and ensure that it is either a
+    positive integer or a valid Fortran name.
+
+    :param value: label to validate, or ``None`` to use the default.
+    :param description: description used in any error message.
+    :param default: value to use when ``value`` is ``None``.
+
+    :returns: the normalised label.
+
+    :raises ValueError: if the value is neither a positive integer nor a
+        valid Fortran name.
+    """
+    if value is None:
+        return default
+    result = _normalise(str(value), description)
+    if result == default:
+        return result
+    if result.isnumeric():
+        if int(result) > 0:
+            return result
+        raise ValueError(f"Expected {description} to be greater than zero.")
+    try:
+        FortranReader.validate_name(result)
+    except (TypeError, ValueError) as err:
+        raise ValueError(
+            f"Expected {description} to be a positive integer or a valid "
+            f"Fortran name but found '{result}'."
+        ) from err
+    return result
 
 
 @dataclass(frozen=True)
@@ -230,7 +262,7 @@ class FieldArgMetadata(LFRicArgMetadata):
     access: str
     function_space: str
     stencil: Optional[str] = None
-    nlevels: Optional[str] = None
+    nlayers: Optional[str] = ""
     ndata: Optional[str] = "1"
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field"
@@ -279,16 +311,11 @@ class FieldArgMetadata(LFRicArgMetadata):
                     const.VALID_STENCIL_TYPES,
                 ),
             )
-        if self.nlevels is not None:
-            object.__setattr__(
-                self, "nlevels", _normalise(self.nlevels, "nlevels")
-            )
-        if self.ndata is None:
-            object.__setattr__(self, "ndata", "1")
-        else:
-            object.__setattr__(
-                self, "ndata", _normalise(str(self.ndata), "ndata")
-            )
+        object.__setattr__(
+            self, "nlayers", _normalise_label(
+                self.nlayers, "nlayers", ""))
+        object.__setattr__(
+            self, "ndata", _normalise_label(self.ndata, "ndata", "1"))
 
     def fortran_string(self) -> str:
         """
@@ -300,8 +327,8 @@ class FieldArgMetadata(LFRicArgMetadata):
         )
         if self.stencil:
             result += f", stencil({self.stencil})"
-        if self.nlevels:
-            result += f", nlevels='{self.nlevels}'"
+        if self.nlayers:
+            result += f", nlayers='{self.nlayers}'"
         if self.ndata != "1":
             result += f", ndata='{self.ndata}'"
         return result + ")"
@@ -316,7 +343,7 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
     function_space: str
     vector_length: str
     stencil: Optional[str] = None
-    nlevels: Optional[str] = None
+    nlayers: Optional[str] = ""
     ndata: Optional[str] = "1"
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field-vector"
@@ -332,7 +359,7 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
             self.access,
             self.function_space,
             self.stencil,
-            self.nlevels,
+            self.nlayers,
             self.ndata,
         )
         for name in (
@@ -340,7 +367,7 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
             "access",
             "function_space",
             "stencil",
-            "nlevels",
+            "nlayers",
             "ndata",
         ):
             object.__setattr__(self, name, getattr(field_metadata, name))
@@ -365,8 +392,8 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
         )
         if self.stencil:
             result += f", stencil({self.stencil})"
-        if self.nlevels:
-            result += f", nlevels='{self.nlevels}'"
+        if self.nlayers:
+            result += f", nlayers='{self.nlayers}'"
         if self.ndata != "1":
             result += f", ndata='{self.ndata}'"
         return result + ")"
@@ -381,7 +408,7 @@ class InterGridArgMetadata(LFRicArgMetadata):
     function_space: str
     mesh_arg: str
     stencil: Optional[str] = None
-    nlevels: Optional[str] = None
+    nlayers: Optional[str] = ""
     ndata: Optional[str] = "1"
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid"
@@ -397,7 +424,7 @@ class InterGridArgMetadata(LFRicArgMetadata):
             self.access,
             self.function_space,
             self.stencil,
-            self.nlevels,
+            self.nlayers,
             self.ndata,
         )
         for name in (
@@ -405,7 +432,7 @@ class InterGridArgMetadata(LFRicArgMetadata):
             "access",
             "function_space",
             "stencil",
-            "nlevels",
+            "nlayers",
             "ndata",
         ):
             object.__setattr__(self, name, getattr(field_metadata, name))
@@ -427,7 +454,7 @@ class InterGridArgMetadata(LFRicArgMetadata):
             self.access,
             self.function_space,
             self.stencil,
-            self.nlevels,
+            self.nlayers,
             self.ndata,
         ).fortran_string()
         return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
@@ -443,7 +470,7 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
     mesh_arg: str
     vector_length: str
     stencil: Optional[str] = None
-    nlevels: Optional[str] = None
+    nlayers: Optional[str] = ""
     ndata: Optional[str] = "1"
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid-vector"
@@ -460,7 +487,7 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
             self.function_space,
             self.vector_length,
             self.stencil,
-            self.nlevels,
+            self.nlayers,
             self.ndata,
         )
         for name in (
@@ -469,7 +496,7 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
             "function_space",
             "vector_length",
             "stencil",
-            "nlevels",
+            "nlayers",
             "ndata",
         ):
             object.__setattr__(self, name, getattr(vector_metadata, name))
@@ -492,7 +519,7 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
             self.function_space,
             self.vector_length,
             self.stencil,
-            self.nlevels,
+            self.nlayers,
             self.ndata,
         ).fortran_string()
         return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
@@ -1115,9 +1142,9 @@ class LFRicKernelMetadata(KernelMetadata):
                     "CMA kernels may not use vector or stencil arguments."
                 )
             if (getattr(argument, "ndata", "1") != "1" or
-                    getattr(argument, "nlevels", None)):
+                    getattr(argument, "nlayers", "")):
                 raise ParseError(
-                    "CMA kernels require default NDATA and NLEVELS."
+                    "CMA kernels require default NDATA and NLAYERS."
                 )
         if any(argument.datatype != "gh_real"
                for argument in field_args):
@@ -1640,7 +1667,7 @@ def _parse_arg(
         for name, argument in zip(names, arguments)
         if name is not None
     }
-    unexpected_names = set(named) - {"mesh_arg", "ndata", "nlevels"}
+    unexpected_names = set(named) - {"mesh_arg", "ndata", "nlayers"}
     if unexpected_names:
         raise ParseError(
             "Unexpected named arg_type metadata argument(s): "
@@ -1680,7 +1707,7 @@ def _parse_arg(
                 "read-only ('gh_read'), but found "
                 f"'{access}'."
             )
-    nlevels = value_name(named["nlevels"]) if "nlevels" in named else None
+    nlayers = value_name(named["nlayers"]) if "nlayers" in named else ""
     ndata = value_name(named["ndata"]) if "ndata" in named else "1"
 
     if form == "gh_scalar":
@@ -1727,7 +1754,7 @@ def _parse_arg(
             mesh,
             vector_length,
             stencil,
-            nlevels,
+            nlayers,
             ndata,
         )
     if mesh:
@@ -1737,7 +1764,7 @@ def _parse_arg(
             function_space,
             mesh,
             stencil,
-            nlevels,
+            nlayers,
             ndata,
         )
     if vector_length:
@@ -1747,7 +1774,7 @@ def _parse_arg(
             function_space,
             vector_length,
             stencil,
-            nlevels,
+            nlayers,
             ndata,
         )
     return FieldArgMetadata(
@@ -1755,7 +1782,7 @@ def _parse_arg(
         access,
         function_space,
         stencil,
-        nlevels,
+        nlayers,
         ndata,
     )
 

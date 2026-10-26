@@ -767,8 +767,7 @@ class Kern(Statement):
     PSy layer.
 
     :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param call: information on the call itself, as obtained by parsing \
+    :param call: information on the call itself, as obtained by parsing
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
@@ -779,9 +778,8 @@ class Kern(Statement):
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if any of the arguments to the call are \
+    :raises GenerationError: if any of the arguments to the call are
                              duplicated.
-
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
@@ -798,7 +796,7 @@ class Kern(Statement):
         super().__init__(parent=parent)
         self._name = name
         self._iterates_over = call.kernel.metadata.iterates_over
-        self._arguments = ArgumentsClass(call, self, check=check)
+        self._arguments: Arguments = ArgumentsClass(call, self, check=check)
 
         # check algorithm arguments are unique for a kernel or
         # built-in call
