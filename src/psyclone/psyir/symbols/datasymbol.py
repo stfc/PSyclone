@@ -158,7 +158,7 @@ class DataSymbol(TypedSymbol):
         if directive is not None and not isinstance(directive,
                                                     SymbolDirective):
             raise TypeError(
-                f"The directive associated with a DataSymbol must implement "
+                f"The directive associated with a DataSymbol must subclass "
                 f"SymbolDirective or be None but got "
                 f"'{type(directive).__name__}'.")
         if directive is not None:

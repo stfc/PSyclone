@@ -15,7 +15,15 @@ if TYPE_CHECKING:
 
 
 class SymbolDirective:
-    '''Mixin for PSyIR nodes associated with a parent Symbol.'''
+    '''
+    Mixin for PSyIR directives associated with a parent Symbol. It
+    adds a parent_symbol property (and setter), and a copy method
+    which returns an 'unattached' copy, i.e. a directive with the
+    parent_symbol set to None. The parent_symbol is then used to ensure
+    that a SymbolDirective is not attached to more than one parent
+    symbol.
+
+    '''
 
     def __init__(self):
         super().__init__()
@@ -38,7 +46,7 @@ class SymbolDirective:
     @property
     def parent_symbol(self) -> Optional[Symbol]:
         '''
-        :returns: the Symbol associated with this node.
+        :returns: the Symbol with which this directive is associated.
         '''
         return self._parent_symbol
 
@@ -46,9 +54,9 @@ class SymbolDirective:
     def parent_symbol(self, symbol: Optional[Symbol]):
         '''Set the Symbol associated with this node.
 
-        :param symbol: the Symbol associated with this node.
+        :param symbol: the Symbol with which this directive is associated.
 
-        :raises TypeError: if symbol is not a Symbol.
+        :raises TypeError: if symbol is not None but not a Symbol.
         '''
         # Import locally to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel

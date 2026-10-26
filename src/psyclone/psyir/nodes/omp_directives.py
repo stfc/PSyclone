@@ -146,7 +146,7 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
 class OMPDeclareTargetVariable(SymbolDirective, OMPStandaloneDirective):
     '''Class representing an OpenMP Declare Target directive for a variable.
     Note that it is not based on `OMPDeclareTargetDirective`, because the
-    latter has validation that it is at the beggining of the implementation of
+    latter has validation that it is at the beginning of the implementation of
     a routine, while this version of the directive is only allowed in the
     declaration.
 

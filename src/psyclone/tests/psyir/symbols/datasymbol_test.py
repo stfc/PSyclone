@@ -391,7 +391,7 @@ def test_datasymbol_directive():
 
     with pytest.raises(TypeError) as error:
         symbol.directive = OMPDeclareTargetDirective()
-    assert ("The directive associated with a DataSymbol must implement "
+    assert ("The directive associated with a DataSymbol must subclass "
             "SymbolDirective or be None but got 'OMPDeclareTargetDirective'."
             in str(error.value))
 
