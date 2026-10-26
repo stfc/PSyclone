@@ -6544,10 +6544,12 @@ class Fparser2Reader():
         # This is either TYPE IS, CLASS IS or CLASS DEFAULT
         type_guard_type: str = node.children[0].lower()
         # Find the Select_Type_Stmt containing the name we're interested in.
-        type_guard = TypeGuard(_type_guard_to_TypeGuardType[type_guard_type],
-                               parent=parent)
         # If we have a class default there is no type_spec_or_name
         if type_guard_type == "class default":
+            type_guard = TypeGuard(
+                _type_guard_to_TypeGuardType[type_guard_type], None,
+                parent=parent
+            )
             type_guard.addchild(Schedule())
             return type_guard
 
@@ -6555,24 +6557,18 @@ class Fparser2Reader():
         symbol_table = parent.scope.symbol_table
         if isinstance(type_spec_or_name, Fortran2003.Type_Name):
             type_name = type_spec_or_name.string
-            symbol = _find_or_create_unresolved_symbol(
-                    parent, type_name
-            )  # FIXME Need to create the right type of symbol?
-            type_guard.addchild(Reference(symbol))
-        # What else can this be?
+            symbol = symbol_table.lookup(type_name, otherwise=None)
+            if symbol is None:
+                raise NotImplementedError() # FIXME
+            dtype = symbol.datatype
         elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
             # If we have an Intrinsic Type Spec then we should get a
             # DataTypeSymbol with a Preprocessor Interface to represent i
             # so its not added to the output.
-            intrinsic_name = str(type_spec_or_name).lower()
-            symbol = symbol_table.find_or_create(
-                intrinsic_name, symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(),
-                interface=PreprocessorInterface(),
-            )
-            type_guard.addchild(Reference(symbol))
-        else:
-            assert False
+            dtype, _ = self._process_type_spec(parent, type_spec_or_name)
+        type_guard = TypeGuard(_type_guard_to_TypeGuardType[type_guard_type],
+                               dtype,
+                               parent=parent)
         type_guard.addchild(Schedule())
         return type_guard
 

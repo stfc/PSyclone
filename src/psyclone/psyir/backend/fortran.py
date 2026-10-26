@@ -2039,6 +2039,61 @@ class FortranWriter(LanguageWriter):
         self._depth -= 1
         return result
 
+    def _get_typeguard_datatype_str(self, datatype: DataType) -> str:
+        '''
+
+        FIXME - Untested.
+        '''
+        if isinstance(datatype, DataTypeSymbol):
+            # Symbol is of derived type
+            return "{datatype.name}"
+        if isinstance(datatype, StructureType):
+            return "{datatype.name}"
+        try:
+            fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
+        except KeyError as error:
+            raise NotImplementedError(
+                f"Unsupported datatype '{datatype.intrinsic}'"
+                f"found when generating typeguard.") from error
+        if isinstance(datatype.precision, int):
+            return "{fortrantype}({datatype.precision})"
+        len_str = ""
+        scalar_type = datatype
+        precision = datatype.precision
+        if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            # Include length information for a character type.
+            if scalar_type.length == ScalarType.CharLengthParameter.ASSUMED:
+                len_str = "*"
+            elif scalar_type.length == ScalarType.CharLengthParameter.DEFERRED:
+                len_str = ":"
+            else:
+                len_str = self._visit(scalar_type.length).strip()
+        if isinstance(precision, ScalarType.Precision):
+            # The precision information is not absolute so is either
+            # machine specific or is specified via the compiler. Fortran
+            # only distinguishes relative precision for single and double
+            # precision reals.
+            if precision == ScalarType.Precision.DOUBLE:
+                ty = fortrantype.lower()
+                if ty == "real":
+                    return "double precision"
+                elif ty == "complex":
+                    return "double complex"
+            if len_str:
+                return f"{fortrantype}(len={len_str})"
+            return fortrantype
+        if isinstance(precision, DataNode):
+            len_txt = ""
+            if len_str:
+                len_txt = f", len={len_str}"
+            # The precision information is provided by a parameter,
+            # so use KIND.
+            return (f"{fortrantype}(kind={self._visit(precision).strip()}"
+                    f"{len_txt})")
+        raise VisitorError(
+            f"Unsupported precision type '{type(precision).__name__}' found "
+            f"for symbol '{name}' in Fortran backend.")
+
     def typeguard_node(self, node: TypeGuard) -> str:
         '''
         Translate the TypeGuard node into Fortran.
@@ -2057,9 +2112,11 @@ class FortranWriter(LanguageWriter):
                      TypeGuard.TypeGuardType.TYPE_IS else
                      "class is")
 
+        datatype = self._get_typeguard_datatype_str(node.comparison_type)
+
         result = (f"{self._nindent}{typeguard}"
-                  f"({self._visit(node.children[0])})\n")
+                  f"({datatype})\n")
         self._depth += 1
-        result += self._visit(node.children[1])
+        result += self._visit(node.children[0])
         self._depth -= 1
         return result
