@@ -10,11 +10,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from psyclone.domain.common.kernel.metadata import KernelMetadata
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container, Node, Routine
+from psyclone.psyir.symbols import SymbolTable
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,7 @@ class Kernel:
     during construction.
     """
 
-    metadata: "KernelMetadata"
+    metadata: KernelMetadata
     psyir: Optional[Node] = None
     procedures: tuple[Routine, ...] = ()
     procedure_name: str = ""
@@ -104,60 +105,55 @@ class KernelContainer(Container):
     '''A domain-specific Container. This specialises the generic Container
     node and adds in any domain-specific information.
 
-    :param str name: the name of the container.
+    :param name: the name of the container.
     :param metadata: the metadata object.
-    :type metadata: \
-        :py:class:`psyclone.domain.common.kernel.KernelMetadata`
     :param kwargs: additional keyword arguments to pass to parent \
         constructor.
-    :type kwargs: unwrapped dict
 
     '''
-    def __init__(self, name, metadata, **kwargs):
+    def __init__(self, name: str, metadata: KernelMetadata,
+                 **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
         # The metadata object capturing kernel metadata.
         self._metadata = metadata
 
     @classmethod
-    def create(cls, name, metadata, symbol_table, children):
+    def create(
+        cls,
+        name: str,
+        metadata: KernelMetadata,
+        symbol_table: SymbolTable,
+        children: list[Node],
+    ) -> KernelContainer:
         '''Create a kernel Container instance given a name, metadata, a symbol
         table and a list of child nodes. A domain-specific kernel is
         created with the metadata describing the kernel interface for
         a single kernel routine within the container.
 
-        :param str name: the name of the Container.
+        :param name: the name of the Container.
         :param metadata: the metadata object.
-        :type metadata: \
-            :py:class:`psyclone.domain.common.kernel.KernelMetadata`
         :param symbol_table: the symbol table associated with this \
             Container.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or Routines.
-        :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
-            | :py:class:`psyclone.psyir.nodes.Routine`]
 
         :returns: an instance of `cls`.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
-            thereof.
 
         '''
         return cls(name, metadata, children=children,
                    symbol_table=symbol_table.detach())
 
     @property
-    def metadata(self):
+    def metadata(self) -> KernelMetadata:
         '''
         :returns: the kernel metadata object.
-        :rtype: :py:class:`psyclone.domain.common.kernel.KernelMetadata`
         '''
         return self._metadata
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Container:
         '''Lower this domain-specific container to language level psyir.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Create metadata symbol and add it to the container symbol
