@@ -369,11 +369,12 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.is_elemental is ("elemental" in fn_prefix)
     if fn_prefix.startswith("pure"):
-        assert rsym.is_pure
+        assert rsym.is_pure is True
     elif "impure" in fn_prefix:
         assert not rsym.is_pure
     else:
-        assert rsym.is_pure is None
+        # Any combination not including explicitly impure is pure
+        assert rsym.is_pure is True
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
