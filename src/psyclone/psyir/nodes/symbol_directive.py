@@ -34,7 +34,6 @@ class SymbolDirective:
         is expected that the copy will be added to a new parent node.
 
         :returns: a copy of this node.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # As a mixin class, this has no superclass with a copy function,

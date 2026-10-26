@@ -18,8 +18,7 @@ import pytest
 
 from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (
-    Container, KernelSchedule, Literal, Reference)
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
@@ -316,7 +315,7 @@ def test_get_external_symbol(monkeypatch):
             "'some_mod' but could not obtain its PSyIR." in str(err.value))
 
 
-def test_get_external_symbol_missing():
+def test_get_external_symbol_missing(monkeypatch):
     '''
     Test that get_external_symbol() raises the expected error when the
     requested symbol cannot be found in the Container from which it is

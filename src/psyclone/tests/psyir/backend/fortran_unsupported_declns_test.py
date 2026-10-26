@@ -290,12 +290,10 @@ def test_fw_unsupported_with_directive(fortran_reader, fortran_writer):
       end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     sym_tab = psyir.children[0].symbol_table
-    print("YYY", sym_tab)
     sym = sym_tab.lookup("unsupported")
     sym.directive = OMPDeclareTargetVariable()
 
     output = fortran_writer(psyir)
-    print(output)
     assert "real, pointer, public :: unsupported" in output
     assert "!$omp declare target(unsupported)" in output
 

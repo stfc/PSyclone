@@ -28,7 +28,7 @@ class DataTypeSymbol(Symbol):
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
-        super().__init__(name, visibility, interface)
+        super(DataTypeSymbol, self).__init__(name, visibility, interface)
 
         # The following attribute has a setter method (with error checking)
         self._datatype = None

@@ -29,7 +29,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     '''
     def __init__(self, name, datatype, **kwargs):
         self._datatype = None
-        super().__init__(name)
+        super(TypedSymbol, self).__init__(name)
         self._process_arguments(datatype=datatype, **kwargs)
 
     def _process_arguments(self, **kwargs):
