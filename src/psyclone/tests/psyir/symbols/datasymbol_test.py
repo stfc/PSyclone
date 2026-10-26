@@ -15,10 +15,12 @@ from fparser.two import Fortran2003
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
-    ScalarType, ArrayType, SymbolTable, UnresolvedType, UnsupportedFortranType)
+    ScalarType, ArrayType, SymbolTable, UnresolvedType, UnsupportedFortranType,
+    SymbolError)
 from psyclone.psyir.nodes import (
     BinaryOperation, CodeBlock, Fparser2CodeBlock, IntrinsicCall,
-    Literal, Reference, Return)
+    Literal, Reference, Return, OMPDeclareTargetDirective,
+    OMPDeclareTargetVariable)
 
 
 def test_datasymbol_initialisation():
@@ -363,6 +365,79 @@ def test_datasymbol_scalar_array():
     assert not sym1.is_array
     assert not sym2.is_scalar
     assert sym2.is_array
+
+
+def test_datasymbol_directive():
+    '''Test the DataSymbol directive getter, setter and copy behavior.'''
+    directive = OMPDeclareTargetVariable()
+    symbol = DataSymbol("sym", ScalarType.integer_type(),
+                        directive=directive)
+    assert symbol.directive is directive
+    assert directive.parent_symbol is symbol
+    assert not hasattr(Symbol("generic"), "directive")
+
+    specialised = Symbol("specialised")
+    specialised.specialise(
+        DataSymbol, datatype=ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable())
+    assert isinstance(specialised, DataSymbol)
+    assert isinstance(specialised.directive, OMPDeclareTargetVariable)
+    assert specialised.directive.parent_symbol is specialised
+
+    symbol_copy = symbol.copy()
+    assert symbol_copy.directive is not directive
+    assert isinstance(symbol_copy.directive, OMPDeclareTargetVariable)
+    assert symbol_copy.directive.parent_symbol is symbol_copy
+
+    with pytest.raises(TypeError) as error:
+        symbol.directive = OMPDeclareTargetDirective()
+    assert ("The directive associated with a DataSymbol must implement "
+            "SymbolDirective or be None but got 'OMPDeclareTargetDirective'."
+            in str(error.value))
+
+    new_symbol = DataSymbol("new", ScalarType.integer_type())
+    with pytest.raises(SymbolError) as err:
+        new_symbol.directive = directive
+    assert "already associated with the symbol 'sym'" in str(err.value)
+
+    symbol.directive = None
+    assert symbol.directive is None
+
+
+def test_datasymbol_copy_properties_directive():
+    '''Check that copy_properties copies the directive and its owner.'''
+    source = DataSymbol("source", ScalarType.integer_type(),
+                        directive=OMPDeclareTargetVariable())
+    target = DataSymbol("target", ScalarType.integer_type())
+
+    target.copy_properties(source)
+
+    assert target.directive is not source.directive
+    assert isinstance(target.directive, OMPDeclareTargetVariable)
+    assert target.directive.parent_symbol is target
+    assert source.directive.parent_symbol is source
+
+    source.directive = None
+    target.copy_properties(source)
+    assert target.directive is None
+
+
+def test_datasymbol_table_duplicate_with_directive():
+    '''Check a duplicated symbol's directive points to the duplicate.'''
+    symbol_table = SymbolTable()
+    original = DataSymbol(
+        "field", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable())
+    symbol_table.add(original)
+
+    duplicate = original.copy()
+    symbol_table.rename_symbol(original, "original_field")
+    symbol_table.add(duplicate)
+
+    assert original.directive.parent_symbol is original
+    assert duplicate.directive.parent_symbol is duplicate
+    assert (original.directive.parent_symbol is not
+            duplicate.directive.parent_symbol)
 
 
 def test_datasymbol_copy():

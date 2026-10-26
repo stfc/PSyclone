@@ -642,7 +642,7 @@ class FortranWriter(LanguageWriter):
                     result += (f" {self._COMMENT_PREFIX}"
                                f"{symbol.inline_comment}")
                 result += "\n"
-                if isinstance(symbol, Symbol) and symbol.directive:
+                if isinstance(symbol, DataSymbol) and symbol.directive:
                     result += self._visit(symbol.directive)
                 return result
             # The Fortran backend only handles UnsupportedFortranType
@@ -706,7 +706,7 @@ class FortranWriter(LanguageWriter):
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
         result += "\n"
-        if isinstance(symbol, Symbol) and symbol.directive:
+        if isinstance(symbol, DataSymbol) and symbol.directive:
             result += self._visit(symbol.directive)
         return result
 

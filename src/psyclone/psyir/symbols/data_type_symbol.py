@@ -23,14 +23,12 @@ class DataTypeSymbol(Symbol):
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param interface: the interface to this symbol.
     :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
-    :param directive: optional symbol-associated PSyIR directive.
-    :type directive: Optional[:py:class:`psyclone.psyir.nodes.SymbolDirective`]
 
     '''
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None, directive=None):
-        super().__init__(name, visibility, interface, directive)
+                 interface=None):
+        super().__init__(name, visibility, interface)
 
         # The following attribute has a setter method (with error checking)
         self._datatype = None
@@ -48,9 +46,7 @@ class DataTypeSymbol(Symbol):
         '''
         copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface.copy(),
-                          directive=(self.directive.copy()
-                                     if self.directive is not None else None))
+                          interface=self.interface.copy())
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy

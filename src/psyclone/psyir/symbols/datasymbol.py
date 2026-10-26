@@ -9,9 +9,14 @@
 
 from __future__ import annotations
 
+from typing import Optional, TYPE_CHECKING
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
-from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.symbol_directive import SymbolDirective
 
 
 class DataSymbol(TypedSymbol):
@@ -34,6 +39,7 @@ class DataSymbol(TypedSymbol):
         available in the TYPE_MAP_TO_PYTHON map. By default it is None.
     :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
         :py:class:`psyclone.psyir.nodes.Node`]
+    :param directive: optional symbol-associated PSyIR directive.
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
@@ -42,6 +48,7 @@ class DataSymbol(TypedSymbol):
 
     def __init__(self, name, datatype, is_constant=False, initial_value=None,
                  **kwargs):
+        self._directive: Optional[SymbolDirective] = None
         super().__init__(name, datatype)
         self._is_constant = False
         self._initial_value = None
@@ -66,6 +73,7 @@ class DataSymbol(TypedSymbol):
                 default it is None.\n
             :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
                 :py:class:`psyclone.psyir.nodes.Node`]\n
+            :param directive: optional symbol-associated PSyIR directive.\n
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
         :type kwargs: unwrapped dict.
 
@@ -76,6 +84,9 @@ class DataSymbol(TypedSymbol):
         '''
         new_initial_value = None
         new_is_constant_value = None
+        directive = kwargs.pop("directive", None)
+        if not hasattr(self, "_directive"):
+            self._directive = None
 
         # We need to consume 'initial_value' and 'is_constant' before calling
         # the super because otherwise there will be an unknown argument in
@@ -105,6 +116,9 @@ class DataSymbol(TypedSymbol):
 
         super()._process_arguments(**kwargs)
 
+        if directive is not None:
+            self.directive = directive
+
         # Now that we have a datatype we can use initial_value setter
         # with proper error checking.
         if new_initial_value is not None:
@@ -120,6 +134,42 @@ class DataSymbol(TypedSymbol):
             # a runtime constant so change its interface to be static if it
             # would otherwise default to Automatic.
             self.interface = StaticInterface()
+
+    @property
+    def directive(self) -> Optional[SymbolDirective]:
+        '''
+        :returns: the symbol-associated directive, if any.
+        '''
+        return self._directive
+
+    @directive.setter
+    def directive(self, directive: Optional[SymbolDirective] = None):
+        '''
+        Setter for the directive associated with this DataSymbol.
+
+        :param directive: the symbol-associated directive, if any.
+
+        :raises TypeError: if the supplied directive is not a SymbolDirective
+            or None.
+        '''
+        # This import has to be local to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.symbol_directive import SymbolDirective
+        if directive is not None and not isinstance(directive,
+                                                    SymbolDirective):
+            raise TypeError(
+                f"The directive associated with a DataSymbol must implement "
+                f"SymbolDirective or be None but got "
+                f"'{type(directive).__name__}'.")
+        if directive is not None:
+            if (directive.parent_symbol is not None and
+                    directive.parent_symbol is not self):
+                raise SymbolError(
+                    f"The directive '{directive}' is already associated with "
+                    f"the symbol '{directive.parent_symbol.name}' and "
+                    f"cannot be associated with the symbol '{self.name}'.")
+            directive.parent_symbol = self
+        self._directive = directive
 
     @property
     def is_constant(self):
@@ -329,6 +379,10 @@ class DataSymbol(TypedSymbol):
             raise TypeError(f"Argument should be of type 'DataSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
         super().copy_properties(symbol_in, exclude_interface=exclude_interface)
+        copied_directive = None
+        if symbol_in.directive:
+            copied_directive = symbol_in.directive.copy()
+        self.directive = copied_directive
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
         self.preceding_comment = symbol_in.preceding_comment

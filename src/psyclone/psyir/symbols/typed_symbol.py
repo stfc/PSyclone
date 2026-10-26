@@ -103,9 +103,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # first positional argument.
         copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface.copy(),
-                          directive=(self.directive.copy()
-                                     if self.directive is not None else None))
+                          interface=self.interface.copy())
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
