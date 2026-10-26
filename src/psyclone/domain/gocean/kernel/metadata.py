@@ -380,7 +380,8 @@ class GOceanKernelMetadata(KernelMetadata):
 
             if not datatype.procedure_components:
                 raise ParseError(
-                    "GOcean metadata must bind a kernel procedure."
+                    f"GOcean metadata must bind a kernel procedure but "
+                    f"{symbol.name} does not have any procedure declarations."
                 )
             procedure = next(iter(datatype.procedure_components.values()))
             procedure_name = (

@@ -83,7 +83,7 @@ dataclasses, built from language-level PSyIR:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Optional, TYPE_CHECKING, Union
 
 from psyclone.domain.common.kernel.metadata import (
@@ -155,6 +155,99 @@ def _normalise_label(value: object, description: str, default: str) -> str:
             f"Fortran name but found '{result}'."
         ) from err
     return result
+
+
+@dataclass(frozen=True)
+class _FieldArgMetadataBase(LFRicArgMetadata):
+    """Common fields and behaviour of all field metadata variants."""
+
+    datatype: str
+    access: str
+    function_space: str
+    # The optional fields are keyword-only so that subclasses can add required
+    # positional fields without violating dataclass argument ordering.
+    stencil: Optional[str] = field(default=None, kw_only=True)
+    nlayers: Optional[str] = field(default="", kw_only=True)
+    ndata: Optional[str] = field(default="1", kw_only=True)
+    form: ClassVar[str] = "gh_field"
+
+    def __post_init__(self) -> None:
+        """Validate and normalise the common field metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
+        const = LFRicConstants()
+        object.__setattr__(
+            self,
+            "datatype",
+            _normalise(
+                self.datatype,
+                "field datatype descriptor",
+                const.VALID_FIELD_DATA_TYPES,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "access",
+            _normalise(
+                self.access,
+                "field access descriptor",
+                const.VALID_FIELD_ACCESS_TYPES,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "function_space",
+            _normalise(
+                self.function_space,
+                "field function space",
+                const.VALID_FUNCTION_SPACE_NAMES,
+            ),
+        )
+        if self.stencil is not None:
+            object.__setattr__(
+                self,
+                "stencil",
+                _normalise(
+                    self.stencil,
+                    "stencil type",
+                    const.VALID_STENCIL_TYPES,
+                ),
+            )
+        object.__setattr__(
+            self,
+            "nlayers",
+            _normalise_label(self.nlayers, "nlayers", ""),
+        )
+        object.__setattr__(
+            self,
+            "ndata",
+            _normalise_label(self.ndata, "ndata", "1"),
+        )
+
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
+        form = self.form
+        vector_length = getattr(self, "vector_length", None)
+        if vector_length is not None:
+            form += f"*{vector_length}"
+        result = (
+            f"arg_type({form}, {self.datatype}, {self.access}, "
+            f"{self.function_space}"
+        )
+        if self.stencil:
+            result += f", stencil({self.stencil})"
+        if self.nlayers:
+            result += f", nlayers='{self.nlayers}'"
+        if self.ndata != "1":
+            result += f", ndata='{self.ndata}'"
+        mesh_arg = getattr(self, "mesh_arg", None)
+        if mesh_arg is not None:
+            result += f", mesh_arg={mesh_arg}"
+        return result + ")"
 
 
 @dataclass(frozen=True)
@@ -255,97 +348,17 @@ class ScalarArrayArgMetadata(LFRicArgMetadata):
 
 
 @dataclass(frozen=True)
-class FieldArgMetadata(LFRicArgMetadata):
+class FieldArgMetadata(_FieldArgMetadataBase):
     """Metadata for a field kernel argument."""
 
-    datatype: str
-    access: str
-    function_space: str
-    stencil: Optional[str] = None
-    nlayers: Optional[str] = ""
-    ndata: Optional[str] = "1"
-    form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field"
-
-    def __post_init__(self) -> None:
-        """Validate and normalise the field metadata.
-
-        :raises TypeError: if a value has the wrong type.
-        :raises ValueError: if a value is invalid.
-        """
-        const = LFRicConstants()
-        object.__setattr__(
-            self,
-            "datatype",
-            _normalise(
-                self.datatype,
-                "field datatype descriptor",
-                const.VALID_FIELD_DATA_TYPES,
-            ),
-        )
-        object.__setattr__(
-            self,
-            "access",
-            _normalise(
-                self.access,
-                "field access descriptor",
-                const.VALID_FIELD_ACCESS_TYPES,
-            ),
-        )
-        object.__setattr__(
-            self,
-            "function_space",
-            _normalise(
-                self.function_space,
-                "field function space",
-                const.VALID_FUNCTION_SPACE_NAMES,
-            ),
-        )
-        if self.stencil is not None:
-            object.__setattr__(
-                self,
-                "stencil",
-                _normalise(
-                    self.stencil,
-                    "stencil type",
-                    const.VALID_STENCIL_TYPES,
-                ),
-            )
-        object.__setattr__(
-            self, "nlayers", _normalise_label(
-                self.nlayers, "nlayers", ""))
-        object.__setattr__(
-            self, "ndata", _normalise_label(self.ndata, "ndata", "1"))
-
-    def fortran_string(self) -> str:
-        """
-        :returns: this descriptor as Fortran constructor syntax.
-        """
-        result = (
-            f"arg_type({self.form}, {self.datatype}, {self.access}, "
-            f"{self.function_space}"
-        )
-        if self.stencil:
-            result += f", stencil({self.stencil})"
-        if self.nlayers:
-            result += f", nlayers='{self.nlayers}'"
-        if self.ndata != "1":
-            result += f", ndata='{self.ndata}'"
-        return result + ")"
 
 
 @dataclass(frozen=True)
-class FieldVectorArgMetadata(LFRicArgMetadata):
+class FieldVectorArgMetadata(_FieldArgMetadataBase):
     """Metadata for a field-vector kernel argument."""
 
-    datatype: str
-    access: str
-    function_space: str
     vector_length: str
-    stencil: Optional[str] = None
-    nlayers: Optional[str] = ""
-    ndata: Optional[str] = "1"
-    form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field-vector"
 
     def __post_init__(self) -> None:
@@ -354,23 +367,7 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
         :raises TypeError: if a field value has the wrong type.
         :raises ValueError: if a value or vector length is invalid.
         """
-        field_metadata = FieldArgMetadata(
-            self.datatype,
-            self.access,
-            self.function_space,
-            self.stencil,
-            self.nlayers,
-            self.ndata,
-        )
-        for name in (
-            "datatype",
-            "access",
-            "function_space",
-            "stencil",
-            "nlayers",
-            "ndata",
-        ):
-            object.__setattr__(self, name, getattr(field_metadata, name))
+        super().__post_init__()
         try:
             length = int(self.vector_length)
         except (TypeError, ValueError) as err:
@@ -382,35 +379,12 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
             raise ValueError("Vector length must be greater than one.")
         object.__setattr__(self, "vector_length", str(length))
 
-    def fortran_string(self) -> str:
-        """
-        :returns: this descriptor as Fortran constructor syntax.
-        """
-        result = (
-            f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
-            f"{self.access}, {self.function_space}"
-        )
-        if self.stencil:
-            result += f", stencil({self.stencil})"
-        if self.nlayers:
-            result += f", nlayers='{self.nlayers}'"
-        if self.ndata != "1":
-            result += f", ndata='{self.ndata}'"
-        return result + ")"
-
 
 @dataclass(frozen=True)
-class InterGridArgMetadata(LFRicArgMetadata):
+class InterGridArgMetadata(_FieldArgMetadataBase):
     """Metadata for an inter-grid field argument."""
 
-    datatype: str
-    access: str
-    function_space: str
     mesh_arg: str
-    stencil: Optional[str] = None
-    nlayers: Optional[str] = ""
-    ndata: Optional[str] = "1"
-    form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid"
 
     def __post_init__(self) -> None:
@@ -419,60 +393,24 @@ class InterGridArgMetadata(LFRicArgMetadata):
         :raises TypeError: if a value has the wrong type.
         :raises ValueError: if a value is invalid.
         """
-        field_metadata = FieldArgMetadata(
-            self.datatype,
-            self.access,
-            self.function_space,
-            self.stencil,
-            self.nlayers,
-            self.ndata,
-        )
-        for name in (
-            "datatype",
-            "access",
-            "function_space",
-            "stencil",
-            "nlayers",
-            "ndata",
-        ):
-            object.__setattr__(self, name, getattr(field_metadata, name))
-        const = LFRicConstants()
+        super().__post_init__()
         object.__setattr__(
             self,
             "mesh_arg",
             _normalise(
-                self.mesh_arg, "mesh_arg", const.VALID_MESH_TYPES
+                self.mesh_arg,
+                "mesh_arg",
+                LFRicConstants().VALID_MESH_TYPES,
             ),
         )
 
-    def fortran_string(self) -> str:
-        """
-        :returns: this descriptor as Fortran constructor syntax.
-        """
-        result = FieldArgMetadata(
-            self.datatype,
-            self.access,
-            self.function_space,
-            self.stencil,
-            self.nlayers,
-            self.ndata,
-        ).fortran_string()
-        return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
-
 
 @dataclass(frozen=True)
-class InterGridVectorArgMetadata(LFRicArgMetadata):
+class InterGridVectorArgMetadata(_FieldArgMetadataBase):
     """Metadata for an inter-grid field-vector argument."""
 
-    datatype: str
-    access: str
-    function_space: str
     mesh_arg: str
     vector_length: str
-    stencil: Optional[str] = None
-    nlayers: Optional[str] = ""
-    ndata: Optional[str] = "1"
-    form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid-vector"
 
     def __post_init__(self) -> None:
@@ -481,48 +419,26 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
         :raises TypeError: if a value has the wrong type.
         :raises ValueError: if a value is invalid.
         """
-        vector_metadata = FieldVectorArgMetadata(
-            self.datatype,
-            self.access,
-            self.function_space,
-            self.vector_length,
-            self.stencil,
-            self.nlayers,
-            self.ndata,
-        )
-        for name in (
-            "datatype",
-            "access",
-            "function_space",
-            "vector_length",
-            "stencil",
-            "nlayers",
-            "ndata",
-        ):
-            object.__setattr__(self, name, getattr(vector_metadata, name))
-        const = LFRicConstants()
+        super().__post_init__()
+        try:
+            length = int(self.vector_length)
+        except (TypeError, ValueError) as err:
+            raise ValueError(
+                f"Vector length must be an integer string but found "
+                f"'{self.vector_length}'."
+            ) from err
+        if length <= 1:
+            raise ValueError("Vector length must be greater than one.")
+        object.__setattr__(self, "vector_length", str(length))
         object.__setattr__(
             self,
             "mesh_arg",
             _normalise(
-                self.mesh_arg, "mesh_arg", const.VALID_MESH_TYPES
+                self.mesh_arg,
+                "mesh_arg",
+                LFRicConstants().VALID_MESH_TYPES,
             ),
         )
-
-    def fortran_string(self) -> str:
-        """
-        :returns: this descriptor as Fortran constructor syntax.
-        """
-        result = FieldVectorArgMetadata(
-            self.datatype,
-            self.access,
-            self.function_space,
-            self.vector_length,
-            self.stencil,
-            self.nlayers,
-            self.ndata,
-        ).fortran_string()
-        return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
 
 
 @dataclass(frozen=True)
@@ -1753,9 +1669,9 @@ def _parse_arg(
             function_space,
             mesh,
             vector_length,
-            stencil,
-            nlayers,
-            ndata,
+            stencil=stencil,
+            nlayers=nlayers,
+            ndata=ndata,
         )
     if mesh:
         return InterGridArgMetadata(
@@ -1763,9 +1679,9 @@ def _parse_arg(
             access,
             function_space,
             mesh,
-            stencil,
-            nlayers,
-            ndata,
+            stencil=stencil,
+            nlayers=nlayers,
+            ndata=ndata,
         )
     if vector_length:
         return FieldVectorArgMetadata(
@@ -1773,17 +1689,17 @@ def _parse_arg(
             access,
             function_space,
             vector_length,
-            stencil,
-            nlayers,
-            ndata,
+            stencil=stencil,
+            nlayers=nlayers,
+            ndata=ndata,
         )
     return FieldArgMetadata(
         datatype,
         access,
         function_space,
-        stencil,
-        nlayers,
-        ndata,
+        stencil=stencil,
+        nlayers=nlayers,
+        ndata=ndata,
     )
 
 

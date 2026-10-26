@@ -139,7 +139,8 @@ def test_argument_metadata_classes():
             ScalarArrayArgMetadata("gh_real", "gh_read", ndims)
 
     field = FieldArgMetadata(
-        "GH_REAL", "GH_READ", "W0", "XORY1D", "NL", 2)
+        "GH_REAL", "GH_READ", "W0", stencil="XORY1D", nlayers="NL",
+        ndata=2)
     assert field.fortran_string() == (
         "arg_type(gh_field, gh_real, gh_read, w0, stencil(xory1d), "
         "nlayers='nl', ndata='2')")
@@ -154,7 +155,8 @@ def test_argument_metadata_classes():
                 "gh_real", "gh_write", "w0", **{name: value})
 
     vector = FieldVectorArgMetadata(
-        "gh_real", "gh_read", "w1", "3", "cross", "nl", "2")
+        "gh_real", "gh_read", "w1", "3", stencil="cross",
+        nlayers="nl", ndata="2")
     assert vector.fortran_string() == (
         "arg_type(gh_field*3, gh_real, gh_read, w1, stencil(cross), "
         "nlayers='nl', ndata='2')")
