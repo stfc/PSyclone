@@ -43,11 +43,5 @@ helmholtz_solver_alg_psy.o:	scaled_matrix_vector_kernel_mod.o
 helmholtz_solver_alg_mod.o:	helmholtz_solver_alg_psy.o
 scaled_matrix_vector_kernel_mod.o: $(LFRIC_LIB)
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
