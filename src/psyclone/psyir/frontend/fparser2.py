@@ -6566,9 +6566,8 @@ class Fparser2Reader():
             # the backend can find the name.
             dtype = symbol
         elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
-            # If we have an Intrinsic Type Spec then we should get a
-            # DataTypeSymbol with a Preprocessor Interface to represent i
-            # so its not added to the output.
+            # If we have an Intrinsic_Type_Spec then we process the type spec
+            # and create use the datatype.
             dtype, _ = self._process_type_spec(parent, type_spec_or_name)
         type_guard = TypeGuard(_type_guard_to_TypeGuardType[type_guard_type],
                                dtype,

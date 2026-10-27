@@ -2040,24 +2040,28 @@ class FortranWriter(LanguageWriter):
         result += f"{self._nindent}end select"
         return result
 
-    def _get_typeguard_datatype_str(self, datatype: DataType) -> str:
+    def _get_typeguard_datatype_str(
+        self, datatype: Union[DataTypeSymbol, DataType]
+    ) -> str:
         '''
+        :param datatype: The comparison type of a TypeGuard node.
 
-        FIXME - Untested.
+        :returns: the fortran representation of the comparison type of a
+                  TypeGuard node.
+
+        :raises NotImplementedError: if an unsupported intrinsic is
+                                     encountered.
+        :raises VisitorError: if an unsupported precision is encountered.
         '''
         if isinstance(datatype, DataTypeSymbol):
             # Symbol is of derived type
-            return f"{datatype.name}"
-        if isinstance(datatype, StructureType):
             return f"{datatype.name}"
         try:
             fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
         except KeyError as error:
             raise NotImplementedError(
                 f"Unsupported datatype '{datatype.intrinsic}'"
-                f"found when generating typeguard.") from error
-        if isinstance(datatype.precision, int):
-            return "{fortrantype}({datatype.precision})"
+                f"found when generating TypeGuard.") from error
         len_str = ""
         scalar_type = datatype
         precision = datatype.precision
@@ -2065,10 +2069,11 @@ class FortranWriter(LanguageWriter):
             # Include length information for a character type.
             if scalar_type.length == ScalarType.CharLengthParameter.ASSUMED:
                 len_str = "*"
-            elif scalar_type.length == ScalarType.CharLengthParameter.DEFERRED:
-                len_str = ":"
             else:
-                len_str = self._visit(scalar_type.length).strip()
+                raise VisitorError(
+                    f"Unsupported character length {scalar_type.length} "
+                    f"found when generating TypeGuard."
+                )
         if isinstance(precision, ScalarType.Precision):
             # The precision information is not absolute so is either
             # machine specific or is specified via the compiler. Fortran
