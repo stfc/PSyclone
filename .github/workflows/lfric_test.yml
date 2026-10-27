@@ -46,7 +46,7 @@ env:
   PYTHON_VERSION: "3.15"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
-  NUM_PARALLEL: 16
+  NUM_PARALLEL: 1
 
 jobs:
   run_if_on_mirror:
