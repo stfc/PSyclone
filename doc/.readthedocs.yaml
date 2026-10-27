@@ -42,9 +42,9 @@ version: 2
 
 # Set the version of Python and other tools you might need
 build:
-  os: ubuntu-26.04
+  os: ubuntu-lts-latest
   tools:
-    python: "3.14"
+    python: latest
   apt_packages:
     - graphviz
 
