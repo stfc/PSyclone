@@ -43,7 +43,7 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    NoType, PreprocessorInterface, RoutineSymbol, StaticInterface,
+    NoType, RoutineSymbol, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
@@ -6559,8 +6559,12 @@ class Fparser2Reader():
             type_name = type_spec_or_name.string
             symbol = symbol_table.lookup(type_name, otherwise=None)
             if symbol is None:
-                raise NotImplementedError() # FIXME
-            dtype = symbol.datatype
+                symbol = DataTypeSymbol(type_name, UnresolvedType(),
+                                        interface=UnresolvedInterface())
+                symbol_table.add(symbol)
+            # Use the DataTypeSymbol instead of the datatype so
+            # the backend can find the name.
+            dtype = symbol
         elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
             # If we have an Intrinsic Type Spec then we should get a
             # DataTypeSymbol with a Preprocessor Interface to represent i

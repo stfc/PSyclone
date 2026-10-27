@@ -2037,6 +2037,7 @@ class FortranWriter(LanguageWriter):
         for node in node.children[1:]:
             result = result + self._visit(node)
         self._depth -= 1
+        result += f"{self._nindent}end select"
         return result
 
     def _get_typeguard_datatype_str(self, datatype: DataType) -> str:
@@ -2046,9 +2047,9 @@ class FortranWriter(LanguageWriter):
         '''
         if isinstance(datatype, DataTypeSymbol):
             # Symbol is of derived type
-            return "{datatype.name}"
+            return f"{datatype.name}"
         if isinstance(datatype, StructureType):
-            return "{datatype.name}"
+            return f"{datatype.name}"
         try:
             fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
         except KeyError as error:
@@ -2092,7 +2093,7 @@ class FortranWriter(LanguageWriter):
                     f"{len_txt})")
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
-            f"for symbol '{name}' in Fortran backend.")
+            f"for in typeguard node.")
 
     def typeguard_node(self, node: TypeGuard) -> str:
         '''

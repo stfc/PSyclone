@@ -13,9 +13,9 @@ from typing import Union
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import DataType
 
 
@@ -46,23 +46,25 @@ class TypeGuard(Statement):
             TypeGuardType.CLASS_DEFAULT: "class default",
     }
 
-    def __init__(self, type_guard_type: TypeGuardType, 
-                 comparison_type: Union[DataType, None], **kwargs):
+    def __init__(self, type_guard_type: TypeGuardType,
+                 comparison_type: Union[DataTypeSymbol, DataType, None],
+                 **kwargs):
         super().__init__(**kwargs)
         # Use the setter to setup the type guard type.
         self.type_guard_type = type_guard_type
         self.comparison_type = comparison_type
 
-
     @property
-    def comparison_type(self) -> Union[DataType, None]:
+    def comparison_type(self) -> Union[DataTypeSymbol, DataType, None]:
         '''
         :returns: the datatype that this TypeGuard compares to.
         '''
         return self._comparison_type
 
     @comparison_type.setter
-    def comparison_type(self, comparison_type: Union[DataType, None]) -> None:
+    def comparison_type(
+        self, comparison_type: Union[DataTypeSymbol, DataType, None]
+    ) -> None:
         '''
         Sets the datatype that this TypeGuard compares to
 
@@ -71,8 +73,8 @@ class TypeGuard(Statement):
         :raises TypeError: if the comparison_type input is the wrong type.
         '''
         if (comparison_type is not None and
-                not isinstance(comparison_type, DataType)):
-            raise TypeError(f"{self.name} needs a DataType or None as the "
+                not isinstance(comparison_type, (DataTypeSymbol, DataType))):
+            raise TypeError(f"A TypeGuard needs a DataType or None as the "
                             f"comparison type but {comparison_type} was "
                             f"provided.")
         self._comparison_type = comparison_type
@@ -132,7 +134,8 @@ class TypeGuard(Statement):
         '''
         Creates an TypeGuard given a condition and its children.
 
-        :param type_guard_type: The type of Type Guard Statement this represents.
+        :param type_guard_type: The type of Type Guard Statement this
+                                represents.
         :param comparison_type: The datatype that this TypeGuard compares to.
         :param children: a list of Nodes contained in the body of the new
                          TypeGuard.
@@ -179,6 +182,7 @@ class TypeGuard(Statement):
             (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         for child in self.children:
             var_accesses.update(child.reference_accesses())
 
