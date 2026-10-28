@@ -9,7 +9,9 @@
 select type and type guard nodes.'''
 
 import pytest
+import re
 
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import TypeGuard
 from psyclone.tests.utilities import Compile
 
@@ -54,8 +56,75 @@ def test_supported_typeguard_datatypes(fortran_reader, fortran_writer,
     assert result == output_type
 
 
-# def test_unsupported_typeguard_datatypes(fortran_reader, fortran_writer):
-#    assert False
+def test_unsupported_typeguard_datatypes(fortran_reader, fortran_writer):
+    '''Test the unsupported datatype failures in
+    _get_typeguard_datatype_str.'''
+
+    # First we need to test an unknown intrinsic.
+    code = """subroutine test(i)
+    use some_mod
+
+    class(*), allocatable :: i
+
+    select type(i)
+        type is(integer)
+            call a()
+    end select
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    type_guard = psyir.walk(TypeGuard)[0]
+    type_guard.comparison_type._intrinsic = None
+
+    with pytest.raises(
+        NotImplementedError, match="Unsupported datatype 'None' found "
+                                   "when generating TypeGuard."):
+        fortran_writer._get_typeguard_datatype_str(type_guard.comparison_type)
+
+    # Next we need a character with a non assumed length (this is invalid
+    # input Fortran anyway)
+    code = """subroutine test(i)
+    use some_mod
+
+    class(*), allocatable :: i
+
+    select type(i)
+        type is(character(len=16))
+            call a()
+    end select
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    type_guard = psyir.walk(TypeGuard)[0]
+    with pytest.raises(
+        VisitorError, match=re.escape("Visitor Error: Unsupported character "
+                                      "length Literal[value:'16'"
+                                      ", Scalar<INTEGER, UNDEFINED>] found "
+                                      "when generating TypeGuard.")):
+        fortran_writer._get_typeguard_datatype_str(type_guard.comparison_type)
+
+    # Finally test an unsupported precision.
+    code = """subroutine test(i)
+    use some_mod
+
+    class(*), allocatable :: i
+
+    select type(i)
+        type is(integer)
+            call a()
+    end select
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    type_guard = psyir.walk(TypeGuard)[0]
+    type_guard.comparison_type._precision = None
+    with pytest.raises(
+        VisitorError, match="Unsupported precision type 'NoneType' found "
+                            "when generating TypeGuard."):
+        fortran_writer._get_typeguard_datatype_str(type_guard.comparison_type)
+
 
 def test_select_type_output(fortran_reader, fortran_writer, tmpdir):
     '''Tests that select type output is as expected.'''

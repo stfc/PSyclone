@@ -2060,7 +2060,7 @@ class FortranWriter(LanguageWriter):
             fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
         except KeyError as error:
             raise NotImplementedError(
-                f"Unsupported datatype '{datatype.intrinsic}'"
+                f"Unsupported datatype '{datatype.intrinsic}' "
                 f"found when generating TypeGuard.") from error
         len_str = ""
         scalar_type = datatype
@@ -2098,7 +2098,7 @@ class FortranWriter(LanguageWriter):
                     f"{len_txt})")
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
-            f"for in typeguard node.")
+            f"when generating TypeGuard.")
 
     def typeguard_node(self, node: TypeGuard) -> str:
         '''

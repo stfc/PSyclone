@@ -31,14 +31,28 @@ def test_select_type_create():
     assert selt.children[0] is ref
 
 
-def test_select_type_str():
+def test_select_type_str(fortran_reader):
     '''Tests the __str__ method of the SelectType class.'''
 
-    sym = DataSymbol("a", ScalarType.integer_type())
-    ref = Reference(sym)
-    selt = SelectType.create(ref, [])
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+    integer :: i, j
 
+    select type(a)
+        type is(integer)
+            i = 1
+    end select
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    selt = psyir.walk(SelectType)[0]
     correct = """SelectType[Reference[name:'a']]
+TypeGuard[type is][Scalar<INTEGER, UNDEFINED>]
+Schedule:
+Assignment[]
+Reference[name:'i']Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+End Schedule
+End TypeGuard
 End SelectType"""
     assert correct == str(selt)
 
