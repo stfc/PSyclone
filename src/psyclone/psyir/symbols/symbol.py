@@ -19,7 +19,7 @@ from psyclone.psyir.symbols.interfaces import (
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 if TYPE_CHECKING:
-    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.nodes.node import Node
     from psyclone.psyir.symbols import SymbolTable
 
 
@@ -42,15 +42,12 @@ class Symbol(CommentableMixin):
     to those nodes that are descendants of the Node to which its containing
     Symbol Table belongs.
 
-    :param str name: name of the symbol.
+    :param name: name of the symbol.
     :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
+    :param interface: optional object describing the interface to this
+        symbol (i.e. whether it is passed as a routine argument or
+        accessed in some other way). Defaults to
         :py:class:`psyclone.psyir.symbols.AutomaticInterface`
-    :type interface: Optional[ \
-        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
 
     :raises TypeError: if the name is not a str.
 
@@ -73,7 +70,9 @@ class Symbol(CommentableMixin):
     # given an explicit visibility.
     DEFAULT_VISIBILITY = Visibility.PUBLIC
 
-    def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None):
+    def __init__(self, name: str,
+                 visibility: Symbol.Visibility = DEFAULT_VISIBILITY,
+                 interface: Optional[SymbolInterface] = None):
 
         if not isinstance(name, str):
             raise TypeError(
@@ -88,18 +87,17 @@ class Symbol(CommentableMixin):
 
         self._process_arguments(visibility=visibility, interface=interface)
 
-    def _process_arguments(self, visibility=None, interface=None):
+    def _process_arguments(self,
+                           visibility: Optional[Symbol.Visibility] = None,
+                           interface: Optional[SymbolInterface] = None):
         ''' Process the visibility and interface arguments of the constructor
         and the specialise methods.
 
         :param visibility: the visibility of the symbol.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        :param interface: optional object describing the interface to this \
-            symbol (i.e. whether it is passed as a routine argument or \
-            accessed in some other way). Defaults to \
+        :param interface: optional object describing the interface to this
+            symbol (i.e. whether it is passed as a routine argument or
+            accessed in some other way). Defaults to
             :py:class:`psyclone.psyir.symbols.AutomaticInterface`
-        :type interface: Optional[ \
-            :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
 
         '''
         if interface:
@@ -124,6 +122,7 @@ class Symbol(CommentableMixin):
         # first positional argument.
         copy = type(self)(self.name, visibility=self.visibility,
                           interface=self.interface.copy())
+
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
@@ -548,3 +547,7 @@ class Symbol(CommentableMixin):
         :returns: a set of all the symbols accessed inside this Symbol.
         '''
         return set()
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["Symbol"]
