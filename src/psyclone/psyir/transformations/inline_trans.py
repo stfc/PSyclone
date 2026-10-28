@@ -199,12 +199,12 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         # Reuse proven-identical constants before extracting
         # the routine body, and exclude those constants from the table merge.
-        extra_skip = self._redirect_duplicate_parameters(table, routine)
+        extra_skip = self._reuse_identical_parameters(table, routine)
 
         # Resolve COMMON-block aliases by reusing the caller's symbols at
         # matching block positions, and exclude the now-unreferenced callee
         # symbols from the merge.
-        extra_skip += self._redirect_common_block_aliases(table, routine)
+        extra_skip += self._resolve_common_block_aliases(table, routine)
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -328,7 +328,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _redirect_duplicate_parameters(
+    def _reuse_identical_parameters(
         self,
         table,
         routine: Routine,
@@ -431,7 +431,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         return duplicates
 
-    def _redirect_common_block_aliases(
+    def _resolve_common_block_aliases(
             self,
             table: SymbolTable,
             routine: Routine,
