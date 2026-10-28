@@ -272,7 +272,7 @@ jobs:
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
         rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
+        ./build/local_build.py -p meto-ex1a -j ${NUM_PARALLEL} -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
@@ -303,7 +303,7 @@ jobs:
         # enabled, but we want to make sure we keep the nvfortran build working.
         rm -rf working-atm-gpu
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-gpu lfric_atm
+        ./build/local_build.py -p meto-ex1a -j ${NUM_PARALLEL} -w working-atm-gpu lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
 
