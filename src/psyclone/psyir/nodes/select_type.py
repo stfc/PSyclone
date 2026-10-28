@@ -7,7 +7,7 @@
 
 ''' This module contains the SelectType node implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.type_guard import TypeGuard
@@ -54,7 +54,7 @@ class SelectType(Statement):
         if not isinstance(istypes, list):
             raise GenerationError(
                 f"istypes argument in create method of SelectType class "
-                f"should be a list but found {type(istypes).__name__}."
+                f"should be a list but found '{type(istypes).__name__}'."
             )
 
         select_type = SelectType()
@@ -80,7 +80,10 @@ class SelectType(Statement):
             (a sequence of AccessTypes).
 
         '''
+        # The Reference is an inquiry
         var_accesses = self.children[0].reference_accesses()
+        sig, _ = self.children[0].get_signature_and_indices()
+        var_accesses[sig][0].access_type = AccessType.INQUIRY
         for child in self.children[1:]:
             var_accesses.update(child.reference_accesses())
 

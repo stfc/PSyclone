@@ -90,3 +90,6 @@ def test_select_type_output(fortran_reader, fortran_writer, tmpdir):
 end subroutine test"""
     assert correct in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+# FIXME Add comment testing.

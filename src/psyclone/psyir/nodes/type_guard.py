@@ -75,7 +75,7 @@ class TypeGuard(Statement):
         if (comparison_type is not None and
                 not isinstance(comparison_type, (DataTypeSymbol, DataType))):
             raise TypeError(f"A TypeGuard needs a DataType or None as the "
-                            f"comparison type but {comparison_type} was "
+                            f"comparison type but '{comparison_type}' was "
                             f"provided.")
         self._comparison_type = comparison_type
 
@@ -96,8 +96,8 @@ class TypeGuard(Statement):
         :raises TypeError: if the type_guard_type input is the wrong type.
         '''
         if not isinstance(type_guard_type, TypeGuard.TypeGuardType):
-            raise TypeError(f"{self.name} needs a TypeGuardType as the "
-                            f"type_guard_type but {type_guard_type} was "
+            raise TypeError(f"A TypeGuard needs a TypeGuardType as the "
+                            f"type_guard_type but '{type_guard_type}' was "
                             f"provided.")
         self._type_guard_type = type_guard_type
 
@@ -124,7 +124,7 @@ class TypeGuard(Statement):
         if len(self.children) != 1:
             raise InternalError(
                 f"TypeGuard malformed or incomplete. It should have 1 "
-                f"child, but found {len(self.children)}.")
+                f"child but found {len(self.children)}.")
         return self.children[0]
 
     @staticmethod
@@ -147,7 +147,7 @@ class TypeGuard(Statement):
         if not isinstance(children, list):
             raise GenerationError(
                 f"children argument in create method of TypeGuard class "
-                f"should be a list but found {type(children).__name__}."
+                f"should be a list but found '{type(children).__name__}'."
             )
         is_type = TypeGuard(type_guard_type, comparison_type)
         is_body = Schedule(parent=is_type, children=children)
@@ -159,13 +159,13 @@ class TypeGuard(Statement):
         '''
         :returns the string representation of this node.
         '''
-        name = f"{self.name}"
-        name += "[{self._type_guard_mapping[self.type_guard_type]}]"
+        name = "TypeGuard"
+        name += f"[{self._type_guard_mapping[self.type_guard_type]}]"
         comparison_type = (self.comparison_type if self.comparison_type is not
                            None else "")
         result = f"{name}[{comparison_type}]\n"
         result += f"{str(self.children[0])}\n"
-        result += f"End {name}"
+        result += "End TypeGuard"
         return result
 
     def begin_str(self) -> str:
