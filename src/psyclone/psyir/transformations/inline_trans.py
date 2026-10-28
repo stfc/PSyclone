@@ -124,12 +124,13 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
               allow_no_args_check_if_only_one_callee: bool = False,
               permit_codeblocks: bool = False,
               permit_unsupported_type_args: bool = False,
-              parameter_cloning: bool = True,
               **kwargs
               ):
         '''
         Takes the body of the routine that is the target of the supplied
-        call and replaces the call with it.
+        call and replaces the call with it. Identical constant (PARAMETER)
+        symbols already present at the call site are reused. Other symbols
+        are copied and renamed where necessary to avoid name clashes.
 
         :param node: the Call node to inline.
         :param routine: Optional Routine to be inlined. (By default, PSyclone
@@ -140,13 +141,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             if the target routine contains a CodeBlock.
         :param permit_unsupported_type_args: If `True` then the target routine
             is permitted to have arguments of UnsupportedType.
-        :param parameter_cloning: if `True` (the default), constant
-            (PARAMETER) symbols from the routine being inlined are always
-            copied into the call-site symbol table, potentially being renamed
-            to avoid clashes. If `False`, a constant from the routine is
-            skipped when an identical constant (same name, same type, and same
-            value) already exists at the call site, so no duplicate is
-            created.
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should
@@ -203,14 +197,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         #     just delete the if statement.
         self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
-        # If parameter_cloning is disabled, identify duplicate constant
-        # (PARAMETER) symbols and redirect their references *before* the
-        # routine body is extracted, so that the extracted statements already
-        # carry references to the call-site symbols.
-        extra_skip: list[DataSymbol] = []
-        if not parameter_cloning:
-            extra_skip = self._redirect_duplicate_parameters(
-                table, routine)
+        # Redirect references to proven-identical constants before extracting
+        # the routine body, and exclude those constants from the table merge.
+        extra_skip = self._redirect_duplicate_parameters(table, routine)
 
         # Redirect references to COMMON-block variables that are aliased
         # (same block position, different name) to the caller's symbol,
@@ -359,7 +348,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         unchanged.
 
         A constant is only considered a duplicate when every routine-local
-        symbol referenced inside its initial-value expression is itself a
+        symbol referenced by its datatype or initial-value expression is a
         confirmed duplicate.  This prevents false positives for expressions
         like ``negflag = .NOT. flag`` when ``flag`` has different values in
         the caller and the callee (the names would match but the semantics
@@ -404,8 +393,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 continue
             candidates[rsym.name.lower()] = rsym
 
-        # Second pass: iteratively remove candidates whose initial-value
-        # expression references a routine-local symbol that is NOT itself
+        # Second pass: iteratively remove candidates whose datatype or
+        # initial value references a routine-local symbol that is NOT itself
         # a confirmed duplicate. Without this step, an expression like
         # ``negflag = .NOT. flag`` would compare as equal by name even when
         # ``flag`` has different values in the two routines.
@@ -417,7 +406,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 if any(
                     dep.name.lower() in routine_local_names
                     and dep.name.lower() not in candidates
-                    for dep in rsym.initial_value.get_all_accessed_symbols()
+                    for dep in rsym.get_all_accessed_symbols()
                 )
             ]
             for name in to_remove:
