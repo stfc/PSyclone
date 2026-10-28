@@ -149,8 +149,9 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         echo "OFFLOAD before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
-        export FPP="nvfortran -E"
-        export FPPFLAGS="-P -D__NVCOMPILER"
+        #export FPP="nvfortran -E"
+        #export FPPFLAGS="-P -D__NVCOMPILER"
+        export FPPFLAGS="-D__NVCOMPILER ${FPPFLAGS}"
         echo "OFFLOAD after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         export BUILD_START="${SECONDS}"
         LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -v -j 1 -p psyclone-test \
