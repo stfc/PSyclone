@@ -36,11 +36,5 @@ mixed_precision_psy.o: mixed_kernel_mod.o
 run: compile
 	@echo "No run targets for lfric/eg19"
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
