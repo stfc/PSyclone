@@ -148,11 +148,12 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
+        echo "OFFLOAD before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         export FPP="nvfortran -E"
         export FPPFLAGS="-P -D__NVCOMPILER"
-        echo "OFFLOAD: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        echo "OFFLOAD after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -v -j 1 -p psyclone-test \
           -w working-gh-ompoffload gungho_model |& tee output.txt
         # Piping to tee ignores the errcode of the first command, make sure we account for it
         if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
@@ -190,6 +191,10 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-accoffload
+        echo "openacc before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
+        echo "openacc after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
           -w working-gh-accoffload gungho_model
         cd applications/gungho_model/example
@@ -221,6 +226,10 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh_alltrans
+        echo "lfric all before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
+        echo "lfric all after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-alltrans gungho_model
         # Run
         cd applications/gungho_model/example
@@ -250,6 +259,10 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-omptiling
+        echo "lfric colour before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
+        echo "lfric colour after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-omptiling gungho_model
         # Run
         cd applications/gungho_model/example
@@ -276,6 +289,10 @@ jobs:
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
         rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
+        echo "lfric transmute before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
+        echo "lfric transmute after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
@@ -307,6 +324,10 @@ jobs:
         # enabled, but we want to make sure we keep the nvfortran build working.
         rm -rf working-atm-gpu
         export BUILD_START="${SECONDS}"
+        echo "lfric nvfortran before: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
+        echo "lfric nvfortran after: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-gpu lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
