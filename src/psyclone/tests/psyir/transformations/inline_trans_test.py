@@ -3310,6 +3310,45 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
+@pytest.mark.parametrize("callee_name", ["k", "n"])
+def test_apply_common_block_array_bound(
+        fortran_reader, fortran_writer, tmp_path, callee_name):
+    """COMMON aliases in automatic array bounds must use the caller symbol."""
+    psyir = fortran_reader.psyir_from_source(f"""
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: n
+    common /blk/ n
+    n = 10
+    call sub()
+  end subroutine caller
+  subroutine sub()
+    integer :: {callee_name}
+    common /blk/ {callee_name}
+    real :: a({callee_name} + 1, {callee_name})
+    a = 1.0
+  end subroutine sub
+end module test_mod
+""")
+    caller, callee = psyir.walk(Routine)
+    original = fortran_writer(callee)
+    caller_symbol = caller.symbol_table.lookup("n")
+    InlineTrans().apply(caller.walk(Call)[0])
+
+    allocation = next(call for call in caller.walk(IntrinsicCall)
+                      if call.intrinsic == IntrinsicCall.Intrinsic.ALLOCATE)
+    bounds = [ref for ref in allocation.walk(Reference)
+              if ref.symbol.name in ("n", "k")]
+    assert len(bounds) == 2
+    assert all(ref.symbol is caller_symbol for ref in bounds)
+    assert "k" not in caller.symbol_table
+    assert "ALLOCATE(a(n + 1,n))" in fortran_writer(caller)
+    assert fortran_writer(callee) == original
+    assert Compile(tmp_path).string_compiles(fortran_writer(psyir))
+
+
 @pytest.mark.parametrize("callee_name", ["height", "depth"])
 def test_apply_common_block_reject_due_to_different_types(
         fortran_reader, fortran_writer, tmp_path, callee_name):

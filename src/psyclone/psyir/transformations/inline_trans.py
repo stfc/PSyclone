@@ -441,7 +441,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         For each such pair the caller's symbol is substituted for the
         callee's symbol in every :py:class:`~psyclone.psyir.nodes.Reference`
-        inside *routine*. The replaced callee symbols are returned so they
+        inside *routine*, including datatype and initial-value expressions
+        in its symbol tables. The replaced callee symbols are returned so they
         can be excluded from the subsequent symbol-table merge (they no
         longer have any live references).
 
@@ -458,7 +459,36 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         caller_blocks = self._common_block_vars(table)
         callee_blocks = self._common_block_vars(routine_table)
 
+        if not caller_blocks.keys() & callee_blocks.keys():
+            return []
+
+        # Declarations are not children of the Routine. Include references
+        # in their expressions before resolving aliases, since array bounds
+        # may later be used to construct allocation statements.
+        refs = routine.walk(Reference)
+        for scope in routine.walk(ScopingNode):
+            for symbol in scope.symbol_table.datasymbols:
+                expressions = []
+                if symbol.initial_value is not None:
+                    expressions.append(symbol.initial_value)
+                datatype = symbol.datatype
+                if isinstance(datatype, UnsupportedFortranType):
+                    datatype = datatype.partial_datatype
+                if isinstance(datatype, ArrayType):
+                    for bounds in datatype.shape:
+                        if isinstance(bounds, ArrayType.ArrayBounds):
+                            expressions.extend([bounds.lower, bounds.upper])
+                    datatype = datatype.elemental_type
+                if isinstance(datatype, ScalarType):
+                    expressions.append(datatype.precision)
+                    if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                        expressions.append(datatype.length)
+                for expression in expressions:
+                    if isinstance(expression, Node):
+                        refs.extend(expression.walk(Reference))
+
         symbols_to_skip = []
+        aliases = {}
         for block_name, callee_vars in callee_blocks.items():
             if block_name not in caller_blocks:
                 continue
@@ -469,10 +499,12 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 # corresponding caller's symbol.
                 caller_sym = table.lookup(caller_var_name)
                 callee_sym = routine_table.lookup(callee_var_name)
-                for ref in routine.walk(Reference):
-                    if ref.symbol is callee_sym:
-                        ref.symbol = caller_sym
+                aliases[callee_sym] = caller_sym
                 symbols_to_skip.append(callee_sym)
+
+        for ref in refs:
+            if ref.symbol in aliases:
+                ref.symbol = aliases[ref.symbol]
 
         return symbols_to_skip
 
