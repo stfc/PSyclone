@@ -16,7 +16,9 @@ if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
+from psyclone.psyir.symbols import DataSymbol
 
 
 class KernStubArgList(ArgOrdering):
@@ -30,35 +32,70 @@ class KernStubArgList(ArgOrdering):
     :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises NotImplementedError: if the kernel is inter-grid.
-    :raises NotImplementedError: if the kernel requires properties of the \
+    :raises NotImplementedError: if the kernel requires properties of the
                                  reference element.
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(self,
+                      var_accesses: Optional[VariablesAccessMap] = None
+                      ) -> None:
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("cell", var_accesses)
 
-    def mesh_height(self, var_accesses=None):
-        '''Add mesh height (nlayers) to the argument list and if supplied
-        stores this access in var_accesses.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add the distinct arguments for mesh height (nlayers) to the list
+        and, if supplied, stores these accesses in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        self.append("nlayers", var_accesses)
+        first_arg: LFRicKernelArgument = (
+            self._kern.arguments.first_field_or_operator)
+        default_nlayers = f"nlayers_{first_arg.name}"
+        sym = self._symtab.find_or_create_tag(
+            default_nlayers,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        self.append(sym.name, var_accesses)
+        nlayers_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self._symtab.find_or_create_tag(
+                    f"nlayers_label:{arg.nlayers}",
+                    root_name=f"nlayers_{arg.nlayers}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                if sym.name in nlayers_names:
+                    continue
+                nlayers_names.add(sym.name)
+                self.append(sym.name, var_accesses)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add to the argument list any distinct and unknown values of ndata
+        (number of data values per dof) required by field arguments. Also add
+        these accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
+        ndata_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                if arg.ndata in ndata_names:
+                    continue
+                ndata_names.add(arg.ndata)
+                self.append(f"ndata_{arg.ndata}", var_accesses)
 
     def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
@@ -325,8 +362,17 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        self.append(function_space.undf_name, var_accesses)
-        self.append(function_space.map_name, var_accesses)
+        try:
+            undf_name = self._symtab.lookup_with_tag(
+                function_space.undf_tag).name
+            map_name = self._symtab.lookup_with_tag(
+                function_space.map_tag).name
+        except KeyError:
+            # We may not have a populated symbol table.
+            undf_name = function_space.undf_name
+            map_name = function_space.map_name
+        self.append(undf_name, var_accesses)
+        self.append(map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
@@ -352,7 +398,7 @@ class KernStubArgList(ArgOrdering):
                 # A kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the last
                 # part of the shape name to "qr_".
-                basis_name = function_space.get_basis_name(
+                basis_name, basis_tag = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
                 self.append(basis_name, var_accesses)
 
@@ -361,9 +407,15 @@ class KernStubArgList(ArgOrdering):
                 # functions have been evaluated. _kern.eval_targets is a dict
                 # where the values are 2-tuples of (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    basis_name = \
+                    basis_name, basis_tag = \
                         function_space.get_basis_name(on_space=target[0])
-                    self.append(basis_name, var_accesses)
+                    try:
+                        name = self._symtab.lookup_with_tag(basis_tag).name
+                    except KeyError:
+                        # Allow for cases where the symbol table has not
+                        # been populated (mainly during testing)
+                        name = basis_name
+                    self.append(name, var_accesses)
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape ('{shape}'). Expected one "
@@ -392,9 +444,15 @@ class KernStubArgList(ArgOrdering):
                 # kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the
                 # last part of the shape name to "qr_".
-                diff_basis_name = function_space.get_diff_basis_name(
+                diff_basis_name, tag = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self.append(diff_basis_name, var_accesses)
+                try:
+                    name = self._symtab.lookup_with_tag(tag).name
+                except KeyError:
+                    # Allow for cases where the symbol table has not
+                    # been populated (mainly during testing)
+                    name = diff_basis_name
+                self.append(name, var_accesses)
 
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 # We need differential basis functions for an evaluator,
@@ -402,9 +460,15 @@ class KernStubArgList(ArgOrdering):
                 # a dict where the values are 2-tuples of
                 # (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    diff_basis_name = function_space.get_diff_basis_name(
+                    diff_basis_name, tag = function_space.get_diff_basis_name(
                         on_space=target[0])
-                    self.append(diff_basis_name, var_accesses)
+                    try:
+                        name = self._symtab.lookup_with_tag(tag).name
+                    except KeyError:
+                        # Allow for cases where the symbol table has not
+                        # been populated (mainly during testing)
+                        name = diff_basis_name
+                    self.append(name, var_accesses)
             else:
                 raise InternalError(f"Unrecognised evaluator shape "
                                     f"('{shape}'). Expected one of: "
