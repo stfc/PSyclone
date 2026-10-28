@@ -47,7 +47,8 @@ class DataSymbol(TypedSymbol):
     def __init__(self, name: str,
                  datatype: DataType,
                  is_constant: bool = False,
-                 initial_value: Optional[ScalarType.TYPE_MAP_TO_PYTHON | Node] = None,
+                 initial_value: Optional[ScalarType.TYPE_MAP_TO_PYTHON |
+                                         Node] = None,
                  **kwargs):
         self._directive: Optional[SymbolDirective] = None
         super().__init__(name, datatype)
