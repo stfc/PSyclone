@@ -448,7 +448,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             routine: Routine,
     ) -> list[DataSymbol]:
         '''Redirect references to COMMON-block variables in *routine* that are
-        aliased to differently-named variables in the caller *table* (same
+        aliased to variables in the caller *table* (same
         block, same position).
 
         For each such pair the caller's symbol is substituted for the
@@ -477,8 +477,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             caller_vars = caller_blocks[block_name]
             for caller_var_name, callee_var_name in zip(
                     caller_vars, callee_vars):
-                if caller_var_name.lower() == callee_var_name.lower():
-                    continue
                 # Replace all References to the callee's alias with the
                 # corresponding caller's symbol.
                 caller_sym = table.lookup(caller_var_name)
@@ -1226,8 +1224,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :raises TransformationError: if one of the declarations in the routine
             depends on an argument that is written to prior to the call.
         :raises TransformationError: if a COMMON block is declared in both
-            the caller and the routine being inlined with different variable
-            names and incompatible types.
+            the caller and the routine being inlined with incompatible types.
         :raises InternalError: if an unhandled Node type is returned by
             Reference.previous_accesses().
 
@@ -1379,34 +1376,21 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                             f"because it has a static (Fortran SAVE) "
                             f"interface for Symbol '{sym.name}'.")
 
-        # Check for unresolved symbols or for any accessed from the Container
-        # containing the target routine.
-        try:
-            routine.check_outer_scope_accesses(node, "routine",
-                                               permit_unresolved=False)
-        except SymbolError as err:
-            raise TransformationError(
-                f"Cannot inline '{routine.name}' because it accesses a "
-                f"variable that is unresolved or declared in an outer scope: "
-                f"{err.value}") from err
-
         routine_table = routine.symbol_table
         # Check that COMMON blocks shared between the caller and the callee
-        # that use *different* variable names are still type-compatible.
-        # Different names at the same block position mean the two variables
-        # are memory aliases; that is acceptable as long as their types
-        # match (the actual reference-redirection happens in apply()).
+        # are type-compatible, irrespective of their variable names.
+        # Variables at the same block position are memory aliases, provided
+        # their types match (reference-redirection happens in apply()).
         caller_blocks = self._common_block_vars(parent_routine.symbol_table)
         callee_blocks = self._common_block_vars(routine_table)
+        common_symbols_to_skip = []
         for block_name, callee_vars in callee_blocks.items():
             if block_name not in caller_blocks:
                 continue
             caller_vars = caller_blocks[block_name]
             for caller_var_name, callee_var_name in zip(
                     caller_vars, callee_vars):
-                if caller_var_name.lower() == callee_var_name.lower():
-                    continue
-                # Different names – check that the types are compatible.
+                # Check that the types are compatible.
                 caller_sym = parent_routine.symbol_table.lookup(
                     caller_var_name)
                 callee_sym = routine_table.lookup(callee_var_name)
@@ -1418,6 +1402,20 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                         f"'{callee_var_name}' (type '{callee_sym.datatype}')"
                         f" in the routine being inlined - the types are "
                         f"incompatible.")
+                common_symbols_to_skip.append(callee_sym)
+
+        # Check for unresolved symbols or for any accessed from the Container
+        # containing the target routine.
+        try:
+            routine.check_outer_scope_accesses(
+                node, "routine", permit_unresolved=False,
+                symbols_to_skip=common_symbols_to_skip)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot inline '{routine.name}' because it accesses a "
+                f"variable that is unresolved or declared in an outer scope: "
+                f"{err.value}") from err
+
         # Create a list of routine arguments that is actually used
         routine_arg_list = [
             routine_table.argument_list[i] for i in arg_match_list

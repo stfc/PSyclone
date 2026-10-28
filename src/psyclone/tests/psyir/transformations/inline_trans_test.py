@@ -3312,11 +3312,12 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
+@pytest.mark.parametrize("callee_name", ["height", "depth"])
 def test_apply_common_block_reject_due_to_different_types(
-        fortran_reader, fortran_writer, tmp_path):
+        fortran_reader, fortran_writer, tmp_path, callee_name):
     '''Test that inlining is rejected when the same COMMON block is declared
-    in both the caller and the callee with different variable names and
-    different types.
+    in both the caller and the callee with matching or different variable
+    names and different types.
     '''
 
     src = """\
@@ -3338,6 +3339,7 @@ contains
   end subroutine subfoo
 end module test_mod
 """
+    src = src.replace("height", callee_name)
     psyir = fortran_reader.psyir_from_source(src)
     caller = psyir.walk(Routine)[0]
 
@@ -3349,7 +3351,7 @@ end module test_mod
         trans.apply(calls[0])
     assert ("Cannot inline 'subfoo' because COMMON block '/ocean/' maps"
             " 'depth' (type 'Scalar<REAL, Literal[value:'4',"
-            " Scalar<INTEGER, UNDEFINED>]>') in the caller to 'height'"
+            f" Scalar<INTEGER, UNDEFINED>]>') in the caller to '{callee_name}'"
             " (type 'Scalar<REAL, Literal[value:'8', Scalar<INTEGER,"
             " UNDEFINED>]>') in the routine being inlined - the types"
             " are incompatible.") in str(err.value)
