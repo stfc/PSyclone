@@ -197,13 +197,13 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         #     just delete the if statement.
         self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
-        # Redirect references to proven-identical constants before extracting
+        # Reuse proven-identical constants before extracting
         # the routine body, and exclude those constants from the table merge.
         extra_skip = self._redirect_duplicate_parameters(table, routine)
 
-        # Redirect references to COMMON-block variables that are aliased
-        # (same block position, different name) to the caller's symbol,
-        # and exclude the now-unreferenced callee symbols from the merge.
+        # Resolve COMMON-block aliases by reusing the caller's symbols at
+        # matching block positions, and exclude the now-unreferenced callee
+        # symbols from the merge.
         extra_skip += self._redirect_common_block_aliases(table, routine)
 
         # Construct lists of the nodes that will be inserted and all of the
@@ -339,8 +339,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         same type, and same initial value). For each such symbol, every
         :py:class:`~psyclone.psyir.nodes.Reference` to it inside ``routine``
         and inside the datatypes / initial-value expressions of other symbols
-        in ``routine_table`` is redirected to point to the corresponding
-        symbol in ``table``.
+        in ``routine_table`` is updated to reuse the corresponding symbol
+        in ``table``.
 
         Only constants whose initial value is represented as a PSyIR node
         (i.e. ``initial_value is not None``) are considered; constants of
@@ -416,8 +416,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         duplicates: list[DataSymbol] = list(candidates.values())
 
-        # Redirect all references from duplicate symbols in the routine to
-        # their call-site counterparts.
+        # Reuse the call-site symbols for all references to identical
+        # constants in the routine.
         for rsym in duplicates:
             tsym = table.lookup(rsym.name)
             # Update all References in the routine body.
@@ -436,15 +436,14 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             table: SymbolTable,
             routine: Routine,
     ) -> list[DataSymbol]:
-        '''Redirect references to COMMON-block variables in *routine* that are
-        aliased to variables in the caller *table* (same
-        block, same position).
+        '''Resolve COMMON-block aliases in *routine* by reusing variables in
+        the caller *table* (same block, same position).
 
         For each such pair the caller's symbol is substituted for the
         callee's symbol in every :py:class:`~psyclone.psyir.nodes.Reference`
-        inside *routine*.  The callee symbols that have been redirected are
-        returned so they can be excluded from the subsequent symbol-table
-        merge (they no longer have any live references).
+        inside *routine*. The replaced callee symbols are returned so they
+        can be excluded from the subsequent symbol-table merge (they no
+        longer have any live references).
 
         The types of each aliased pair must already have been verified to be
         compatible by :py:meth:`validate`.
@@ -452,7 +451,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param table: the call-site symbol table.
         :param routine: the (copy of the) routine being inlined.
 
-        :returns: callee symbols whose references have been redirected and
+        :returns: callee symbols whose aliases have been resolved and
             that should therefore be skipped during the table merge.
         '''
         routine_table = routine.symbol_table
@@ -1369,7 +1368,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # Check that COMMON blocks shared between the caller and the callee
         # are type-compatible, irrespective of their variable names.
         # Variables at the same block position are memory aliases, provided
-        # their types match (reference-redirection happens in apply()).
+        # their types match (aliases are resolved in apply()).
         caller_blocks = self._common_block_vars(parent_routine.symbol_table)
         callee_blocks = self._common_block_vars(routine_table)
         common_symbols_to_skip = []
