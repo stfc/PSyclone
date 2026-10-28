@@ -309,7 +309,7 @@ def test_loop_fuse_resolved_different_spaces():
         ftrans.apply(loops[0:2])
 
 
-def test_loop_fuse_conditional_vector_fields(fortran_writer, tmpdir):
+def test_loop_fuse_conditional_vector_fields(tmpdir):
     ''' Test that the loop fusion works correctly for conditional fusion
     with vector fields.'''
     psy, invoke = get_invoke(
@@ -332,22 +332,22 @@ def test_loop_fuse_conditional_vector_fields(fortran_writer, tmpdir):
     if (f1(1)%which_function_space() == f4(1)%which_function_space()) then
       do cell = loop0_start, loop0_stop, 1
         call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
-f1_2_data, f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
-ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+f1_2_data, f2_data, f3_data, ndf_as1_f1__1, undf_as1_f1__1, \
+map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
         call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, \
-f4_2_data, f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), \
-ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+f4_2_data, f2_data, f3_data, ndf_as1_f4__1, undf_as1_f4__1, \
+map_as1_f4__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
       enddo
     else
       do cell = loop1_start, loop1_stop, 1
         call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
-f1_2_data, f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
-ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+f1_2_data, f2_data, f3_data, ndf_as1_f1__1, undf_as1_f1__1, \
+map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
       enddo
       do cell = loop2_start, loop2_stop, 1
         call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, \
-f4_2_data, f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), \
-ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+f4_2_data, f2_data, f3_data, ndf_as1_f4__1, undf_as1_f4__1, \
+map_as1_f4__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
       enddo
     end if"""
     generated_code = psy.gen
