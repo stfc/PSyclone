@@ -148,6 +148,8 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
+        export FPP="nvfortran -E"
+        export FPPFLAGS="-P -D__NVCOMPILER"
         echo "OFFLOAD: FPP $FPP FPPFLAGS $FPPFLAGS FC $FC"
         export BUILD_START="${SECONDS}"
         LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
