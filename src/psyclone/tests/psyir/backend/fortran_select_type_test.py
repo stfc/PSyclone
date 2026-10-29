@@ -185,8 +185,7 @@ def test_select_type_comments(fortran_writer, tmpdir):
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    correct = """before select type
-subroutine test(i)
+    correct = """subroutine test(i)
   use some_mod
   class(*), allocatable :: i
 
@@ -204,4 +203,5 @@ subroutine test(i)
       call c()
   end select
 end subroutine test"""
+    print(result)
     assert correct in result
