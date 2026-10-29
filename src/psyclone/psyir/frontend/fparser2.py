@@ -6067,7 +6067,15 @@ class Fparser2Reader():
         self, node: Fortran2003.Select_Type_Construct, parent: Node
     ) -> SelectType:
         '''
-        FIXME
+        Process a Select Type and add it to the tree.
+
+        :param node: The Select Type to be parsed.
+        :param parent: Parent node of the PSyIR node we are constructing.
+
+        :returns: A PSyIR SelectType node representing the input.
+
+        :raises NotImplementedError: if the Select Type input has an
+            assoc name.
         '''
 
         select_type = SelectType(parent=parent)
@@ -6075,6 +6083,11 @@ class Fparser2Reader():
         # Find the Select_Type_Stmt containing the name we're interested in.
         select_type_stmt = _first_type_match(node.children,
                                              Fortran2003.Select_Type_Stmt)
+
+        # Inline comments on a SelectType are indistinguishable from
+        # comments inside a SelectType from the fparser tree, so an
+        # inline comment will appear inside the SelectType.
+
         # If we have a => b syntax then we don't currently support it.
         if select_type_stmt.children[0] is not None:
             raise NotImplementedError(
@@ -6082,7 +6095,6 @@ class Fparser2Reader():
                 "an assoc-name for the selector."
             )
         variable_name = select_type_stmt.children[1].string
-        # FIXME Need to create the right type of symbol?
         symbol = _find_or_create_unresolved_symbol(parent, variable_name)
         select_type.addchild(Reference(symbol))
 
@@ -6150,7 +6162,12 @@ class Fparser2Reader():
         self, node: Fortran2003.Type_Guard_Stmt, parent: Node
     ) -> TypeGuard:
         '''
-        FIXME
+        Process a TypeGuard and add it to the tree.
+
+        :param node: The Type Guard to be parsed.
+        :param parent: Parent node of the PSyIR node we are constructing.
+
+        :returns: A PSyIR TypeGuard node representing the input.
         '''
         _type_guard_to_TypeGuardType: dict[str, TypeGuard.TypeGuardType] = {
             "type is": TypeGuard.TypeGuardType.TYPE_IS,

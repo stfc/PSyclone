@@ -2108,8 +2108,9 @@ class FortranWriter(LanguageWriter):
 
         :returns: the equivalent Fortran code.
         '''
+        result = f"{self.gen_preceding_comments(node)}"
         if node.type_guard_type == TypeGuard.TypeGuardType.CLASS_DEFAULT:
-            result = f"{self._nindent}class default\n"
+            result += f"{self._nindent}class default\n"
             self._depth += 1
             result += self._visit(node.children[0])
             self._depth -= 1
@@ -2120,8 +2121,8 @@ class FortranWriter(LanguageWriter):
 
         datatype = self._get_typeguard_datatype_str(node.comparison_type)
 
-        result = (f"{self._nindent}{typeguard}"
-                  f"({datatype})\n")
+        result += (f"{self._nindent}{typeguard}"
+                   f"({datatype})\n")
         self._depth += 1
         result += self._visit(node.children[0])
         self._depth -= 1

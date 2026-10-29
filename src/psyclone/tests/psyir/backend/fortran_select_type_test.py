@@ -11,6 +11,7 @@ select type and type guard nodes.'''
 import pytest
 import re
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import TypeGuard
 from psyclone.tests.utilities import Compile
@@ -161,4 +162,46 @@ end subroutine test"""
     assert Compile(tmpdir).string_compiles(result)
 
 
-# FIXME Add comment testing.
+def test_select_type_comments(fortran_writer, tmpdir):
+    '''Tests that comments are correctly output on select type.'''
+    code = """subroutine test(i)
+    use some_mod
+
+    class(*), allocatable :: i
+
+    ! before select type
+    select type(i) ! inline on select type
+        ! before first type guard
+        type is(integer)
+            !before call in type guard
+           call a()
+        !before second type guard
+        class is(some_class)
+           call b()
+        class default
+           call c()
+    end select
+    end subroutine"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    correct = """before select type
+subroutine test(i)
+  use some_mod
+  class(*), allocatable :: i
+
+  ! before select type
+  select type(i)
+    ! inline on select type
+    ! before first type guard
+    type is(integer)
+      ! before call in type guard
+      call a()
+    ! before second type guard
+    class is(some_class)
+      call b()
+    class default
+      call c()
+  end select
+end subroutine test"""
+    assert correct in result
