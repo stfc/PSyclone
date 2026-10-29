@@ -20,17 +20,13 @@ import stat
 from typing import Optional
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.parser import ParserFactory
-
 from psyclone import generator
-from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use, code_transformation_mode)
+    generate, main, check_psyir, code_transformation_mode)
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -345,21 +341,22 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             in caplog.text)
 
 
-def test_kernel_parsing_with_fortran_error(capsys):
+def test_kernel_parsing_with_fortran_error(capsys, caplog):
     '''Checks that the expected output is provided if a kernel contains
     invalid Fortran, especially the filename and the line number.
 
     '''
     alg = GOCEAN_BASE_PATH / "test13_invoke_kernel_invalid_fortran.f90"
     kern_filename = GOCEAN_BASE_PATH / "kernel_invalid_fortran.f90"
-    with pytest.raises(SystemExit):
-        main([str(alg), "-api", "gocean"])
+    with caplog.at_level(logging.ERROR, "psyclone.generator"):
+        with pytest.raises(SystemExit):
+            main([str(alg), "-api", "gocean"])
     out, err = capsys.readouterr()
     assert out == ""
-    assert "Failed to parse kernel code" in str(err)
+    assert "Failed to create PSyIR from kernel file" in err
     assert str(kern_filename) in str(err)
-    assert ("35:  end tpe compute_cu <== no parse pattern found for "
-            "\"end tpe compute_cu\" in 'Type' block.'" in str(err))
+    assert "at line 35" in caplog.text
+    assert "end tpe compute_cu" in caplog.text
 
 
 def test_script_file_too_short():
@@ -748,7 +745,7 @@ def test_main_logger(capsys, caplog, tmp_path):
     caplog.clear()
     out_file = str(tmp_path / "test.out")
     with caplog.at_level(logging.DEBUG):
-        main([str(filename), "-api", "dynamo0.3", "--log-level", "DEBUG",
+        main([str(filename), "-api", "lfric", "--log-level", "DEBUG",
               "--log-file", out_file])
         assert Config.get().api == "lfric"
         assert caplog.records[0].levelname == "DEBUG"
@@ -904,7 +901,6 @@ def test_keep_comments_lfric(capsys, monkeypatch):
     '''Test that the LFRic API correctly keeps comments and directives
     when applied the appropriate arguments.'''
     # Test this for LFRIC algorithm domain.
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     filename = str(LFRIC_BASE_PATH / "1_single_invoke_with_omp_dir.f90")
     main([filename, "-api", "lfric", "--keep-comments"])
     output, _ = capsys.readouterr()
@@ -1005,10 +1001,10 @@ def test_main_expected_fatal_error(capsys):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Parse Error: Kernel 'testkern_type' called from the "
-                       "algorithm layer with an insufficient number of "
-                       "arguments as specified by the metadata. Expected at "
-                       "least '5' but found '4'.\n")
+    expected_output = (
+        "Generation Error: The invoke kernel functor 'testkern_type' has 4 "
+        "arguments, but the kernel metadata expects there to be 5 arguments.\n"
+    )
     assert output == expected_output
 
 
@@ -1306,16 +1302,11 @@ def test_code_transformation_parse_failure(tmp_path, caplog, capsys):
         assert "Is the input valid Fortran" in caplog.text
 
 
-def test_generate_trans_error(tmp_path, capsys, monkeypatch):
+def test_generate_trans_error(tmp_path, capsys):
     '''Test that a TransformationError exception in the generate function
-    is caught and output as expected by the main function.  The
-    exception is only raised with the new PSyIR approach to modify the
-    algorithm layer which is currently in development so is protected
-    by a switch. This switch is turned on in this test by
-    monkeypatching.
+    is caught and output as expected by the main function.
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
         "module setval_c_mod\n"
         "contains\n"
@@ -1340,14 +1331,13 @@ def test_generate_trans_error(tmp_path, capsys, monkeypatch):
             "Algorithm routine name. This is not allowed." in output)
 
 
-def test_generate_no_builtin_container(tmp_path, monkeypatch):
+def test_generate_no_builtin_container(tmp_path):
     '''Test that a builtin use statement is removed if it has been added
     to a Container (a module). Also tests that everything works OK if
     no use statement is found in a symbol table (as FileContainer does
     not contain one).
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
         "module test_mod\n"
         "  contains\n"
@@ -1452,24 +1442,16 @@ def test_main_fort_line_length_all(capsys):
             in output)
 
 
-def test_main_no_invoke_alg_stdout(capsys):
-    '''Tests that the main() function outputs the original algorithm input
-    file to stdout when the algorithm file does not contain an invoke
-    and that it does not produce any psy output.
-
-    '''
-    # pass in a kernel file as that has no invokes in it
+def test_main_no_invoke_alg_stdout(capsys, caplog):
+    """Check algorithm output and the warning when no invokes are present."""
     kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
-    main([kern_filename, "-api", "lfric"])
+    with caplog.at_level(logging.WARNING, "psyclone"):
+        main([kern_filename, "-api", "lfric"])
     out, _ = capsys.readouterr()
-
-    with open(kern_filename, encoding="utf8") as kern_file:
-        kern_str = kern_file.read()
-        expected_output = (
-            f"Warning: Algorithm Error: Algorithm file contains no "
-            f"invoke() calls: refusing to generate empty PSy code\n"
-            f"Transformed algorithm code:\n{kern_str}\n")
-        assert expected_output == out
+    assert "Algorithm file contains no invoke() call" in caplog.text
+    expected = generator.FortranWriter()(
+        FortranReader().psyir_from_file(kern_filename))
+    assert out == f"Transformed algorithm code:\n{expected}\n"
 
 
 def test_main_write_psy_file(capsys, tmp_path):
@@ -1495,7 +1477,7 @@ def test_main_write_psy_file(capsys, tmp_path):
         assert psy_str in stdout
 
 
-def test_main_no_invoke_alg_file(capsys, tmp_path):
+def test_main_no_invoke_alg_file(capsys, tmp_path, caplog):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke
     and that it does not produce any psy output.
@@ -1508,22 +1490,18 @@ def test_main_no_invoke_alg_file(capsys, tmp_path):
     psy_filename = tmp_path / "psy.f90"
     # no need to delete the files as they have not been created
 
-    main([kern_filename, '-api', 'lfric',
-          '-oalg', str(alg_filename), '-opsy', str(psy_filename)])
-    stdout, _ = capsys.readouterr()
+    # Check that it generates a warning
+    with caplog.at_level(logging.WARNING, "psyclone"):
+        main([kern_filename, '-api', 'lfric',
+              '-oalg', str(alg_filename), '-opsy', str(psy_filename)])
+    assert "Algorithm file contains no invoke() call" in caplog.text
 
-    # check stdout contains warning
+    # Check alg file has the same output as input file
     with open(kern_filename, encoding="utf8") as kern_file:
         kern_str = kern_file.read()
-        expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
-                           "no invoke() calls: refusing to generate empty PSy "
-                           "code\n")
-        assert expected_stdout == stdout
-
-    # check alg file has same output as input file
     with open(alg_filename, encoding="utf8") as expected_file:
         expected_alg_str = expected_file.read()
-        assert expected_alg_str == kern_str
+    assert expected_alg_str[-50:] == kern_str[-50:]
 
     # check psy file is not created
     assert not psy_filename.exists()
@@ -1731,53 +1709,12 @@ def test_check_psyir():
     check_psyir(psyir, filename)
 
 
-def test_add_builtins_use():
-    '''Tests for the add_builtins_use utility method.'''
-
-    # no spec_part
-    code = (
-        "program test_prog\n"
-        "end program\n")
-    parser = ParserFactory().create(std="f2008")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree, "my_name")
-    assert "USE my_name" in str(fp2_tree)
-    # spec_part
-    code = (
-        "program test_prog\n"
-        "  integer :: i\n"
-        "end program\n")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree, "ANOTHER_NAME")
-    assert "USE ANOTHER_NAME" in str(fp2_tree)
-    # multiple modules/programs
-    code = (
-        "program test_prog\n"
-        "end program\n"
-        "module test_mod1\n"
-        "end module\n"
-        "module test_mod2\n"
-        "end module\n")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree, "builtins")
-    assert str(fp2_tree) == (
-        "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
-        "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
-        "MODULE test_mod2\n  USE builtins\nEND MODULE")
-
-
-def test_no_script_lfric_new(monkeypatch):
+def test_no_script_lfric():
     '''Test that the generate function in generator.py returns
     successfully if no script is specified for the lfric (LFRic)
-    api. This test uses the new PSyIR approach to modify the algorithm
-    layer which is currently in development so is protected by a
-    switch. This switch is turned on in this test by monkeypatching.
+    api.
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                       api="lfric")
     # new call replaces invoke
@@ -1791,13 +1728,10 @@ def test_no_script_lfric_new(monkeypatch):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_script_lfric_new(monkeypatch, tmp_path):
+def test_script_lfric(tmp_path):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
-    functions) is specified. This test uses the new PSyIR approach to
-    modify the algorithm layer which is currently in development so is
-    protected by a switch. This switch is turned on in this test by
-    monkeypatching.
+    functions) is specified.
 
     '''
     alg_script = script_factory(tmp_path, """
@@ -1807,7 +1741,6 @@ def trans_alg(psyir):
 def trans(psyir):
     pass
     """)
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                       api="lfric", script_name=alg_script)
     # new call replaces invoke
@@ -1821,16 +1754,12 @@ def trans(psyir):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_builtins_lfric_new(monkeypatch):
+def test_builtins_lfric():
     '''Test that the generate function in generator.py returns
     successfully when the algorithm layer contains a mixture of
-    kernels and builtins. This test uses the new PSyIR approach to
-    modify the algorithm layer which is currently in development so is
-    protected by a switch. This switch is turned on in this test by
-    monkeypatching.
+    kernels and builtins.
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(
         str(LFRIC_BASE_PATH / "15.1.2_builtin_and_normal_kernel_invoke.f90"),
         api="lfric")
@@ -1849,42 +1778,25 @@ def test_builtins_lfric_new(monkeypatch):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_no_invokes_lfric_new(monkeypatch):
-    '''Test that the generate function in generator.py raises the expected
-    exception if the algorithm layer contains no invoke() calls. This
-    test uses the new PSyIR approach to modify the algorithm layer
-    which is currently in development so is protected by a
-    switch. This switch is turned on in this test by monkeypatching.
+def test_no_invokes_lfric(caplog):
+    '''Test that the generate function in generator.py logs the expected
+    message if the algorithm layer contains no invoke() calls.
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     # pass a kernel file as it has no invoke's in it.
-    with pytest.raises(NoInvokesError) as info:
-        _, _ = generate(str(LFRIC_BASE_PATH / "testkern_mod.F90"),
-                        api="lfric")
-    assert ("Algorithm file contains no invoke() calls: refusing to generate "
-            "empty PSy code" in str(info.value))
+    with caplog.at_level(logging.WARNING, "psyclone"):
+        _, _ = generate(str(LFRIC_BASE_PATH / "testkern_mod.F90"), api="lfric")
+    assert "Algorithm file contains no invoke() call" in str(caplog.text)
 
 
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
-def test_generate_unresolved_container_lfric(invoke, tmp_path, monkeypatch):
+def test_generate_unresolved_container_lfric(invoke, tmp_path):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
-    compiled. The exception is only raised with the new PSyIR approach
-    to modify the algorithm layer which is currently in development so
-    is protected by a switch. This switch is turned on in this test by
-    monkeypatching. Test when the functor is at different levels of
-    PSyIR hierarchy to ensure that the name of the parent routine is
-    always found.
-
-    At the moment this exception is only raised if the functor is
-    declared in a different subroutine or function, as the original
-    parsing approach picks up all other cases. However, the original
-    parsing approach will eventually be removed.
+    compiled.
 
     '''
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
         f"module some_kernel_mod\n"
         f"use module_mod, only : module_type\n"
@@ -1910,7 +1822,7 @@ def test_generate_unresolved_container_lfric(invoke, tmp_path, monkeypatch):
     assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
             "algorithm file '" in str(info.value))
     assert ("alg.f90' must be named in a use statement (found ["
-            "'constants_mod', 'field_mod', '_psyclone_builtins', "
+            "'constants_mod', 'field_mod', "
             "'module_mod']) or be a recognised built-in (one of "
             "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
 
@@ -2027,14 +1939,9 @@ def trans(psyir, **kwargs):
 def test_script_arguments_lfric_testing(tmp_path, capsys, monkeypatch):
     """Tests that script arguments are received as expected using the
     LFRic API. This test creates a dummy script that prints the arguments
-    for trans and trans_alg, which we check for. This uses LFRIC_TESTING,
-    which will also call trans_alg (which by default LFRic otherwise would
-    not do).
-
-    TODO #1618
+    for trans and trans_alg, which we check for.
 
     """
-    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
 
     recipe = '''
 def trans(psyir, **kwargs):

@@ -45,6 +45,7 @@ module helmholtz_solver_alg_mod
 
   use field_mod,                 only: field_type
   use constants_mod,             only: i_def, r_def
+  use timestepping_config_mod,   only: tau_t
 
   type(field_type) :: hb_inv
   type(field_type), private :: grad_p

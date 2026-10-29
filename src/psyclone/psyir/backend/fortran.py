@@ -22,7 +22,7 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     ComplexLiteral, DataNode, IntrinsicCall, Literal, Member, Node,
     OMPDependClause, OMPReductionClause, Operation, Range, Routine, Schedule,
-    UnaryOperation, UnknownDirective, IfBlock)
+    UnaryOperation, UnknownDirective, IfBlock, SelectType, TypeGuard)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1075,8 +1075,11 @@ class FortranWriter(LanguageWriter):
         # them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
+            from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+            lfric_builtins = [x.lower() for x in BUILTIN_MAP.keys()]
             if isinstance(sym.interface, UnresolvedInterface):
-                unresolved_symbols.append(sym)
+                if sym.name.lower() not in lfric_builtins:
+                    unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
         try:
             internal_interface_symbol = symbol_table.lookup(
@@ -2021,4 +2024,112 @@ class FortranWriter(LanguageWriter):
         result = ""
         for child in node.children:
             result += self._visit(child)
+        return result
+
+    def selecttype_node(self, node: SelectType) -> str:
+        '''
+        Translate the SelectType node into Fortran.
+
+        :param node: the SelectType node to translate.
+
+        :returns: the equivalent Fortran code.
+        '''
+        result = (f"{self._nindent}select type"
+                  f"({self._visit(node.children[0])})\n")
+        self._depth += 1
+        for node in node.children[1:]:
+            result = result + self._visit(node)
+        self._depth -= 1
+        result += f"{self._nindent}end select"
+        return result
+
+    def _get_typeguard_datatype_str(
+        self, datatype: Union[DataTypeSymbol, DataType]
+    ) -> str:
+        '''
+        :param datatype: The comparison type of a TypeGuard node.
+
+        :returns: the fortran representation of the comparison type of a
+                  TypeGuard node.
+
+        :raises NotImplementedError: if an unsupported intrinsic is
+                                     encountered.
+        :raises VisitorError: if an unsupported precision is encountered.
+        '''
+        if isinstance(datatype, DataTypeSymbol):
+            # Symbol is of derived type
+            return f"{datatype.name}"
+        try:
+            fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
+        except KeyError as error:
+            raise NotImplementedError(
+                f"Unsupported datatype '{datatype.intrinsic}' "
+                f"found when generating TypeGuard.") from error
+        len_str = ""
+        scalar_type = datatype
+        precision = datatype.precision
+        if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            # Include length information for a character type.
+            if scalar_type.length == ScalarType.CharLengthParameter.ASSUMED:
+                len_str = "*"
+            else:
+                raise VisitorError(
+                    f"Unsupported character length {scalar_type.length} "
+                    f"found when generating TypeGuard."
+                )
+        if isinstance(precision, ScalarType.Precision):
+            # The precision information is not absolute so is either
+            # machine specific or is specified via the compiler. Fortran
+            # only distinguishes relative precision for single and double
+            # precision reals.
+            if precision == ScalarType.Precision.DOUBLE:
+                ty = fortrantype.lower()
+                if ty == "real":
+                    return "double precision"
+                elif ty == "complex":
+                    return "double complex"
+            if len_str:
+                return f"{fortrantype}(len={len_str})"
+            return fortrantype
+        if isinstance(precision, DataNode):
+            len_txt = ""
+            if len_str:
+                len_txt = f", len={len_str}"
+            # The precision information is provided by a parameter,
+            # so use KIND.
+            return (f"{fortrantype}(kind={self._visit(precision).strip()}"
+                    f"{len_txt})")
+        raise VisitorError(
+            f"Unsupported precision type '{type(precision).__name__}' found "
+            f"when generating TypeGuard.")
+
+    def typeguard_node(self, node: TypeGuard) -> str:
+        '''
+        Translate the TypeGuard node into Fortran.
+
+        :parm node: the TypeGuard node to translate.
+
+        :returns: the equivalent Fortran code.
+        '''
+        result = f"{self.gen_preceding_comments(node)}"
+        # If we have a CLASS_DEFAULT we generate that separately.
+        if node.type_guard_type == TypeGuard.TypeGuardType.CLASS_DEFAULT:
+            result += f"{self._nindent}class default\n"
+            self._depth += 1
+            result += self._visit(node.children[0])
+            self._depth -= 1
+            return result
+
+        # Otherwise generate the type is or class is.
+        typeguard = ("type is" if node.type_guard_type ==
+                     TypeGuard.TypeGuardType.TYPE_IS else
+                     "class is")
+
+        datatype = self._get_typeguard_datatype_str(node.comparison_type)
+
+        result += (f"{self._nindent}{typeguard}"
+                   f"({datatype})\n")
+        self._depth += 1
+        result += self._visit(node.children[0])
+        self._depth -= 1
         return result

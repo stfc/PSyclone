@@ -49,6 +49,7 @@ module helmholtz_solver_alg_mod
 
     use field_mod, only : field_type
     use operator_mod, only : operator_type
+    use constants_mod, only : r_def
     use scaled_matrix_vector_kernel_mod, only: opt_scaled_matrix_vector_kernel_type
 
     implicit none
