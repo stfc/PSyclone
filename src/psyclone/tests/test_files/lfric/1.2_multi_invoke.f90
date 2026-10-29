@@ -19,7 +19,7 @@ program multi_invoke
 
   call invoke(                           &
        testkern_type(a, f1, f2, m1, m2), &
-       testkern_type(a, f1, f3, m2, m1)  &
+       testkern_type(a, f3, f2, m2, m1)  &
           )
 
 end program multi_invoke

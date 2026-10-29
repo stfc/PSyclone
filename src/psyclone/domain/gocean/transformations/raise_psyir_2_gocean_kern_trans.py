@@ -9,6 +9,8 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
+from typing import Any, Optional
+
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
@@ -16,6 +18,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def find_symbol(node, name):
@@ -43,6 +46,7 @@ def find_symbol(node, name):
     return (symbol, scoping_node)
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2GOceanKernTrans(Transformation):
     '''Raise a generic PSyIR representation of a kernel-layer routine
     to a PSyclone version with specialised domain-specific nodes and
@@ -74,14 +78,14 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     >>> trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     >>> trans.apply(kernel_container)
 
-    :param str metadata_name: the name of the symbol containing the \
+    :param metadata_name: the name of the symbol containing the
         required kernel metadata in language-level PSyIR.
 
-    :raises TransformationError: if the supplied metadata_name is \
+    :raises TransformationError: if the supplied metadata_name is
         invalid.
 
     '''
-    def __init__(self, metadata_name):
+    def __init__(self, metadata_name: str) -> None:
         super().__init__()
 
         try:
@@ -96,13 +100,13 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # The name of the PSyIR symbol containing the metadata
         self._metadata_name = metadata_name
 
-    def validate(self, node, options=None):
+    def validate(self, node: Container,
+                 options: Optional[dict[str, str]] = None,
+                 **kwargs: Any) -> None:
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str: str]]
 
         :raises TransformationError: if the metadata name has not been \
             set or does not exist in the code.
@@ -114,6 +118,12 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
             routine which implements the kernel.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
+        # TODO #2668: Deprecate options dict.
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, Container):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -162,7 +172,9 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"that it names as implementing the kernel ('{proc_name}').")
         # TODO #288: Validate kernel arguments against metadata.
 
-    def apply(self, node, options=None):
+    def apply(self, node: Container,
+              options: Optional[dict[str, str]] = None,
+              **kwargs: Any) -> None:
         '''Raise the supplied language-level GOcean kernel PSyIR to
         GOcean-specific kernel PSyIR. Specialises the kernel container
         to a GOcean-specific subclass, populates this subclass with
@@ -171,12 +183,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str: str]]
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # Find the metadata symbol based on the supplied name.
         metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)

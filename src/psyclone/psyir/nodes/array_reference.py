@@ -116,8 +116,10 @@ class ArrayReference(ArrayMixin, Reference):
                 # We have full type information so we know the shape of the
                 # original declaration.
                 orig_shape = self.symbol.datatype.shape
-            elif (isinstance(self.symbol.datatype, UnsupportedFortranType) and
-                  self.symbol.datatype.partial_datatype):
+            elif (
+                isinstance(self.symbol.datatype, UnsupportedFortranType) and
+                isinstance(self.symbol.datatype.partial_datatype, ArrayType)
+            ):
                 # We have partial type information so we also know the shape
                 # of the original declaration.
                 orig_shape = self.symbol.datatype.partial_datatype.shape

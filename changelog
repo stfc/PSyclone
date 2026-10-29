@@ -1,3 +1,87 @@
+   80) #3657. Reverts Python version for the readthedocs build as 3.15 is
+   not yet supported.
+
+   79) PR #3510 towards #868. Implement support for custom function spaces
+   with user-defined multi-data fields and number of layers.
+
+   78) PR #3656. Bump ITs to use oneAPI 2026.2.
+ 
+   77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
+ 
+   76) PR #3627 for #3626. Ensure that elemental routines are also marked
+   as pure and forbid HoistLocalArraysTrans on pure routines.
+ 
+   75) PR #3595 for #3315. Extends LFRicLoopFuseTrans to attempt to resolve
+   'any-space' function spaces and conditionally fuse if that fails.
+ 
+   74) PR #3511. Add --keep-comments in some NEMO integration tests.
+
+   73) PR #3633 for #2927. Ensures the profiling wrapper libs are
+   thread safe (to permit them to be called from *within* threaded regions).
+ 
+   72) PR #3638. Add python 3.15 in the CI.
+
+   71) PR #3610 for #3454. ModuleInline supports routines with calls in the
+   callee file by recursively copying those in the caller module.
+
+   70) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
+   global reductions.
+ 
+   69) PR #3612 for #2668. Adds keyword argument support to all remaining
+   Transformations ready for option dict removal.
+
+   68) PR #3643 for #3637 and #3644. Fixes line-length limiter issues when
+   line breaks occur in an in-line comment.
+ 
+   67) PR #3641. Improve NEMOv4 GPU performance by tweaking the transformation
+   script (updating omitted files, using OMP for reduction in stpctl).
+ 
+   66) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
+   kernel metadata. Allows kernels previously transformed by PSyclone
+   to still be parsed as DSL kernels.   
+
+   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   inlined by making the arrays allocatable.
+ 
+   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+   transformation scripts/source for GPU performance.
+
+   63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
+   when the ancestor loops of a directive are iteration-independent.
+
+   62) PR #3580 for #3576. Update LFRic extraction integration tests.
+
+   61) PR #3618 for #3614. Ensures any kernel-parsing errors are
+   propagated back to the user.
+ 
+   60) PR #3616 for #3509. Fixes failing test on master (colour codes
+   in PSyIR node output).
+ 
+   59) PR #3604 towards #2668. Moves more Transformations over to using
+   keyword arguments instead of 'options'.
+ 
+   58) PR #3572 for #1948. Add stencil support for LFRic domain kernels.
+
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
+   54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
+   a deferred InlineTrans on Kernels after lower the PSy layer.
+ 
+   53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
+   create a Call rather than an IntrinsicCall when an imported Symbol
+   shadows an Intrinsic.
+ 
+   52) PR #3574 for #3568. Removes references to fparser from the DUC
+   implementation (by extending the query functionality on CodeBlock).
+ 
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
    50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
    metatransformations. 
 

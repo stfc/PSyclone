@@ -7,6 +7,8 @@
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
+from typing import Any, Optional
+
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations import TransformationError
@@ -15,8 +17,10 @@ from psyclone.gocean1p0 import GOKern
 from psyclone.psyir.nodes import (BinaryOperation, Container, Reference, Loop,
                                   Assignment, IfBlock, Return)
 from psyclone.psyir.symbols import ScalarType, ArgumentInterface, DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
                                                  CalleeTransformationMixin):
     ''' Provides a transformation that moves iteration boundaries that are
@@ -65,18 +69,22 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         '''Returns the name of this transformation as a string.'''
         return "GOMoveIterationBoundariesInsideKernelTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node: GOKern,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Ensure that it is valid to apply this transformation to the
         supplied node.
 
         :param node: the node to validate.
-        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a GOKern.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, GOKern):
             raise TransformationError(
                 f"Error in {self.name} transformation. This transformation "
@@ -85,16 +93,17 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
 
         self._check_callee_implementation_is_local(node)
 
-    def apply(self, node, options=None):
+    def apply(self, node: GOKern,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''Apply this transformation to the supplied node.
 
         :param node: the node to transform.
-        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options, **kwargs)
 
         self._boundary_values_declare_and_init(node)
 
