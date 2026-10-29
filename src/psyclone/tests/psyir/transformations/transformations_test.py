@@ -16,7 +16,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule,
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
-    OMPDoDirective, OMPLoopDirective, Routine)
+    OMPDoDirective, OMPLoopDirective, Routine, Statement)
 from psyclone.psyir.symbols import (
      ContainerSymbol, ScalarType, ImportInterface, DataSymbol)
 from psyclone.psyir.transformations import (

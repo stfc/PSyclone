@@ -8,7 +8,6 @@
 ''' This module provides the GlobalReduction base class. '''
 
 import copy
-from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
