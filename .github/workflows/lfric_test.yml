@@ -116,7 +116,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-passthrough
-        ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
+        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -148,7 +148,7 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
           -w working-gh-ompoffload gungho_model |& tee output.txt
         # Piping to tee ignores the errcode of the first command, make sure we account for it
         if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
