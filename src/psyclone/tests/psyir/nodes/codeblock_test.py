@@ -391,6 +391,7 @@ def test_codeblock_previous_accesses(fortran_reader):
     assert accesses[0] is assigns[1].lhs
     assert accesses[1] is assigns[0].lhs
 
+
 def test_fparser_codeblock_contains_stmt(fortran_reader):
     """Test the contains_stmt works correctly for Fparser codeblocks."""
     # Purposely inlined to lazily load this module only when needed

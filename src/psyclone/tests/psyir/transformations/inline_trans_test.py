@@ -18,14 +18,13 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Assignment, Call, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    Call, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
     OMPParallelDirective, Reference, Routine, Literal)
 from psyclone.psyir.symbols import (
     ArrayType, AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
     ScalarType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
-from psyclone.tests.test_files.dummy_statement import DummyStatement
 from psyclone.tests.utilities import Compile, get_invoke
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
