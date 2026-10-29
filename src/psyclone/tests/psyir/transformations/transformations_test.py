@@ -28,7 +28,6 @@ from psyclone.transformations import (
     OMPSingleTrans, OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.tests.test_files.dummy_statement import DummyStatement
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -64,7 +63,7 @@ def test_accloop():
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
-    cnode = DummyStatement()
+    cnode = Statement()
     tdir = trans._directive([cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
@@ -234,7 +233,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
         all_signatures = [DummySig()]
 
         def __getitem__(self, _):
-            return [DummyAccess(DummyStatement())]
+            return [DummyAccess(Statement())]
 
     monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
     with pytest.raises(TransformationError) as err:
@@ -923,7 +922,7 @@ def test_profile_trans_invalid_name(value):
     # We need to have a schedule as parent, otherwise the node
     # (with no parent) will not be allowed.
     sched = Schedule()
-    node = DummyStatement(parent=sched)
+    node = Statement(parent=sched)
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
         profile_trans.apply(node, options={"region_name": value})

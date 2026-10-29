@@ -30,7 +30,6 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
             self._merge_accesses(next_accesses, var_accesses)
         return next_accesses
 
-    @abc.abstractmethod
     def next_accesses(self) -> list[Node]:
         '''
         Abstract method for finding the next_accesses of a statement.
@@ -53,7 +52,6 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
             self._merge_accesses(prev_accesses, var_accesses)
         return prev_accesses
 
-    @abc.abstractmethod
     def previous_accesses(self) -> list[Node]:
         '''
         Abstract method for finding the previous_accesses of a statement.

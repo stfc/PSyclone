@@ -14,7 +14,6 @@ from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import GenerationError
-from psyclone.tests.test_files.dummy_statement import DummyStatement
 from psyclone.utils import colored
 
 
@@ -36,8 +35,8 @@ def test_sched_init():
     # A custom symbol table and parent and children nodes can be given as
     # arguments of Schedule.
     symtab = SymbolTable()
-    sched2 = Schedule(parent=sched, children=[DummyStatement(),
-                                              DummyStatement()],
+    sched2 = Schedule(parent=sched, children=[Statement(),
+                                              Statement()],
                       symbol_table=symtab)
     assert isinstance(sched2, Schedule)
     assert sched2.parent is sched
