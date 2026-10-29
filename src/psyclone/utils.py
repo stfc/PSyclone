@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-# Authors: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''This module provides generic utility functions.'''
@@ -48,6 +18,28 @@ from psyclone.docstring_parser import (
 )
 if TYPE_CHECKING:
     from psyclone.psyGen import Transformation
+
+# We use the termcolor module (if available) to enable us to produce
+# coloured, textual representations of PSyIR schedules. If it's not
+# available then we don't use colour.
+try:
+    # pylint disable=import-outside-toplevel
+    from termcolor import colored
+except ImportError:
+    # We don't have the termcolor package available (e.g. installing from
+    # Spack) so provide alternative routine
+    def colored(text: str, _: str) -> str:
+        '''
+        Returns the supplied text argument unchanged. This is a swap-in
+        replacement for when termcolor.colored is not available.
+
+        :param text: text to return.
+        :param _: fake argument, only required to match interface
+                  provided by termcolor.colored.
+
+        :returns: the supplied text, unchanged.
+        '''
+        return text
 
 
 def within_virtual_env():
@@ -184,6 +176,10 @@ def transformation_documentation_wrapper(*args,
 
         :raises InternalError: if cls is not a Transformation.
         '''
+        if not __debug__:
+            # Python without debug info doesn't have the necessary docstrings,
+            # so we return without modifying anything
+            return cls
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Transformation
         if not issubclass(cls, Transformation):

@@ -1,45 +1,12 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and J. G. Wallwork, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Node PSyIR node. '''
 
-import builtins
-import runpy
 import sys
 import os
 import re
@@ -58,7 +25,7 @@ from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -126,24 +93,6 @@ def test_node_coloured_name_exception(monkeypatch):
     assert ("The _colour attribute in class 'Node' has been set to a "
             "colour ('invalid') that is not supported by the termcolor "
             "package." in str(err.value))
-
-
-def test_node_colored_fallback_without_termcolor(monkeypatch):
-    '''Exercise the fallback implementation of ``colored`` when termcolor
-    cannot be imported.
-
-    '''
-    original_import = builtins.__import__
-
-    def fake_import(name, *args, **kwargs):
-        '''Raise ImportError only for termcolor.'''
-        if name == "termcolor":
-            raise ImportError("termcolor unavailable")
-        return original_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    module_globals = runpy.run_path(node.__file__)
-    assert module_globals["colored"]("text", "green") == "text"
 
 
 def test_node_str(monkeypatch):
@@ -443,7 +392,7 @@ def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
+        os.path.join(BASE_PATH, "4_multikernel_invokes_fusable.f90"),
         api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -453,7 +402,7 @@ def test_node_args():
     loop2 = schedule.children[1]
     kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
-    all_args = kern1.arguments.args
+    all_args = kern1.arguments.args[:]
     all_args.extend(kern2.arguments.args)
     schedule_args = schedule.args
     for idx, arg in enumerate(all_args):
@@ -468,7 +417,7 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply((schedule.children[0], schedule.children[1]))
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -1679,7 +1628,7 @@ def test_origin_string(fortran_reader):
     # If its a Statement from a file, it can return the PSyIR node type, the
     # line number span, the filename and the original source line.
     string = psyir.walk(Statement)[0].origin_string()
-    assert "Assignment from line (76, 76) of file" in string
+    assert "Assignment from line (50, 50) of file" in string
     assert "continuity_mod.f90" in string
     assert "ssha(ji,jj) = 0.0_go_wp" in string
 
@@ -2088,3 +2037,45 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "j" in symbol_names
     assert "k" in symbol_names
     assert "l" in symbol_names
+
+
+def test_get_last_descendant_node(fortran_reader):
+    '''Test the get_last_descendant_node functionality of the Node class.'''
+    code = """subroutine test_sub()
+    integer :: i, j, k
+
+    k = 12
+    i = j + k
+    end subroutine test_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The get_last_descendant_node of the psyir statement is the k in i = j + k
+    assigns = psyir.walk(Assignment)
+    assert psyir.get_last_descendant_node() is assigns[1].rhs.children[1]
+    # Last node in the first assignment is the rhs.
+    assert assigns[0].get_last_descendant_node() is assigns[0].rhs
+    # Last node in the second assignment is the k in i = j + k
+    assert assigns[1].get_last_descendant_node() is assigns[1].rhs.children[1]
+    # Last node on k is itself
+    assert (assigns[1].rhs.children[1].get_last_descendant_node() is
+            assigns[1].rhs.children[1])
+
+    # Test we get the right node for a more complex example.
+    code = """subroutine test_sub()
+    integer :: i, j, k
+
+    if (i > 4) then
+        i = 4
+    elseif (j < 5) then
+        k = 2
+    else
+        j = k + i
+    end if
+    end subroutine test_sub"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The get_last_descendant_node of the ifblock is the i in j = k + i
+    ifblock = psyir.children[0].children[0]
+    assigns = psyir.walk(Assignment)
+    assert ifblock.get_last_descendant_node() is assigns[2].rhs.children[1]

@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-#         J. G. Wallwork, University of Cambridge
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
@@ -46,10 +14,10 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Reference, Literal, ArrayReference, Range, StructureReference,
     ArrayOfStructuresReference, IntrinsicCall)
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, Symbol, ArrayType, StructureType, DataTypeSymbol)
 from psyclone.tests.utilities import check_links
+from psyclone.utils import colored
 
 
 def test_assignment_node_str():
@@ -158,17 +126,40 @@ def test_is_array_assignment():
     assert assignment.is_literal_assignment
 
     # Check when lhs consists of various forms of structure access
-    grid_type = StructureType.create([
-        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
-        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "dy",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     # Create the definition of the 'field_type', contains array of grid_types
     field_type_def = StructureType.create(
-        [("data", ArrayType(ScalarType.real_single_type(), [10]),
-          Symbol.Visibility.PUBLIC,
-          None),
-         ("sub_meshes", ArrayType(grid_type_symbol, [3]),
-          Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "data",
+                ArrayType(ScalarType.real_single_type(), [10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "sub_meshes",
+                ArrayType(grid_type_symbol, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     field_type_symbol = DataTypeSymbol("field_type", field_type_def)
     field_symbol = DataSymbol("wind", field_type_symbol)
 
@@ -265,7 +256,7 @@ def test_array_assignment_with_reduction():
         one.copy())
     if not assignment.is_array_assignment:
         # is_array_assignment should return True
-        pytest.xfail(reason="#658 needs typing of PSyIR expressions")
+        pytest.xfail(reason="#1799 needs typing of PSyIR expressions")
 
 
 def test_is_not_array_assignment():
@@ -319,9 +310,22 @@ def test_is_not_array_assignment():
     assert assignment.is_array_assignment is False
 
     # lhs is a scalar member of a structure
-    grid_type = StructureType.create([
-        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
-        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "dy",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),

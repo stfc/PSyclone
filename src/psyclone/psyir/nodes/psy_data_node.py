@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module implements a PSyData node, i.e. a node that at code
@@ -40,6 +10,7 @@ creation time will create callbacks according to the PSyData API.
 This is the base class for nodes that e.g. create kernel extraction
 or profiling. '''
 
+from typing import Optional, TYPE_CHECKING
 from collections import namedtuple
 
 from psyclone.configuration import Config
@@ -55,6 +26,9 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
                                     ContainerSymbol, UnresolvedType, Symbol,
                                     UnsupportedFortranType, ImportInterface)
+
+if TYPE_CHECKING:
+    from fparser.two import Fortran2003
 
 
 # =============================================================================
@@ -72,28 +46,26 @@ class PSyDataNode(Statement):
     the PSyData module name (prefix_psy_data_mod) and for the PSyDataType
     (prefix_PSyDataType).
 
-    :param ast: reference into the fparser2 parse tree corresponding to \
+    :param ast: reference into the fparser2 parse tree corresponding to
         this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node. These \
+    :param children: the PSyIR nodes that are children of this node. These
         will be made children of the child Schedule of this PSyDataNode.
     :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options for transformations.
-    :type options: Optional[dict[str, Any]]
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType \
-        (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "", which means the module name used will just be \
+    :param prefix: a prefix to use for the PSyData module name
+        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_PSyDataType``) - a "_" will be added automatically.
+        It defaults to the class prefix ("" for PSyDataNode), giving
         ``psy_data_mod``, and the data type ``PSyDataType``.
-    :param tuple[str,str] options["region_name"]: an optional name to \
-        use for this PSyDataNode, provided as a 2-tuple containing a \
-        module name followed by a local name. The pair of strings should \
-        uniquely identify a region unless aggregate information is required \
+    :param region_name: an optional name to
+        use for this PSyDataNode, provided as a 2-tuple containing a
+        module name followed by a local name. The pair of strings should
+        uniquely identify a region unless aggregate information is required
         (and is supported by the runtime library).
 
-    :raises InternalError: if a prefix is specified that is not listed in the \
+    :raises InternalError: if a prefix is specified that is not listed in the
         configuration file.
 
     '''
@@ -104,19 +76,17 @@ class PSyDataNode(Statement):
     #: The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = ""
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None, *,
+                 prefix: Optional[str] = None,
+                 region_name: Optional[tuple[str, str]] = None):
 
         super().__init__(ast=ast, children=children, parent=parent)
-        if not options:
-            options = {}
-
-        # Store a copy of the options so the node can later access them
-        self._options = options.copy()
 
         # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        prefix = options.get("prefix", self._default_prefix)
+        if prefix is None:
+            prefix = self._default_prefix
         # Check that the prefix is one of those listed as being supported
         # in the configuration file. If it *is* listed then it is assumed
         # that a matching PSyData wrapper library is available at compile time.
@@ -176,7 +146,7 @@ class PSyDataNode(Statement):
 
         # TODO: #1394 Fix code duplication between
         # PSyDataTrans and this PSyDataNode
-        name = options.get("region_name", None)
+        name = region_name
         if name:
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
@@ -210,14 +180,6 @@ class PSyDataNode(Statement):
         is_eq = is_eq and self.module_name == other.module_name
         is_eq = is_eq and self.region_name == other.region_name
         return is_eq
-
-    @property
-    def options(self):
-        ''':returns: the option dictionary of this class.
-        :rtype: dict[str,Any]
-
-        '''
-        return self._options
 
     @property
     def prefix(self):
@@ -260,36 +222,38 @@ class PSyDataNode(Statement):
         return self._region_name
 
     @classmethod
-    def create(cls, children, symbol_table, ast=None, options=None):
+    def create(cls, children: list[Node], symbol_table: SymbolTable,
+               ast: Optional["Fortran2003.Base"] = None, *,
+               prefix: Optional[str] = None,
+               region_name: Optional[tuple[str, str]] = None,
+               **kwargs):
         '''
         Creates a new (sub-class of a) PSyData node with the supplied
         'children' nodes as its children. The symbols used by the PSyData API
         are added to the supplied symbol table. This is a class method so that
         it acts as a factory for the various sub-classes of PSyDataNode.
 
-        :param children: the PSyIR nodes that will become children of the \
+        :param children: the PSyIR nodes that will become children of the
             new PSyData node.
-        :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
-        :param symbol_table: the associated SymbolTable to which symbols \
+        :param symbol_table: the associated SymbolTable to which symbols
             must be added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :parent ast: reference to fparser2 parse tree for the routine being \
+        :param ast: reference to fparser2 parse tree for the routine being
             instrumented with PSyData calls.
-        :type ast: :py:class:`fparser.two.Fortran2003.Base`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[dict[str, Any]]
-        :param str options[prefix"]: a prefix to use for the PSyData module \
-            name (``prefix_psy_data_mod``) and the PSyDataType \
-            (``prefix_PSyDataType``) - a "_" will be added automatically. \
-            It defaults to "", which means the module name used will just be \
+        :param prefix: a prefix to use for the PSyData module
+            name (``prefix_psy_data_mod``) and the PSyDataType
+            (``prefix_PSyDataType``) - a "_" will be added automatically.
+            It defaults to the class prefix ("" for PSyDataNode), giving
             ``psy_data_mod``, and the data type ``PSyDataType``.
-        :param tuple[str,str] options["region_name"]: an optional name to use \
-            for this PSyDataNode, provided as a 2-tuple containing a module \
-            name followed by a local name. The pair of strings should \
-            uniquely identify a region unless aggregate information is \
+        :param region_name: an optional name to use
+            for this PSyDataNode, provided as a 2-tuple containing a module
+            name followed by a local name. The pair of strings should
+            uniquely identify a region unless aggregate information is
             required (and is supported by the runtime library).
 
-        :raises TypeError: if the supplied children or symbol table are not \
+        :param kwargs: additional keyword arguments for the subclass
+            constructor.
+
+        :raises TypeError: if the supplied children or symbol table are not
             of the correct type.
 
         '''
@@ -308,7 +272,8 @@ class PSyDataNode(Statement):
                 f"must be an instance of psyir.symbols.SymbolTable but got "
                 f"'{type(symbol_table).__name__}'.")
 
-        data_node = cls(ast=ast, options=options)
+        data_node = cls(ast=ast, prefix=prefix, region_name=region_name,
+                        **kwargs)
         data_node.generate_symbols(symbol_table)
 
         # A PSyData node always contains a Schedule
@@ -545,7 +510,12 @@ class PSyDataNode(Statement):
                 region_name = f"{routine_schedule.name}-{region_name}"
             self._region_name = region_name
 
-    def lower_to_language_level(self, options=None):
+    def lower_to_language_level(
+        self, *,
+        pre_var_list: Optional[list[tuple[str, Signature]]] = None,
+        post_var_list: Optional[list[tuple[str, Signature]]] = None,
+        pre_var_postfix: str = "", post_var_postfix: str = ""
+    ) -> Node:
         # pylint: disable=arguments-differ
         # pylint: disable=too-many-branches, too-many-statements
         '''
@@ -557,45 +527,40 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
-        :param options: dictionary of the PSyData generation options.
-        :type options: Optional[dict[str, Any]]
-        :param options["pre_var_list"]: container- and variable-names to be \
-            supplied before the first child. The container names are \
-            supported to be able to handle variables that are imported from \
+        :param pre_var_list: container- and variable-names to be
+            supplied before the first child. The container names are
+            supported to be able to handle variables that are imported from
             a different container (module in Fortran).
-        :type options["pre_var_list"]: list[tuple[str, str]]
-        :param options["post_var_list"]: container- and variable-names to be \
-            supplied after the last child. The container names are \
-            supported to be able to handle variables that are imported from \
+        :param post_var_list: container- and variable-names to be
+            supplied after the last child. The container names are
+            supported to be able to handle variables that are imported from
             a different container (module in Fortran).
-        :type options["post_var_list"]: list[tuple[str, str]]
-        :param str options["pre_var_postfix"]: an optional postfix that will \
+        :param pre_var_postfix: an optional postfix that will
             be added to each variable name in the pre_var_list.
-        :param str options["post_var_postfix"]: an optional postfix that will \
+        :param post_var_postfix: an optional postfix that will
             be added to each variable name in the post_var_list.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
-        def gen_type_bound_call(typename, methodname, argument_list=None,
-                                annotations=None):
+        def gen_type_bound_call(
+            typename: str, methodname: str,
+            argument_list: Optional[list[str]] = None,
+            annotations: Optional[list[str]] = None
+        ) -> CodeBlock:
             ''' Helper utility to generate type-bound calls. Since this is
             not directly supported in the PSyIR the call is inserted in a
             PSyIR CodeBlock.
 
-            :param str typename: the name of the base type.
-            :param str methodname: the name of the method to be called.
+            :param typename: the name of the base type.
+            :param methodname: the name of the method to be called.
             :param argument_list: the list of arguments in the method call.
-            :type argument_list: list[str]
-            :param annotations: the list of node annotations to add to the \
+            :param annotations: the list of node annotations to add to the
                                 generated CodeBlock.
-            :type annotations: list[str]
 
             :returns: a CodeBlock representing the type bound call.
-            :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
             '''
             argument_str = ""
@@ -628,22 +593,16 @@ class PSyDataNode(Statement):
                 self._module_name = routine_schedule.name
         self._populate_region_name()
 
-        if not options:
-            options = {}
-
         for child in self.children:
             child.lower_to_language_level()
 
         symbol_table = self.scope.symbol_table
         pre_variable_list = \
-            self._create_unique_names(options.get("pre_var_list", []),
+            self._create_unique_names(pre_var_list or [],
                                       symbol_table)
         post_variable_list = \
-            self._create_unique_names(options.get("post_var_list", []),
+            self._create_unique_names(post_var_list or [],
                                       symbol_table)
-
-        pre_suffix = options.get("pre_var_postfix", "")
-        post_suffix = options.get("post_var_postfix", "")
 
         has_var = pre_variable_list or post_variable_list
 
@@ -678,7 +637,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig}{pre_suffix}{module_name}\"", unique_sig])
+                    [f"\"{sig}{pre_var_postfix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             for module_name, sig, unique_sig in post_variable_list:
@@ -686,7 +645,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig}{post_suffix}{module_name}\"", unique_sig])
+                    [f"\"{sig}{post_var_postfix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
@@ -697,7 +656,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig}{pre_suffix}{module_name}\"", unique_sig])
+                    [f"\"{sig}{pre_var_postfix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -721,7 +680,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig}{post_suffix}{module_name}\"", unique_sig])
+                    [f"\"{sig}{post_var_postfix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call

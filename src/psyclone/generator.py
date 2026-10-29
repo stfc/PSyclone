@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. J. Voysey, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Pirrie, Met Office
-# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -50,6 +18,7 @@ import argparse
 import importlib
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import traceback
@@ -108,9 +77,16 @@ def load_script(
            List[str],
            Union[bool, List[str]],
            dict[str, str]]:
-    ''' Loads the specified script containing a psyclone recipe. We also
-    prepend the script path to the sys.path, so that the script itself and
-    any imports that it has from the same directory can be found.
+    ''' Loads the specified script containing a PSyclone recipe. This is done
+    without adding the imported symbol to the system list of all Python
+    modules. This will allow later to import a potentially different script
+    with the same name. The script path is also prepended to sys.path, so that
+    the script can import helper scripts from its own directory.
+
+    TODO #3514
+    To avoid that sys.path keeps growing (if PSyclone is called more than
+    once), the caller must remove the first entry of sys.path after executing
+    the script.
 
     :param script_name: name of the script to load.
     :param kwargs_str: the kwargs argument from the command line.
@@ -149,12 +125,22 @@ def load_script(
         raise GenerationError(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
-    # prepend file path - if none, the empty string equates to the current
-    # working directory - to the system path to guarantee we find the user
-    # provided module instead of a similarly named module that might
-    # already exist elsewhere in the system path
+
+    # Add the script directory to sys.path, so scripts can easily import
+    # helper scripts in the same directory (this step is not needed to
+    # import the script itself, but it maintains backwards compatibility).
     sys.path.insert(0, filepath)
-    recipe_module = importlib.import_module(module_name)
+
+    # This will import the module, but not make it part of the
+    # system list of all modules, i.e. a module of this name can be
+    # imported and used elsewhere. This will allow to import a module
+    # with the same name, which is required if PSyclone is called
+    # repeatedly from the same Python process (and each call might
+    # have different scripts with the same name, e.g. local.py in LFRic).
+    script_path = pathlib.Path(script_name)
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    recipe_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recipe_module)
 
     files_to_skip: list[str]
     if hasattr(recipe_module, "FILES_TO_SKIP"):
@@ -308,6 +294,8 @@ def generate(filename: str,
                                            "trans_alg", is_optional=True)
         if recipe:
             recipe(psyir, **kwargs)
+        # TODO #3514: proper cleanup using with
+        del sys.path[0]
 
     # For each kernel called from the algorithm layer
     kernels: dict[int, dict[int, Node]] = {}
@@ -375,7 +363,7 @@ def generate(filename: str,
         invoke_trans = LFRicAlgInvoke2PSyCallTrans()
     for invoke_call in psyir.walk(AlgorithmInvokeCall):
         invoke_trans.apply(
-            invoke_call, options={"kernels": kernels[id(invoke_call)]})
+            invoke_call, kernels=kernels[id(invoke_call)])
 
     # Create Fortran from Algorithm PSyIR
     alg_gen = writer(psyir)
@@ -392,6 +380,8 @@ def generate(filename: str,
         # Call the optimisation script for psy-layer optimisations
         recipe, _, _, kwargs = load_script(script_name, kwargs_str)
         recipe(psy.container.root, **kwargs)
+        # TODO #3514: proper cleanup using with
+        del sys.path[0]
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.
@@ -810,8 +800,8 @@ def code_transformation_mode(input_file, script_name, output_file,
                              keep_comments: bool, keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
                              kwargs_str: Optional[str] = None,
-                             free_form: Optional[bool] = True,
-                             line_length: Optional[str] = "off"):
+                             free_form: bool = True,
+                             line_length: str = "off"):
     '''
     Process the input_file with the transformations script specified in
     `script_name` and store it in the output_file.
@@ -907,3 +897,6 @@ def code_transformation_mode(input_file, script_name, output_file,
         else:
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
+
+    # TODO #3514: proper cleanup using with
+    del sys.path[0]

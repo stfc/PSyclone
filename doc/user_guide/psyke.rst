@@ -1,39 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by I. Kavcic, Met Office
-.. Modified by J. Henrichs, Bureau of Meteorology
-.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. highlight:: fortran
 
@@ -112,15 +82,15 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
       2: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+              0: CodedKern testkern_code_w2_only(f3,f2)
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
+              0: CodedKern testkern_wtheta_code(f4,f5)
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
+              0: CodedKern testkern_code(scalar,f1,f2,f3,f4)
 
 to insert the extract region. As shown below, all children of an
 ``ExtractNode`` will be part of the region:
@@ -143,15 +113,15 @@ to insert the extract region. As shown below, all children of an
               0: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
                   ...
                   Schedule[]
-                      0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+                      0: CodedKern testkern_code_w2_only(f3,f2)
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
+              0: CodedKern testkern_wtheta_code(f4,f5)
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
+              0: CodedKern testkern_code(scalar,f1,f2,f3,f4)
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
 of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above).
@@ -177,7 +147,7 @@ This modifies the above Schedule as:
               1: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
                   ...
                   Schedule[]
-                      0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+                      0: CodedKern testkern_code_w2_only(f3,f2)
   ...
 
 

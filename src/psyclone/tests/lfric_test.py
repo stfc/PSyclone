@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
-#          and A. Pirrie Met Office,
-#          C. M. Maynard, Met Office/University of Reading,
-#          J. Henrichs, Bureau of Meteorology.
 
 ''' This module tests the LFRic API using pytest. '''
 
@@ -51,7 +19,6 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
@@ -62,13 +29,14 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
+from psyclone.psyir.nodes import (BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
+from psyclone.utils import colored
 
 
 # constants
@@ -344,26 +312,26 @@ def test_any_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
-    assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
+    assert "(kind=i_def), pointer :: map_as1_a__1(:,:) => null()" in code
+    assert "(kind=i_def), pointer :: map_as2_b__1(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
-    assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
+    assert "(kind=r_def), allocatable :: basis_as1_a__1_qr(:,:,:,:)" in code
+    assert "(kind=r_def), allocatable :: basis_as2_b__1_qr(:,:,:,:)" in code
+    assert ("ALLOCATE(basis_as1_a__1_qr(dim_as1,ndf_as1_a__1,"
             "np_xy_qr,np_z_qr))" in code), code
-    assert ("ALLOCATE(basis_as2_b_qr(dim_as2_b,ndf_as2_b,"
+    assert ("ALLOCATE(basis_as2_b__1_qr(dim_as2,ndf_as2_b__1,"
             "np_xy_qr,np_z_qr))" in code), code
-    assert "map_as1_a => a_proxy%vspace%get_whole_dofmap()" in code, code
-    assert "map_as2_b => b_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_as1_a__1 => a_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_as2_b__1 => b_proxy%vspace%get_whole_dofmap()" in code, code
     assert ("call testkern_any_space_1_code(nlayers_a, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
-            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell), "
-            "basis_as1_a_qr, ndf_as2_b, undf_as2_b, "
-            "map_as2_b(:,cell), basis_as2_b_qr, ndf_w0, undf_w0, "
+            "ndf_as1_a__1, undf_as1_a__1, map_as1_a__1(:,cell), "
+            "basis_as1_a__1_qr, ndf_as2_b__1, undf_as2_b__1, "
+            "map_as2_b__1(:,cell), basis_as2_b__1_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in code), code
-    assert ("DEALLOCATE(basis_as1_a_qr, basis_as2_b_qr, diff_basis_w0_qr)"
-            in code), code
+    assert ("DEALLOCATE(basis_as1_a__1_qr, basis_as2_b__1_qr, "
+            "diff_basis_w0_qr)" in code), code
 
 
 def test_any_space_2(tmpdir):
@@ -380,17 +348,17 @@ def test_any_space_2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "integer(kind=i_def), intent(in) :: istp" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_as1_a(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_as1_a__1(:,:) => null()"
             in generated_code)
-    assert "integer(kind=i_def) :: ndf_as1_a" in generated_code
-    assert "integer(kind=i_def) :: undf_as1_a" in generated_code
-    assert "ndf_as1_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_as1_a = a_proxy%vspace%get_undf()" in generated_code
-    assert ("map_as1_a => a_proxy%vspace%get_whole_dofmap()"
+    assert "integer(kind=i_def) :: ndf_as1_a__1" in generated_code
+    assert "integer(kind=i_def) :: undf_as1_a__1" in generated_code
+    assert "ndf_as1_a__1 = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as1_a__1 = a_proxy%vspace%get_undf()" in generated_code
+    assert ("map_as1_a__1 => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
     assert ("call testkern_any_space_2_code(cell, nlayers_a, a_data, "
             "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
-            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell))"
+            "ndf_as1_a__1, undf_as1_a__1, map_as1_a__1(:,cell))"
             in generated_code)
 
 
@@ -406,8 +374,8 @@ def test_op_any_space_different_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_as2_a = a_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_as1_a = a_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_as2_a__1 = a_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as1_a__1 = a_proxy%fs_to%get_ndf()" in generated_code
 
 
 def test_op_any_space_different_space_2(tmpdir):
@@ -422,25 +390,26 @@ def test_op_any_space_different_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_as1_b = b_proxy%fs_to%get_ndf()" in generated_code
-    assert "dim_as1_b = b_proxy%fs_to%get_dim_space()" in generated_code
-    assert "ndf_as2_b = b_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_as3_c = c_proxy%fs_to%get_ndf()" in generated_code
-    assert ("ndf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert "ndf_as1_b__1 = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_as1 = b_proxy%fs_to%get_dim_space()" in generated_code
+    assert "ndf_as2_b__1 = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as3_c__1 = c_proxy%fs_to%get_ndf()" in generated_code
+    assert ("ndf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_ndf()" in generated_code)
-    assert ("undf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
-            "proxy%fs_from%get_undf()" in generated_code)
-    assert ("dim_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("undf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_"
+            "name_proxy%fs_from%get_undf()" in generated_code)
+    assert ("dim_as4 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_dim_space()" in generated_code)
-    assert "ndf_as5_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_as5_a = a_proxy%vspace%get_undf()" in generated_code
+    assert "ndf_as5_a__1 = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as5_a__1 = a_proxy%vspace%get_undf()" in generated_code
     assert "call qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
     assert ("call qr%compute_function(BASIS, an_operator_with_a_very_long_"
             "name_proxy%fs_from, " in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, an_operator_with_a_very_"
             "long_name_proxy%fs_from, " in generated_code)
-    assert "map_as5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
-    assert ("map_a4_an_or_wh_a_vy_lg_ne => a_field_with_a_very_long_name_"
+    assert ("map_as5_a__1 => a_proxy%vspace%get_whole_dofmap()"
+            in generated_code)
+    assert ("map_a4_an_or_wh_a_vy_lg_ne_1 => a_field_with_a_very_long_name_"
             "proxy%vspace%get_whole_dofmap()" in generated_code)
 
 
@@ -460,23 +429,23 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "real(kind=r_def), intent(in) :: rdt" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_ads1_f1(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_ads1_f1__1(:,:) => null()"
             in generated_code)
     assert "integer(kind=i_def) :: ndf_ads1_f1" in generated_code
     assert "integer(kind=i_def) :: undf_ads1_f1" in generated_code
-    assert "ndf_ads1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
-    assert "undf_ads1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
-    assert ("map_ads1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
+    assert "ndf_ads1_f1__1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
+    assert "undf_ads1_f1__1 = f1_proxy(1)%vspace%get_undf()" in generated_code
+    assert ("map_ads1_f1__1 => f1_proxy(1)%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_ads3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_ads7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_ads3_op4__1 = op4_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads7_op4__1 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("call testkern_any_discontinuous_space_op_1_code(cell, "
             "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
-            "ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell), "
-            "ndf_ads2_f2, undf_ads2_f2, map_ads2_f2(:,cell), "
-            "ndf_ads3_op4, ndf_ads7_op4)" in generated_code)
+            "ndf_ads1_f1__1, undf_ads1_f1__1, map_ads1_f1__1(:,cell), "
+            "ndf_ads2_f2__1, undf_ads2_f2__1, map_ads2_f2__1(:,cell), "
+            "ndf_ads3_op4__1, ndf_ads7_op4__1)" in generated_code)
 
 
 def test_op_any_discontinuous_space_2(tmpdir):
@@ -493,23 +462,23 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_ads4_f1 = f1_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_ads4_f1 = f1_proxy%vspace%get_undf()" in generated_code
-    assert ("map_ads4_f1 => f1_proxy%vspace%get_whole_dofmap()"
+    assert "ndf_ads4_f1__1 = f1_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_ads4_f1__1 = f1_proxy%vspace%get_undf()" in generated_code
+    assert ("map_ads4_f1__1 => f1_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_ads1_op1 = op1_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_ads2_op1 = op1_proxy%fs_from%get_ndf()" in generated_code
-    assert "dim_ads4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
-    assert ("diff_dim_ads4_f1 = f1_proxy%vspace%get_dim_space_diff()"
+    assert "ndf_ads1_op1__1 = op1_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads2_op1__1 = op1_proxy%fs_from%get_ndf()" in generated_code
+    assert "dim_ads4 = f1_proxy%vspace%get_dim_space()" in generated_code
+    assert ("diff_dim_ads4 = f1_proxy%vspace%get_dim_space_diff()"
             in generated_code)
-    assert ("ALLOCATE(basis_ads1_op1_qr(dim_ads1_op1,ndf_ads1_op1"
+    assert ("ALLOCATE(basis_ads1_op1__1_qr(dim_ads1,ndf_ads1_op1__1"
             in generated_code)
-    assert ("ALLOCATE(diff_basis_ads4_f1_qr(diff_dim_ads4_f1,"
-            "ndf_ads4_f1" in generated_code)
-    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_ads1_op1, "
-            "ndf_ads1_op1, basis_ads1_op1_qr)" in generated_code)
+    assert ("ALLOCATE(diff_basis_ads4_f1__1_qr(diff_dim_ads4,"
+            "ndf_ads4_f1__1" in generated_code)
+    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_ads1, "
+            "ndf_ads1_op1__1, basis_ads1_op1__1_qr)" in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_ads4_f1, ndf_ads4_f1, diff_basis_ads4_f1_qr)"
+            "diff_dim_ads4, ndf_ads4_f1__1, diff_basis_ads4_f1__1_qr)"
             in generated_code)
 
 
@@ -738,8 +707,8 @@ def test_field_bc_kernel(tmpdir):
     assert ("integer(kind=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in code
-    assert ("call enforce_bc_code(nlayers_a, a_data, ndf_as1_a, "
-            "undf_as1_a, map_as1_a(:,cell), boundary_dofs_a)"
+    assert ("call enforce_bc_code(nlayers_a, a_data, ndf_as1_a__1, "
+            "undf_as1_a__1, map_as1_a__1(:,cell), boundary_dofs_a)"
             in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -893,19 +862,19 @@ def test_2kern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
-    assert "map_as1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
-    assert "map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "teger(kind=i_def), pointer :: map_as1_f1__1(:,:) => null()" in gen
+    assert "teger(kind=i_def), pointer :: map_as1_f2__1(:,:) => null()" in gen
+    assert "map_as1_f1__1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "map_as1_f2__1 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "      call testkern_any_space_2_code(cell, nlayers_f1, f1_data,"
         " f2_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
-        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))\n" in gen)
-    assert "map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
+        "ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell))\n" in gen)
+    assert "map_as1_f2__1 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "      call testkern_any_space_2_code(cell, nlayers_f2, f2_data,"
         " f1_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
-        "ndf_as1_f2, undf_as1_f2, map_as1_f2(:,cell))\n" in gen)
+        "ndf_as1_f2__1, undf_as1_f2__1, map_as1_f2__1(:,cell))\n" in gen)
 
 
 def test_multikern_invoke_any_space(tmpdir):
@@ -921,38 +890,38 @@ def test_multikern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as2_f1(:,:) => null()" in gen
+    assert "eger(kind=i_def), pointer :: map_as1_f1__1(:,:) => null()" in gen
+    assert "eger(kind=i_def), pointer :: map_as1_f2__1(:,:) => null()" in gen
+    assert "eger(kind=i_def), pointer :: map_as2_f1__1(:,:) => null()" in gen
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as1_f1__1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as2_f1__1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as1_f2__1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as2_f2__1_qr(:,:,:,:)") in gen
     assert (
         "real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)") in gen
-    assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f1__1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as2_f2__1 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
-    assert "ndf_as1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f2__1 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_as1_f2, ndf_as1_f2, basis_as1_f2_qr)" in gen)
+            "dim_as1_1, ndf_as1_f2__1, basis_as1_f2__1_qr)" in gen)
     assert (
-        "    map_as1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "    map_as2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f1__1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_f2__1 => f2_proxy%vspace%get_whole_dofmap()\n"
         "    map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()\n"
-        "    map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "    map_as2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f2__1 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_f1__1 => f1_proxy%vspace%get_whole_dofmap()\n"
         in gen)
     assert ("call testkern_any_space_1_code(nlayers_f1, f1_data, rdt, "
-            "f2_data, f3_1_data, f3_2_data, "
-            "f3_3_data, ndf_as1_f1, undf_as1_f1, "
-            "map_as1_f1(:,cell), basis_as1_f1_qr, ndf_as2_f2, "
-            "undf_as2_f2, map_as2_f2(:,cell), basis_as2_f2_qr, ndf_w0, "
+            "f2_data, f3_1_data, f3_2_data, f3_3_data, "
+            "ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell), "
+            "basis_as1_f1__1_qr, ndf_as2_f2__1, undf_as2_f2__1, "
+            "map_as2_f2__1(:,cell), basis_as2_f2__1_qr, ndf_w0, "
             "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr" in gen)
 
@@ -970,80 +939,38 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f1__1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_as1_f1, ndf_as1_f1, basis_as1_f1_qr)" in gen)
-    assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
+            "dim_as1, ndf_as1_f1__1, basis_as1_f1__1_qr)" in gen)
+    assert "ndf_as2_f2__1 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_as2_f2, ndf_as2_f2, basis_as2_f2_qr)" in gen)
-    assert "ndf_as1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_as1_op = op_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_as5_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_as1_op2 = op2_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_as3_op3 = op3_proxy%fs_to%get_ndf()" in gen
-    assert gen.count("ndf_as4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+            "dim_as2, ndf_as2_f2__1, basis_as2_f2__1_qr)" in gen)
+    assert "ndf_as1_f2__1 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_op__1 = op_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_as5_f2__1 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_op2__1 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_as3_op3__1 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_as4_op4__1 = op4_proxy%fs_from%get_ndf()") == 1
     assert "ndf_as3_op5" not in gen
     assert "ndf_as4_f1" not in gen
     # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_as1_f1, ndf_as1_f1, basis_as1_f1_qr)" in gen)
+            "dim_as1, ndf_as1_f1__1, basis_as1_f1__1_qr)" in gen)
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_as2_f2, ndf_as2_f2, basis_as2_f2_qr)" in gen)
+            "dim_as2, ndf_as2_f2__1, basis_as2_f2__1_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("call qr%compute_function(BASIS, op2_proxy%fs_to, "
-            "dim_as1_op2, ndf_as1_op2, basis_as1_op2_qr)" in gen)
+            "dim_as1_1, ndf_as1_op2__1, basis_as1_op2__1_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("call qr%compute_function(BASIS, op4_proxy%fs_from, "
-            "dim_as4_op4, ndf_as4_op4, basis_as4_op4_qr)" in gen)
+            "dim_as4, ndf_as4_op4__1, basis_as4_op4__1_qr)" in gen)
     assert ("call qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
-            "diff_dim_as4_op4, ndf_as4_op4, diff_basis_as4_op4_qr)"
+            "diff_dim_as4, ndf_as4_op4__1, diff_basis_as4_op4__1_qr)"
             in gen)
-
-
-def test_loopfuse(dist_mem, tmpdir):
-    ''' Tests whether loop fuse actually fuses and whether
-    multiple maps are produced or not. Multiple maps are not an
-    error but it would be nicer if there were only one '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-    index = 0
-    if dist_mem:
-        index = 4
-    loop1 = schedule.children[index]
-    loop2 = schedule.children[index+1]
-    trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
-    generated_code = psy.gen
-    # only one loop
-    assert str(generated_code).count("do cell") == 1
-    # only one map for each space
-    assert str(generated_code).count("map_w1 =>") == 1
-    assert str(generated_code).count("map_w2 =>") == 1
-    assert str(generated_code).count("map_w3 =>") == 1
-    # kernel call tests
-    kern_idxs = []
-    for idx, line in enumerate(str(generated_code).split('\n')):
-        if "do cell" in line:
-            do_idx = idx
-        if "call testkern_code(" in line:
-            kern_idxs.append(idx)
-        if "enddo" in line:
-            enddo_idx = idx
-    # two kernel calls
-    assert len(kern_idxs) == 2
-    # both kernel calls are within the loop
-    for kern_id in kern_idxs:
-        assert enddo_idx > kern_id > do_idx
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_named_psy_routine(dist_mem, tmpdir):
@@ -2215,7 +2142,7 @@ def test_arg_desc_func_space_tofrom_err():
 
 def test_unrecognised_fspace_error():
     ''' Tests that an error is raised in FunctionSpace initialisation when
-    an unrecognised function space is supplied.
+    an unrecognised function space or invalid type is supplied.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2230,6 +2157,11 @@ def test_unrecognised_fspace_error():
     assert (f"Unrecognised function space 'not_a_space'. The supported "
             f"spaces are {const.VALID_FUNCTION_SPACE_NAMES}" in
             str(excinfo.value))
+    # Test the type-checking on named arguments.
+    with pytest.raises(TypeError,
+                       match=("'nlayers' argument to FunctionSpace must be a "
+                              "str but got: 'int'")):
+        _ = FunctionSpace("w1", first_kernel.arguments, nlayers=1)
 
 
 def test_mangle_no_space_error():
@@ -2262,10 +2194,13 @@ def test_mangle_function_space():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_space_2"
-    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
-    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
-    assert mangled_name == "as2_f2"
+    fspace = FunctionSpace(fs_name, first_kernel.arguments)
+    mangled_name = fspace.mangled_name
+    short_name = fspace.short_name
+    short_mangled = fspace.short_mangled_name
+    assert mangled_name == "as2_f2__1"
     assert short_name == "as2"
+    assert short_mangled == "as2_f2__1"
     # Test any_discontinuous_space
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
@@ -2274,15 +2209,18 @@ def test_mangle_function_space():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_discontinuous_space_1"
-    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
-    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
-    assert mangled_name == "ads1_f1"
+    fspace = FunctionSpace(fs_name, first_kernel.arguments)
+    mangled_name = fspace.mangled_name
+    short_name = fspace.short_name
+    short_mangled = fspace.short_mangled_name
+    assert mangled_name == "ads1_f1__1"
     assert short_name == "ads1"
+    assert short_mangled == "ads1_f1__1"
 
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space.
+    any_space or any_discontinuous_space unless ndata or nlayers is specified.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2296,6 +2234,22 @@ def test_no_mangle_specified_function_space():
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
+    # When nlayers is specified (and ndata defaults to 1)
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="twod")
+    assert fspace.mangled_name == "w2_twod_1"
+    assert fspace.short_name == "w2"
+    # Explicitly set ndata = 1
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="twod", ndata="1")
+    assert fspace.mangled_name == "w2_twod_1"
+    assert fspace.short_name == "w2"
+    # With both nlayers and ndata
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="3", ndata="physics")
+    assert fspace.mangled_name == "w2_3_physics"
+    assert fspace.short_name == "w2"
+    assert fspace.short_mangled_name == "w2_3_physics"
 
 
 @pytest.mark.parametrize(
@@ -3980,7 +3934,6 @@ def test_lfricpsy_gen_container_routines(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
     # Manually add a new top-level routine
     psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))

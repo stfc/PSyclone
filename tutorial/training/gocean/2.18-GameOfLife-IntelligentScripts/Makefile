@@ -3,7 +3,7 @@ API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
-SCRIPT=fuse_loops.py
+SCRIPT=copy_kernels_and_fuse_loops.py
 include ../common.mk
 
 # Dependencies:

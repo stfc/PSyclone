@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
@@ -363,17 +332,6 @@ def test_get_non_local_read_write_info_errors(caplog):
     routine = cntr.find_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
     routine.detach()
-
-    rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
-        ctu.get_non_local_read_write_info(schedule, rw_info)
-    assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}' as no possible"
-            in caplog.text)
-
-    # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
-    # representing the routine.
-    cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
     rw_info = ReadWriteInfo()
     with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
@@ -386,6 +344,33 @@ def test_get_non_local_read_write_info_errors(caplog):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for module '{kernels[0].module_name}'"
             in caplog.text)
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_get_non_local_read_write_info_no_possible_routines(caplog,
+                                                            monkeypatch):
+    '''Test the handling of a kernel for which routine resolution finds no
+    possible routines in the module PSyIR.
+    '''
+    Config.get().api = "lfric"
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
+    kernel = schedule.walk(Kern)[0]
+
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(get_base_path("lfric"),
+                                         "driver_creation"))
+    cntr = mod_man.get_module_info(kernel.module_name).get_psyir()
+    monkeypatch.setattr(cntr, "resolve_routine", lambda _: [])
+
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
+        CallTreeUtils().get_non_local_read_write_info(
+            schedule, ReadWriteInfo())
+
+    assert (f"Could not get PSyIR for Routine '{kernel.name}' from module "
+            f"'{kernel.module_name}' as no possible routines  were found - "
+            "ignored." in caplog.text)
 
 
 # -----------------------------------------------------------------------------

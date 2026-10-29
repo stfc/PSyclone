@@ -78,12 +78,12 @@ have been removed):
             Schedule[]
                 0: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                     Schedule[]
-                        0: CodedKern count_neighbours_code(neighbours,current) [module_inline=True]
+                        0: CodedKern count_neighbours_code(neighbours,current)
         1: Loop[type='outer', field_space='go_ct', it_space='go_internal_pts']
             Schedule[]
                 0: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                     Schedule[]
-                        0: CodedKern compute_born_code(born,current,neighbours) [module_inline=True]
+                        0: CodedKern compute_born_code(born,current,neighbours)
 
 The outer schedule (GOInvokeSchedule) has two children for the
 first two loops. So you need to provide these two children
@@ -98,7 +98,7 @@ to the fuse transformation to combine the loops:
     # print(schedule.view())
 
     # Now merge the first two loops
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply((schedule[0], schedule[1]))
 
     # print(schedule.view())
 
@@ -108,10 +108,10 @@ This results in the following schedule:
         Schedule[]
             0: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                 Schedule[]
-                    0: CodedKern count_neighbours_code(neighbours,current) [module_inline=True]
+                    0: CodedKern count_neighbours_code(neighbours,current)
             1: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                 Schedule[]
-                    0: CodedKern compute_born_code(born,current,neighbours) [module_inline=True]
+                    0: CodedKern compute_born_code(born,current,neighbours)
 
 The resulting Fortran code looks like this:
 
@@ -142,16 +142,16 @@ inner loops as well. Looking at the fused schedule reveals:
             Schedule[]
                 0: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                     Schedule[]
-                        0: CodedKern count_neighbours_code(neighbours,current) [module_inline=True]
+                        0: CodedKern count_neighbours_code(neighbours,current)
                 1: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                     Schedule[]
-                        0: CodedKern compute_born_code(born,current,neighbours) [module_inline=True]
+                        0: CodedKern compute_born_code(born,current,neighbours)
 
 In order to fuse the inner loops. you need to access the schedule
 of the outer loop. This schedule can be accessed using the
 `loop_body` attribute, e.g.:
 
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply((schedule[0].loop_body[0], schedule[0].loop_body[1]))
 
 Adding this loop fusion to the script will generate the following output
 (again shortened):
@@ -160,8 +160,8 @@ Adding this loop fusion to the script will generate the following output
         Schedule[]
             0: Loop[type='inner', field_space='go_ct', it_space='go_internal_pts']
                 Schedule[]
-                    0: CodedKern count_neighbours_code(neighbours,current) [module_inline=True]
-                    1: CodedKern compute_born_code(born,current,neighbours) [module_inline=True]
+                    0: CodedKern count_neighbours_code(neighbours,current)
+                    1: CodedKern compute_born_code(born,current,neighbours)
 
 and the corresponding Fortran code:
 

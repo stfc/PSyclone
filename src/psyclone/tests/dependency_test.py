@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Lab
-# Modified: I. Kavcic and L. Turner, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
@@ -237,7 +207,8 @@ def test_lfric():
     schedule = get_psylayer_schedule("1_single_invoke.f90", api="lfric")
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
+        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, "
+        "field_proxy_type: CONSTANT, field_type: "
         "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
         "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
         "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "
@@ -341,8 +312,8 @@ def test_lfric_cma():
     assert "cma_op1_cma_matrix: WRITE," in var_info
     assert "cma_op1_ncol: WRITE+READ," in var_info
     assert "cma_op1_nrow: WRITE+READ," in var_info
-    assert "cbanded_map_ads1_lma_op1: WRITE+READ," in var_info
-    assert "cbanded_map_ads2_lma_op1: WRITE+READ," in var_info
+    assert "cbanded_map_ads1_lma_op1__1: WRITE+READ," in var_info
+    assert "cbanded_map_ads2_lma_op1__1: WRITE+READ," in var_info
     assert "lma_op1_local_stencil: WRITE+READ," in var_info
     assert "lma_op1_proxy%ncell_3d: READ," in var_info
 
@@ -354,8 +325,8 @@ def test_lfric_cma2():
     '''
     psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "cma_indirection_map_as1_field_a: READ," in var_info
-    assert "cma_indirection_map_as2_field_b: READ," in var_info
+    assert "cma_indirection_map_as1_field_a__1: READ," in var_info
+    assert "cma_indirection_map_as2_field_b__1: READ," in var_info
 
 
 def test_lfric_stencils():
@@ -448,7 +419,7 @@ def test_lfric_stub_args():
     assert "ndf_w1: READ," in var_info
     assert "ndf_w2: READ," in var_info
     assert "ndf_w3: READ," in var_info
-    assert "nlayers: READ," in var_info
+    assert "nlayers_field_1: READ," in var_info
     assert "undf_w1: READ," in var_info
     assert "undf_w2: READ," in var_info
     assert "undf_w3: READ" in var_info
@@ -586,8 +557,8 @@ def test_lfric_stub_banded_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cbanded_map_ads1_op_1: READ," in var_info
-    assert "cbanded_map_ads2_op_1: READ" in var_info
+    assert "cbanded_map_ads1_op_1__1: READ," in var_info
+    assert "cbanded_map_ads2_op_1__1: READ" in var_info
 
 
 def test_lfric_stub_indirection_dofmap():
@@ -601,8 +572,8 @@ def test_lfric_stub_indirection_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cma_indirection_map_as1_field_1: READ," in var_info
-    assert "cma_indirection_map_as2_field_2: READ" in var_info
+    assert "cma_indirection_map_as1_field_1__1: READ," in var_info
+    assert "cma_indirection_map_as2_field_2__1: READ" in var_info
 
 
 def test_lfric_stub_boundary_dofmap():

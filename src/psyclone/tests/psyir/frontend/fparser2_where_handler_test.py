@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
@@ -1425,3 +1396,40 @@ def test_where_with_preceding_comment_and_reduction_intrinsic():
     pytest.xfail(
         "Xfail #1960: Reduction intrinsics in where's are not supported"
         "when they return an array.")
+
+
+def test_where_with_empty_line_before(fortran_writer):
+    """Test that a single element where statement with an empty line preceding
+    it doesn't cause issues with keep-comments correctly."""
+
+    code = """subroutine x(arr2)
+    integer, dimension(:) :: arr1, arr2
+
+    arr1(:) = arr2(:)
+
+    WHERE(arr1(:) == -1)
+       arr1(:) = 999999
+    END WHERE
+
+    arr1(:) = -1 * arr1(:)
+    end subroutine x"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    # We shouldn't have any codeblocks left
+    assert len(psyir.walk(CodeBlock)) == 0
+    out = fortran_writer(psyir)
+    correct = """subroutine x(arr2)
+  integer, dimension(:) :: arr2
+  integer, dimension(:) :: arr1
+  integer :: widx1
+
+  arr1(:) = arr2(:)
+  do widx1 = 1, SIZE(arr1, dim=1), 1
+    if (arr1(LBOUND(arr1, dim=1) + widx1 - 1) == (-1)) then
+      arr1(LBOUND(arr1, dim=1) + widx1 - 1) = 999999
+    end if
+  enddo
+  arr1(:) = -1 * arr1(:)
+
+end subroutine x"""
+    assert correct in out

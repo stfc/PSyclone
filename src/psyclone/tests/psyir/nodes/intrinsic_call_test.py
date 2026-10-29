@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 """
@@ -79,7 +49,6 @@ from psyclone.psyir.symbols import (
     ScalarType,
     IntrinsicSymbol,
     UnresolvedType,
-    UnsupportedFortranType,
     NoType
 )
 
@@ -163,9 +132,10 @@ def test_intrinsiccall_datatype(fortran_reader):
     # Test that when we get a AttributeError due to unresolved/unsupported
     # types that PSyclone can turn that into an UnresolvedType
     code = """subroutine test
-    integer :: i
+    real :: r(1)
+    integer :: s(1)
 
-    i = REAL(CMPLX(1.0,1.0))
+    r = REAL(RESHAPE(r, s))
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
@@ -1536,12 +1506,16 @@ def test_matmul_return_type(fortran_reader):
     [
         (
             """subroutine x
-     complex(4) :: z4
+     complex(8) :: z
      real :: result
-     result = aimag(z4)
-     end subroutine x""",
-            # AIMAG return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+     result = aimag(z)
+     end subroutine""",
+            # AIMAG return type is that of z here
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and isinstance(res.precision, Literal)
+                and res.precision.value == "8"
+            ),
         ),
         (
             """subroutine z
@@ -1570,12 +1544,16 @@ def test_matmul_return_type(fortran_reader):
         ),
         (
             """subroutine x
-     complex(4) :: z4
+     complex :: z
      real :: r
-     z4 = CMPLX(r)
+     z = CMPLX(r)
      end subroutine x""",
-            # CMPLX return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+            # CMPLX return type is COMPLEX with UNDEFINED precision as
+            # the kind argument has not been supplied
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.COMPLEX
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
         ),
         (
             """subroutine x
@@ -1583,8 +1561,12 @@ def test_matmul_return_type(fortran_reader):
      complex(4) :: r
      z4 = CONJG(r)
      end subroutine x""",
-            # CONJG return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+            # CONJG return type is the same as the argument type
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.COMPLEX
+                and isinstance(res.precision, Literal)
+                and res.precision.value == "4"
+            ),
         ),
         (
             """subroutine x

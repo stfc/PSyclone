@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 '''
 This module contains the LFRicDofmaps class which holds all the
@@ -45,14 +14,15 @@ pointers to integer arrays; and adding dofmap-related declarations to a
 Kernel stub.
 
 LFRicDofmaps is used in the LFRicInvoke module.
-'''
 
+'''
 from collections import OrderedDict
 
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicTypes, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference
+from psyclone.psyir.nodes import (Assignment, IntrinsicCall, Reference,
+                                  StructureReference)
 from psyclone.psyir.symbols import (
     UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType)
 
@@ -91,70 +61,74 @@ class LFRicDofmaps(LFRicCollection):
         for call in self.kernel_calls:
             # We only need a dofmap if the kernel operates on cells
             # rather than dofs.
-            if call.iterates_over != "dof":
-                for unique_fs in call.arguments.unique_fss:
-                    # We only need a dofmap if there is a *field* on this
-                    # function space. If there is then we use it to look
-                    # up the dofmap.
-                    fld_arg = unique_fs.field_on_space(call.arguments)
-                    if fld_arg:
-                        map_name = unique_fs.map_name
-                        if map_name not in self._unique_fs_maps:
-                            self._unique_fs_maps[map_name] = fld_arg
-                if call.cma_operation == "assembly":
-                    # A kernel that assembles a CMA operator requires
-                    # column-banded dofmaps for its 'to' and 'from'
-                    # function spaces
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
+            if call.iterates_over == "dof":
+                continue
+            for unique_fs in call.arguments.unique_fss:
+                # We only need a dofmap if there is a *field* on this function
+                # space. If there is then we use it to look up the dofmap.
+                fld_arg = unique_fs.field_on_space(call.arguments)
+                if fld_arg:
+                    map_tag = unique_fs.map_tag
+                    if map_tag not in self._unique_fs_maps:
+                        self._unique_fs_maps[map_tag] = fld_arg
+            if call.cma_operation == "assembly":
+                # A kernel that assembles a CMA operator requires
+                # column-banded dofmaps for its 'to' and 'from'
+                # function spaces
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
 
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a CMA assembly kernel but "
-                            f"found {len(cma_args)}")
+                # Sanity check - we expect only one CMA argument
+                if len(cma_args) != 1:
+                    raise GenerationError(
+                        f"Internal error: there should only be one CMA "
+                        f"operator argument for a CMA assembly kernel but "
+                        f"found {len(cma_args)}")
 
-                    map_name = \
-                        cma_args[0].function_space_to.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = \
-                        cma_args[0].function_space_from.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-                elif call.cma_operation == "apply":
-                    # A kernel that applies (or applies the inverse of) a
-                    # CMA operator requires the indirection dofmaps for the
-                    # to- and from-spaces of the operator.
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
+                fspace = cma_args[0].function_space_to
+                map_name = fspace.cbanded_map_tag
+                if map_name not in self._unique_cbanded_maps:
+                    self._unique_cbanded_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "base_name": fspace.cbanded_map_name,
+                        "direction": "to"}
+                fspace = cma_args[0].function_space_from
+                map_name = fspace.cbanded_map_tag
+                if map_name not in self._unique_cbanded_maps:
+                    self._unique_cbanded_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "base_name": fspace.cbanded_map_name,
+                        "direction": "from"}
+            elif call.cma_operation == "apply":
+                # A kernel that applies (or applies the inverse of) a
+                # CMA operator requires the indirection dofmaps for the
+                # to- and from-spaces of the operator.
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
 
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a kernel that applies a "
-                            f"CMA operator but found {len(cma_args)}")
+                # Sanity check - we expect only one CMA argument
+                if len(cma_args) != 1:
+                    raise GenerationError(
+                        f"Internal error: there should only be one CMA "
+                        f"operator argument for a kernel that applies a "
+                        f"CMA operator but found {len(cma_args)}")
 
-                    map_name = cma_args[0].function_space_to\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = cma_args[0].function_space_from\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
+                fspace = cma_args[0].function_space_to
+                map_name = fspace.cma_indirection_map_tag
+                if map_name not in self._unique_indirection_maps:
+                    self._unique_indirection_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "base_name": fspace.cma_indirection_map_name,
+                        "direction": "to"}
+                fspace = cma_args[0].function_space_from
+                map_name = fspace.cma_indirection_map_tag
+                if map_name not in self._unique_indirection_maps:
+                    self._unique_indirection_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "base_name": fspace.cma_indirection_map_name,
+                        "direction": "from"}
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -168,7 +142,7 @@ class LFRicDofmaps(LFRicCollection):
         first = True
         for dmap, field in self._unique_fs_maps.items():
             stmt = Assignment.create(
-                    lhs=Reference(self.symtab.lookup(dmap)),
+                    lhs=Reference(self.symtab.lookup_with_tag(dmap)),
                     rhs=field.generate_method_call("get_whole_dofmap"),
                     is_pointer=True)
             if first:
@@ -181,7 +155,7 @@ class LFRicDofmaps(LFRicCollection):
         first = True
         for dmap, cma in self._unique_cbanded_maps.items():
             stmt = Assignment.create(
-                    lhs=Reference(self.symtab.lookup(dmap)),
+                    lhs=Reference(self.symtab.lookup_with_tag(dmap)),
                     rhs=StructureReference.create(
                          self._invoke.schedule.symbol_table.lookup(
                             cma["argument"].proxy_name),
@@ -198,7 +172,7 @@ class LFRicDofmaps(LFRicCollection):
         first = True
         for dmap, cma in self._unique_indirection_maps.items():
             stmt = Assignment.create(
-                    lhs=Reference(self.symtab.lookup(dmap)),
+                    lhs=Reference(self.symtab.lookup_with_tag(dmap)),
                     rhs=StructureReference.create(
                             self._invoke.schedule.symbol_table.lookup(
                                 cma["argument"].proxy_name_indexed),
@@ -213,38 +187,75 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
         '''
         super().invoke_declarations()
+
+        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+        atype = ArrayType(
+            intrinsic_type,
+            [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
+
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            if dmap not in self.symtab:
-                dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
-                self.symtab.add(dmap_sym, tag=dmap)
+            # TODO #2577 - once pointer assignments are supported then
+            # we can remove the use of UnsupportedFortranType here.
+            base_name = (
+                "map_" +
+                self._unique_fs_maps[dmap].function_space.short_mangled_name)
+            try:
+                dmap_sym = self.symtab.lookup_with_tag(dmap)
+            except KeyError:
+                name = self.symtab.next_available_name(base_name)
+                dtype = UnsupportedFortranType(
+                    f"{intrinsic_type.intrinsic.name.lower()}("
+                    f"kind={intrinsic_type.precision.name}), pointer "
+                    f":: {name}(:,:) => null()",
+                    partial_datatype=atype.copy())
+                dmap_sym = self.symtab.find_or_create_tag(
+                    tag=dmap, root_name=base_name, symbol_type=DataSymbol,
+                    datatype=dtype,
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
-            if dmap not in self.symtab:
+            try:
+                dmap_sym = self.symtab.lookup_with_tag(dmap)
+            except KeyError:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
+                base_name = self._unique_cbanded_maps[dmap]["base_name"]
+                name = self.symtab.next_available_name(base_name)
                 dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
+                    name, UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {name}(:,:) "
+                        f"=> null()",
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
         for dmap in sorted(self._unique_indirection_maps):
-            if dmap not in self.symtab:
+            try:
+                dmap_sym = self.symtab.lookup_with_tag(dmap)
+            except KeyError:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
+                base_name = self._unique_indirection_maps[dmap]["base_name"]
+                name = self.symtab.next_available_name(base_name)
                 dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:) "
-                        "=> null()"))
+                    name, UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {name}(:) "
+                        "=> null()",
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
     def stub_declarations(self):
@@ -256,15 +267,16 @@ class LFRicDofmaps(LFRicCollection):
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
-            ndf_name = \
-                self._unique_fs_maps[dmap].function_space.ndf_name
-            dim = self.symtab.find_or_create(
-                ndf_name, symbol_type=DataSymbol,
+            fspace = self._unique_fs_maps[dmap].function_space
+            dim = self.symtab.find_or_create_tag(
+                fspace.ndf_tag, root_name=fspace.ndf_name,
+                symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(dim)
-            dmap_symbol = self.symtab.find_or_create(
-                dmap, symbol_type=DataSymbol,
+            dmap_symbol = self.symtab.find_or_create_tag(
+                dmap, root_name=fspace.map_name,
+                symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
             dmap_symbol.interface = ArgumentInterface(
@@ -274,30 +286,28 @@ class LFRicDofmaps(LFRicCollection):
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
-                ndf_name = cma["argument"].function_space_to.ndf_name
+                fspace = cma["argument"].function_space_to
             elif cma["direction"] == "from":
-                ndf_name = cma["argument"].function_space_from.ndf_name
+                fspace = cma["argument"].function_space_from
             else:
                 raise InternalError(
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting column-banded dofmaps. "
                     f"Should be either 'to' or 'from'.")
-            symbol = self.symtab.find_or_create(
-                ndf_name, symbol_type=DataSymbol,
+            symbol = self.symtab.find_or_create_tag(
+                fspace.ndf_tag, root_name=fspace.ndf_name,
+                symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(symbol)
 
-            nlayers = self.symtab.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")
-            )
-            nlayers.interface = ArgumentInterface(
-                                        ArgumentInterface.Access.READ)
-            self.symtab.append_argument(nlayers)
-
+            # We need nlayers to dimension the array.
+            first_arg = self._kernel.arguments.first_field_or_operator
+            nlayers = self.symtab.lookup_with_tag(
+                f"nlayers_{first_arg.name}")
             dmap_symbol = self.symtab.find_or_create(
-                dmap, tag=dmap, symbol_type=DataSymbol,
+                fspace.cbanded_map_name, tag=fspace.cbanded_map_tag,
+                symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(symbol), Reference(nlayers)]))
             dmap_symbol.interface = ArgumentInterface(
@@ -310,8 +320,10 @@ class LFRicDofmaps(LFRicCollection):
         for dmap, cma in self._unique_indirection_maps.items():
             if cma["direction"] == "to":
                 param = "nrow"
+                fspace = cma["argument"].function_space_to
             elif cma["direction"] == "from":
                 param = "ncol"
+                fspace = cma["argument"].function_space_from
             else:
                 raise InternalError(
                     f"Invalid direction ('{cma['''direction''']}') found for "
@@ -326,8 +338,9 @@ class LFRicDofmaps(LFRicCollection):
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(dim)
 
-            dmap_symbol = self.symtab.find_or_create(
-                dmap, symbol_type=DataSymbol,
+            dmap_symbol = self.symtab.find_or_create_tag(
+                tag=dmap, root_name=fspace.cma_indirection_map_name,
+                symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
             dmap_symbol.interface = ArgumentInterface(

@@ -1,44 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner, and A. Pirrie, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages the argument for a kernel
 call. It especially adds all implicitly required parameters.
 It creates the argument in two formats: first as a list of strings, but also
-as a list of PSyIR nodes. TODO #1930: the support for the string format
+as a list of PSyIR nodes. TODO #1883: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
@@ -49,15 +19,15 @@ from typing import Optional, Tuple, TYPE_CHECKING
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
-    ArgumentInterface)
+    ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, ScalarType, Symbol, UnresolvedType)
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 
@@ -232,9 +202,12 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
 
-    def mesh_height(self, var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add mesh height (nlayers) to the argument list and if supplied
-        stores this access in var_accesses.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add mesh height (nlayers) of the first field/operator argument to
+        the argument list. If other field arguments have different numbers of
+        layers then these are also added to the list. These accesses are
+        stored in var_accesses if it is supplied.
 
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
@@ -242,10 +215,53 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over == "dof":
             return
-        name = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
-        nlayers_symbol = self.append_integer_reference(name, tag=name)
+        nlayers_names = set()
+        # By default we always pass the number of layers associated with the
+        # first field or operator argument.
+        tag = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
+        name = self._symtab.lookup_with_tag(tag).name
+        nlayers_names.add(name)
+        nlayers_symbol = self.append_integer_reference(name, tag=tag)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
+        # We also have to pass any other values of nlayers for those args
+        # that have a different number and which is unknown at compile time.
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self._symtab.lookup_with_tag(
+                    f"nlayers_label:{arg.nlayers}")
+                if sym.name in nlayers_names:
+                    # Make sure we don't duplicate arguments.
+                    continue
+                nlayers_names.add(sym.name)
+                self.append(sym.name, var_accesses)
+                self.psyir_append(Reference(sym))
+                self._nlayers_positions.append(self.num_args)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add any distinct values of ndata (number of data values per dof)
+        required by field arguments to the argument list. Also add these
+        accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
+        if self._kern.iterates_over == "dof":
+            return
+        ndata_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self._symtab.lookup_with_tag(
+                    f"ndata:{arg.ndata}")
+                if sym.name in ndata_names:
+                    # Make sure we don't duplicate arguments.
+                    continue
+                ndata_names.add(sym.name)
+                self.append(sym.name, var_accesses)
+                self.psyir_append(Reference(sym))
+                # TODO #3498 keep track of positions of ndata
+                # arguments c.f. nlayers
 
     def scalar(self, scalar_arg,
                var_accesses: Optional[VariablesAccessMap] = None):
@@ -387,7 +403,7 @@ class KernCallArgList(ArgOrdering):
                 dof_sym = self._symtab.find_or_create(
                     "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                # TODO #1010 removes the need to declare type and
+                # TODO #2905 removes the need to declare type and
                 # allows this to be fixed
                 self.append_array_reference(cmpt_sym.name,
                                             [Reference(dof_sym)],
@@ -428,7 +444,7 @@ class KernCallArgList(ArgOrdering):
             dof_sym = self._symtab.find_or_create(
                 "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            # TODO #1010 removes the need to declare type and
+            # TODO #2905 removes the need to declare type and
             # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
@@ -443,27 +459,35 @@ class KernCallArgList(ArgOrdering):
             self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
+            self,
+            arg: LFRicKernelArgument,
+            var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
         '''
-        # The extent is not specified in the metadata so pass the value in
+        # The extent is not specified in the metadata so pass the value in.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [cell_ref],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}({cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            # Pass entire array, not indexed by cell (unlike column kernels)
+            self.append_array_reference(var_sym.name, [":"],
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}", var_accesses,
+                        var_access_name=var_sym.name)
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [cell_ref],
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}({cell_name})", var_accesses,
+                        var_access_name=var_sym.name)
 
     def stencil_2d_unknown_extent(
             self, arg, var_accesses: Optional[VariablesAccessMap] = None):
@@ -482,10 +506,15 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", cell_ref],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,{cell_name})"
+        if self._kern.iterates_over == "domain":
+            self.append_array_reference(var_sym.name, [":", ":"],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", cell_ref],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d_max_extent(
@@ -532,16 +561,17 @@ class KernCallArgList(ArgOrdering):
         self.append_integer_reference(name, f"AlgArgs_{tag}")
         self.append(name, var_accesses)
 
-    def stencil(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
+    def stencil(self,
+                arg: LFRicKernelArgument,
+                var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
 
         :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
+        :param var_accesses: optional used to store the information about
+            variable accesses.
 
         '''
         # add in stencil dofmap
@@ -549,23 +579,29 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", ":", cell_ref],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            # Pass whole array for a domain kernel
+            self.append_array_reference(var_sym.name, [":", ":", ":"],
+                                        symbol=var_sym)
+            text = f"{var_sym.name}"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", ":", cell_ref],
+                                        symbol=var_sym)
+            text = f"{var_sym.name}(:,:,{cell_name})"
+        self.append(text, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
+            self, arg: LFRicKernelArgument,
+            var_accesses: Optional[VariablesAccessMap] = None):
         '''Add general 2D stencil information associated with the argument
         'arg' to the argument list. If supplied it also stores this access in
         var_accesses.
 
         :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
+        :param var_accesses: optional instance to store information about
+            variable accesses.
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -579,11 +615,18 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name,
-                                    [":", ":", ":", cell_ref],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,:,:,{cell_name})"
+        if self._kern.iterates_over == "domain":
+            # For a domain kernel we pass the whole array.
+            self.append_array_reference(var_sym.name,
+                                        [":", ":", ":", ":"],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name,
+                                        [":", ":", ":", cell_ref],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def operator(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
@@ -641,14 +684,16 @@ class KernCallArgList(ArgOrdering):
                                     function_space=function_space.orig_name))
 
     def fs_compulsory_field(
-            self, function_space,
-            var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add compulsory arguments associated with this function space to
-        the list. If supplied it also stores this access in var_accesses.
+            self,
+            function_space: FunctionSpace,
+            var_accesses: Optional[VariablesAccessMap] = None
+    ) -> None:
+        '''
+        Add compulsory arguments associated with this function space to this
+        argument list. If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which the compulsory
             arguments are added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
@@ -657,30 +702,22 @@ class KernCallArgList(ArgOrdering):
             # Dofmaps and `undf` are not required for DoF kernels
             return
 
-        sym = self.append_integer_reference(function_space.undf_name)
+        sym = self.append_integer_reference(
+            function_space.undf_name,
+            tag=function_space.undf_tag)
         self.append(sym.name, var_accesses)
 
-        map_name = function_space.map_name
-        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
-        dtype = UnsupportedFortranType(
-            f"{intrinsic_type.intrinsic.name}("
-            f"kind={intrinsic_type.precision.name}), pointer, "
-            f"dimension(:,:) :: {map_name} => null()",
-            partial_datatype=ArrayType(
-                intrinsic_type,
-                [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
-        sym = self._symtab.find_or_create_tag(
-            map_name, symbol_type=DataSymbol, datatype=dtype)
+        sym = self._symtab.lookup_with_tag(function_space.map_tag)
 
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            self.append_array_reference(map_name, [":", ":"], symbol=sym)
+            self.append_array_reference(sym.name, [":", ":"], symbol=sym)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            self.append_array_reference(map_name, [":", cell_ref], symbol=sym)
+            self.append_array_reference(sym.name, [":", cell_ref], symbol=sym)
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -702,10 +739,13 @@ class KernCallArgList(ArgOrdering):
             # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
-            sym = self.append_integer_reference(function_space.undf_name)
+            sym = self.append_integer_reference(
+                function_space.undf_name,
+                tag=function_space.undf_tag)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.append_array_reference(map_name, [":", ":"])
+            sym = self.append_array_reference(map_name, [":", ":"],
+                                              tag=function_space.map_tag)
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -726,11 +766,11 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
+            basis_name, basis_tag = function_space.get_basis_name(
+                qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    basis_name, [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")()
-                )
+                basis_name, [":", ":", ":", ":"],
+                LFRicTypes("LFRicRealScalarDataType")(), tag=basis_tag)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -741,8 +781,11 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.append_array_reference(basis_name, [":", ":", ":"])
+                basis_name, basis_tag = function_space.get_basis_name(
+                    on_space=fspace)
+                sym = self.append_array_reference(
+                    basis_name, [":", ":", ":"],
+                    tag=basis_tag)
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space,
@@ -759,12 +802,12 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            diff_basis_name = function_space.get_diff_basis_name(
+            diff_basis_name, dbasis_tag = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    diff_basis_name,
-                    [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")()
+                diff_basis_name, [":", ":", ":", ":"],
+                LFRicTypes("LFRicRealScalarDataType")(),
+                tag=dbasis_tag
             )
             self.append(sym.name, var_accesses)
 
@@ -776,12 +819,12 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                diff_basis_name = function_space.get_diff_basis_name(
+                dbasis_name, dbasis_tag = function_space.get_diff_basis_name(
                     on_space=fspace)
                 sym = self.append_array_reference(
-                                  diff_basis_name,
-                                  [":", ":", ":"],
-                                  LFRicTypes("LFRicRealScalarDataType")())
+                    dbasis_name, [":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    tag=dbasis_tag)
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space,

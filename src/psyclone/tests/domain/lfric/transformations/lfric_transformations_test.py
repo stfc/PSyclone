@@ -1,42 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, A. Coughtrie, O. Brunt and L. Turner, Met Office
-#          C.M. Maynard, Met Office / University of Reading
-# Modified: J. Henrichs, Bureau of Meteorology
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
-#           J. Dendy, Met Office
 
 ''' Tests of transformations with the LFRic API '''
 
@@ -58,7 +25,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
+    Loop, Schedule, Literal, Directive, OMPDoDirective,
     ACCEnterDataDirective, Assignment, Reference)
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
@@ -71,6 +38,7 @@ from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans, LFRicOMPParallelLoopTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.utils import colored
 
 # The version of the API that the tests in this file
 # exercise.
@@ -320,9 +288,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_as1_afield, undf_as1_afield, "
-        "map_as1_afield(:,cmap(colour,cell)), cbanded_map_as1_afield, "
-        "ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
+        "ndf_as1_afield__1, undf_as1_afield__1, "
+        "map_as1_afield__1(:,cmap(colour,cell)), cbanded_map_as1_afield__1, "
+        "ndf_as2_lma_op1__1, cbanded_map_as2_lma_op1__1)\n"
         "      enddo\n"
         "    enddo\n") in gen
 
@@ -980,144 +948,6 @@ def test_multi_different_kernel_omp(
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_invalid_space(monkeypatch):
-    ''' Test that we raise an appropriate error if the user attempts
-    to fuse loops that are on invalid spaces.
-    '''
-    _, first_invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
-                                 idx=0, dist_mem=False)
-    schedule = first_invoke.schedule
-    first_kernel_args = schedule.coded_kernels()[0].arguments
-    # Get argument on the "write" space w1
-    _, fspace = first_kernel_args.get_arg_on_space_name("w1")
-    # Make function space invalid
-    monkeypatch.setattr(fspace, "_orig_name", "not_a_space_name")
-
-    # Apply transformation and raise the error
-    ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0], schedule.children[1])
-    assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
-            "invalid names" in str(excinfo.value))
-
-
-def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
-    ''' Test that we raise an appropriate error if the user attempts
-    fuse loops that are on different spaces (unless they are both on
-    discontinuous spaces). We test with annexed is False as this is
-    how the test has been set up.
-
-    '''
-    lfric_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
-    for same_space in [False, True]:
-        _, invoke = get_invoke("4.7_multikernel_invokes.f90",
-                               TEST_API, name="invoke_0", dist_mem=dist_mem)
-        schedule = invoke.schedule
-
-        ftrans = LFRicLoopFuseTrans()
-        mtrans = MoveTrans()
-        if dist_mem:
-            index = 9
-            # f, c and g halo exchanges between loops can be moved
-            # before the 1st loop as they are not accessed in it
-            for idx in range(index-3, index):
-                mtrans.apply(schedule.children[idx+1],
-                             schedule.children[idx])
-        else:
-            index = 0
-
-        with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[index],
-                         schedule.children[index+1],
-                         {"same_space": same_space})
-
-        if same_space:
-            assert ("The 'same_space' flag was set, but does not apply "
-                    "because neither field is on 'ANY_SPACE'" in
-                    str(excinfo.value))
-        else:
-            assert ("Cannot fuse loops that are over different spaces "
-                    "'w2' and 'w1' unless they are both discontinuous"
-                    in str(excinfo.value))
-
-
-def test_loop_fuse_same_space_error():
-    ''' Test that we raise an appropriate error if the user attempts
-    to incorrectly set the 'same_space' property
-
-    '''
-    ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(None, None, {"same_space": "foo"})
-    assert ("The value of the 'same_space' flag must be either bool or "
-            "None type, but the type of flag provided was 'str'."
-            in str(excinfo.value))
-
-
-def test_loop_fuse(dist_mem):
-    ''' Test that we are able to fuse two loops together. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=dist_mem)
-    schedule = invoke.schedule
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-
-    ftrans = LFRicLoopFuseTrans()
-
-    assert ("Fuse two adjacent loops together with LFRic-specific "
-            "validity checks" in str(ftrans))
-
-    # Fuse the loops
-    ftrans.apply(schedule.children[index],
-                 schedule.children[index+1])
-
-    gen = str(psy.gen)
-
-    cell_loop_idx = -1
-    end_loop_idx = -1
-    call_idx1 = -1
-    call_idx2 = -1
-    if dist_mem:
-        assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    else:
-        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in gen
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(gen.split('\n')):
-        if loop_str in line:
-            cell_loop_idx = idx
-        if "call testkern_code" in line:
-            if call_idx1 == -1:
-                call_idx1 = idx
-            else:
-                call_idx2 = idx
-        if "enddo" in line:
-            end_loop_idx = idx
-
-    assert cell_loop_idx != -1
-    assert cell_loop_idx < call_idx1
-    assert call_idx1 < call_idx2
-    assert call_idx2 < end_loop_idx
-
-
-def test_loop_fuse_set_dirty():
-    ''' Test that we are able to fuse two loops together and produce
-    the expected set_dirty() calls. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=True)
-
-    schedule = invoke.schedule
-    ftrans = LFRicLoopFuseTrans()
-    # Fuse the loops
-    ftrans.apply(schedule.children[4], schedule.children[5])
-
-    gen = str(psy.gen)
-    assert gen.count("set_dirty()") == 1
-
-
 def test_loop_fuse_omp(dist_mem):
     ''' Test that we can loop-fuse two loop nests and enclose them in an
     OpenMP parallel region.
@@ -1132,7 +962,7 @@ def test_loop_fuse_omp(dist_mem):
     ftrans = LFRicLoopFuseTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
-    ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply((schedule.children[0], schedule.children[1]))
 
     otrans.apply(schedule.children[0])
 
@@ -1198,7 +1028,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     else:
         # there are no halo exchange calls
         index = 0
-    ftrans.apply(schedule.children[index], schedule.children[index+1])
+    ftrans.apply((schedule.children[index], schedule.children[index+1]))
 
     otrans.apply(schedule.children[index])
 
@@ -1276,7 +1106,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     ctrans.apply(schedule[index+1])
 
     # fuse the sequential colours loop
-    ftrans.apply(schedule[index], schedule[index+1])
+    ftrans.apply((schedule[index], schedule[index+1]))
 
     # Enclose the colour loops within an OMP parallel region
     rtrans.apply(schedule[index].loop_body.children)
@@ -1356,15 +1186,15 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         index = 0
 
     # Fuse the loops
-    ftrans.apply(schedule.children[index], schedule.children[index+1],
+    ftrans.apply((schedule.children[index], schedule.children[index+1]),
                  {"same_space": True})
     code = str(psy.gen)
 
     assert (
         "    ! Look-up required column-banded dofmaps\n"
-        "    cbanded_map_as1_afield => "
+        "    cbanded_map_as1_afield__1 => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "    cbanded_map_as2_lma_op1 => "
+        "    cbanded_map_as2_lma_op1__1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "    ! Look-up information for each CMA operator\n"
@@ -1382,9 +1212,10 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
-        "undf_as1_afield, map_as1_afield(:,cell), "
-        "cbanded_map_as1_afield, ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield__1, "
+        "undf_as1_afield__1, map_as1_afield__1(:,cell), "
+        "cbanded_map_as1_afield__1, ndf_as2_lma_op1__1, "
+        "cbanded_map_as2_lma_op1__1)\n"
         "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1580,9 +1411,9 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1],
+    ftrans.apply((schedule.children[0], schedule.children[1]),
                  {"same_space": True})
-    ftrans.apply(schedule.children[0], schedule.children[1],
+    ftrans.apply((schedule.children[0], schedule.children[1]),
                  {"same_space": True})
     otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
@@ -1817,8 +1648,8 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule[0], schedule[1], {"same_space": True})
-    ftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    ftrans.apply((schedule[0], schedule[1]), {"same_space": True})
+    ftrans.apply((schedule[0], schedule[1]), {"same_space": True})
 
     olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -1962,7 +1793,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1__1\n" in code
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static) reduction(+: asum)\n"
@@ -2025,8 +1856,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1\n" in code
-        assert "loop1_stop = undf_as1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1__1\n" in code
+        assert "loop1_stop = undf_as1_f1__1\n" in code
         assert (
             "    asum = 0.0_r_def\n"
             "\n"
@@ -2278,23 +2109,55 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
     rtrans = OMPParallelTrans()
     ftrans = LFRicLoopFuseTrans()
     if fuse:
-        with pytest.raises(TransformationError) as err:
-            ftrans.apply(schedule[0], schedule[1],
-                         options={"same_space": True})
-        assert ("Cannot fuse loops when each loop already contains a "
-                "reduction" in str(err.value))
+        ftrans.apply((schedule[0], schedule[1]),
+                     options={"same_space": True})
     # Apply an OpenMP do to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
             otrans.apply(child, {"reprod": False})
     # Apply an OpenMP Parallel for all loops
-    rtrans.apply(schedule.children[0:2])
+    if fuse:
+        rtrans.apply(schedule.children[0])
+    else:
+        rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
+    if dist_mem and fuse:
+        expected_output = """\
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = f2_proxy%vspace%get_last_dof_owned()
+
+    ! Initialise reduction variable
+    asum = 0.0_r_def
+
+    ! Initialise reduction variable
+    bsum = 0.0_r_def
+
+    ! Call kernels and communication routines
+    !$omp parallel default(shared) private(df)
+    !$omp do schedule(static) reduction(+: asum) reduction(+: bsum)
+    do df = loop0_start, loop0_stop, 1
+      ! Built-in: X_innerproduct_Y (real-valued fields)
+      asum = asum + f2_data(df) * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      bsum = bsum + f1_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel
+
+    ! Perform global sum
+    global_sum%value = asum
+    asum = global_sum%get_sum()
+
+    ! Perform global sum
+    global_sum%value = bsum
+    bsum = global_sum%get_sum()"""
+    elif dist_mem:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()\n" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
@@ -2308,7 +2171,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static) reduction(+: bsum)\n"
@@ -2326,8 +2189,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    ! Perform global sum\n"
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
-    else:
-        assert "loop0_stop = undf_as1_f1" in result
+    elif not fuse:
+        assert "loop0_stop = undf_as1_f2" in result
         assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
@@ -2341,7 +2204,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static) reduction(+: bsum)\n"
@@ -2351,6 +2214,30 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel")
+    else:
+        expected_output = """\
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = undf_as1_f2__1
+
+    ! Initialise reduction variable
+    asum = 0.0_r_def
+
+    ! Initialise reduction variable
+    bsum = 0.0_r_def
+
+    ! Call kernels
+    !$omp parallel default(shared) private(df)
+    !$omp do schedule(static) reduction(+: asum) reduction(+: bsum)
+    do df = loop0_start, loop0_stop, 1
+      ! Built-in: X_innerproduct_Y (real-valued fields)
+      asum = asum + f2_data(df) * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      bsum = bsum + f1_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel"""
     assert expected_output in result
 
 
@@ -2382,7 +2269,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "    ALLOCATE(array_of_partial_asum(nthreads))\n"
@@ -2408,7 +2295,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      thread_private_asum = thread_private_asum + "
-            "f1_data(df) * f2_data(df)\n"
+            "f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
@@ -2445,7 +2332,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ALLOCATE(array_of_partial_asum(nthreads))\n"
@@ -2471,7 +2358,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      thread_private_asum = thread_private_asum + "
-            "f1_data(df) * f2_data(df)\n"
+            "f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
@@ -2532,30 +2419,59 @@ def test_multi_reduction_same_name_real_do():
                 "invoke") in str(excinfo.value)
 
 
-def test_multi_reduction_real_fuse():
-    '''test that we raise an exception when we loop fuse two kernels with
-    reductions. We need to specify that the loop-fuse is valid in terms of
-    iteration spaces.'''
-    for file_name in ["15.15.1_two_same_builtin_reductions.f90",
-                      "15.16.1_two_different_builtin_reductions.f90"]:
+def test_multi_reduction_real_fuse(fortran_writer):
+    '''Test that we raise an exception when we loop fuse two kernels with
+    dependent reductions and that we can fuse two kernels if they have
+    independent reductions.'''
+    file_name = "15.15.1_two_same_builtin_reductions.f90"
 
-        for distmem in [False, True]:
-            _, invoke = get_invoke(file_name, TEST_API,
-                                   idx=0, dist_mem=distmem)
-            schedule = invoke.schedule
+    for distmem in [False, True]:
+        _, invoke = get_invoke(file_name, TEST_API,
+                               idx=0, dist_mem=distmem)
+        schedule = invoke.schedule
 
-            ftrans = LFRicLoopFuseTrans()
-            if distmem:
-                # We need to remove the global sum. This makes the
-                # code invalid in this particular case but allows us
-                # to perform our check
-                del schedule.children[1]
-            with pytest.raises(TransformationError) as excinfo:
-                ftrans.apply(schedule.children[0], schedule.children[1],
-                             {"same_space": True})
-            assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
-                    "fuse loops when each loop already contains a "
-                    "reduction" in str(excinfo.value))
+        ftrans = LFRicLoopFuseTrans()
+        if distmem:
+            # We need to remove the global sum. This makes the
+            # code invalid in this particular case but allows us
+            # to perform our check
+            del schedule.children[1]
+        with pytest.raises(TransformationError) as excinfo:
+            ftrans.apply((schedule.children[0], schedule.children[1]),
+                         {"same_space": True})
+        assert ("Error in LFRicLoopFuseTrans transformation: Cannot fuse "
+                "loops as the first loop has a reduction and the second loop "
+                "reads the result of the reduction." in str(excinfo.value))
+
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
+
+    for distmem in [False, True]:
+        _, invoke = get_invoke(file_name, TEST_API,
+                               idx=0, dist_mem=distmem)
+        schedule = invoke.schedule
+
+        ftrans = LFRicLoopFuseTrans()
+        if distmem:
+            # We need to remove the global sum. This makes the
+            # code invalid in this particular case but allows us
+            # to perform our check
+            del schedule.children[1]
+        ftrans.apply((schedule.children[0], schedule.children[1]),
+                     {"same_space": True})
+        correct = """\
+  ! Initialise reduction variable
+  asum = 0.0_r_def
+
+  ! Initialise reduction variable
+  bsum = 0.0_r_def
+  do df = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+    ! Built-in: X_innerproduct_Y (real-valued fields)
+    asum = asum + f2_data(df) * f1_data(df)
+
+    ! Built-in: sum_X (sum a real-valued field)
+    bsum = bsum + f1_data(df)
+  enddo"""
+        assert correct in fortran_writer(schedule)
 
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
@@ -2576,7 +2492,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "    ! Initialise reduction variable\n"
@@ -2587,7 +2503,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
@@ -2609,7 +2525,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop0_stop = undf_as1_f2" in code
         assert "loop1_stop = undf_as1_f1" in code
         assert (
             "    ! Initialise reduction variable\n"
@@ -2620,7 +2536,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
@@ -2825,7 +2741,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
         mtrans.apply(schedule.children[1], schedule.children[2],
                      position="after")
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
@@ -2835,7 +2751,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             mtrans.apply(schedule.children[1], schedule.children[2],
                          position="after")
         rtrans = LFRicOMPParallelLoopTrans()
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
         rtrans.apply(schedule.children[0])
         result = str(psy.gen)
@@ -2910,7 +2826,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
         mtrans.apply(schedule.children[1], schedule.children[2],
                      position="after")
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
@@ -2920,7 +2836,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                          position="after")
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
         rtrans.apply(schedule.children[0])
@@ -3074,13 +2990,13 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         otrans = LFRicOMPParallelLoopTrans()
-        ftrans.apply(schedule.children[0], schedule.children[1],
-                     {"same_space": True})
+        ftrans.apply((schedule.children[0], schedule.children[1]),
+                     same_space=True)
         otrans.apply(schedule.children[0])
         result = str(psy.gen)
 
@@ -3152,13 +3068,13 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
         rtrans.apply(schedule.children[0])
@@ -3228,28 +3144,83 @@ def test_multi_builtins_fuse_error():
                            TEST_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1],
+    ftrans.apply((schedule.children[0], schedule.children[1]),
                  {"same_space": True})
     with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
     assert ("Cannot fuse loops as the first loop has a reduction and "
             "the second loop reads the result of the "
             "reduction") in str(excinfo.value)
 
 
-def test_loop_fuse_error(dist_mem):
-    '''Test that we raise an exception in loop fusion if one or more of
+def test_loop_fuse_error(tmpdir, dist_mem):
+    '''Test that we conditionally fuse loops if one or more of
     the loops has an any_space iteration space.'''
-    _, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
-                           TEST_API, idx=0, dist_mem=dist_mem)
+    psy, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0], schedule.children[1])
-    assert ("One or more of the iteration spaces is unknown "
-            "('ANY_SPACE') so loop fusion might be "
-            "invalid") in str(excinfo.value)
+    ftrans.apply((schedule.children[0], schedule.children[1]),
+                 conditional_fusion=True)
+    code = str(psy.gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        correct = """    ! Call kernels and communication routines
+    if (f1%which_function_space() == f2%which_function_space()) then
+      do df = loop0_start, loop0_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f1_proxy%set_dirty()
+      call f2_proxy%set_dirty()
+    else
+      do df = loop1_start, loop1_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f1_proxy%set_dirty()
+      do df = loop2_start, loop2_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f2_proxy%set_dirty()
+    end if"""
+    else:
+        correct = """    ! Call kernels
+    if (f1%which_function_space() == f2%which_function_space()) then
+      do df = loop0_start, loop0_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+    else
+      do df = loop1_start, loop1_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+      enddo
+      do df = loop2_start, loop2_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+    end if
+    do df = loop3_start, loop3_stop, 1
+      ! Built-in: setval_c (set a real-valued field to a real scalar value)
+      f3_data(df) = ginger
+    enddo"""
+    assert correct in code
 
 
 # Repeat the reduction tests for the reproducible version
@@ -3530,12 +3501,12 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
     if dist_mem and annexed:
         # we can't loop fuse as the loop bounds differ
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         # we can loop fuse as the loop bounds are the same
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
@@ -3654,13 +3625,13 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply(schedule.children[0], schedule.children[1],
+            ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not distmem and annexed
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": True})
         rtrans.apply(schedule.children[0])
@@ -3886,7 +3857,7 @@ def test_repr_reductions_fused(tmpdir, dist_mem):
     # The 2nd loop uses the result of the reduction from the 1st loop
     # so we can only fuse the 2nd and 3rd. Since both are any-space we
     # have to claim that they are on the same space for this to work.
-    fuse.apply(schedule[loop_idx], schedule[loop_idx+1],
+    fuse.apply((schedule[loop_idx], schedule[loop_idx+1]),
                options={"same_space": True})
     for child in schedule.children:
         if isinstance(child, LFRicLoop):
@@ -4246,7 +4217,7 @@ def test_loop_fusion_different_loop_depth(annexed):
         index += 1
     f_trans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[index], schedule.children[index+1])
+        f_trans.apply((schedule.children[index], schedule.children[index+1]))
     assert ("Error in LFRicLoopFuseTrans transformation: The halo-depth "
             "indices are not the same. Found '3' and '1'" in
             str(excinfo.value))
@@ -4262,7 +4233,7 @@ def test_loop_fusion_different_loop_depth(annexed):
     # try to fuse the loops. This should fail as the depths are different
     f_trans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[index], schedule.children[index+1])
+        f_trans.apply((schedule.children[index], schedule.children[index+1]))
     assert ("Error in LFRicLoopFuseTrans transformation: The halo-depth "
             "indices are not the same. Found '3' and 'None'" in
             str(excinfo.value))
@@ -4282,7 +4253,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     f_trans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         # Indices of loops to fuse in the schedule
-        f_trans.apply(schedule.children[2], schedule.children[3])
+        f_trans.apply((schedule.children[2], schedule.children[3]))
     assert ("Error in LFRicLoopFuseTrans transformation: The upper bound "
             "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
@@ -4297,7 +4268,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], {"depth": 3})
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[1], schedule.children[2])
+        f_trans.apply((schedule.children[1], schedule.children[2]))
     assert ("Error in LFRicLoopFuseTrans transformation: The upper bound "
             "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
@@ -4537,29 +4508,36 @@ def test_rc_then_colour2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_then_rc(tmpdir):
+def test_loop_fuse_then_rc(tmpdir, fortran_writer):
     ''' Test that we are able to fuse two loops together, perform
     redundant computation and then colour. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90",
+    psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
                              TEST_API, name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
+    # Move the halo exchanges from between the loops to before both.
+    mtrans = MoveTrans()
+    mtrans.apply(schedule.children[5], schedule.children[4])
+    mtrans.apply(schedule.children[6], schedule.children[5])
+    mtrans.apply(schedule.children[7], schedule.children[6])
+    mtrans.apply(schedule.children[8], schedule.children[7])
+
     ftrans = LFRicLoopFuseTrans()
 
-    # Fuse the loops
-    ftrans.apply(schedule.children[4], schedule.children[5])
+    # Fuse the loop
+    ftrans.apply((schedule.children[8], schedule.children[9]))
 
     # Create our redundant computation transformation
     rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop
-    rc_trans.apply(schedule.children[4])
+    rc_trans.apply(schedule.children[8])
 
     # Create our colour transformation
     ctrans = LFRicColourTrans()
 
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.children[8])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5161,7 +5139,7 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     ctrans.apply(loops[0])
     ctrans.apply(loops[1])
     loops = schedule.walk(Loop)
-    ftrans.apply(loops[0], loops[2])
+    ftrans.apply((loops[0], loops[2]))
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -5188,7 +5166,7 @@ def test_intergrid_err(dist_mem):
 
     lftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        lftrans.apply(loops[0], loops[1])
+        lftrans.apply((loops[0], loops[1]))
     assert expected_err in str(excinfo.value)
 
 # Start OpenACC section
@@ -5587,8 +5565,8 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "    call f2_proxy%halo_exchange_start(depth=1)\n"
         "    do cell = loop3_start, loop3_stop, 1\n"
         "      call testkern_any_space_3_code(cell, nlayers_op, "
-        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op, "
-        "ndf_as2_op)\n"
+        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op__1, "
+        "ndf_as2_op__1)\n"
         "    enddo\n"
         "    call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
@@ -6478,7 +6456,7 @@ def test_all_loop_trans_base_validate(monkeypatch):
     # To ensure that we identify that the validate() method in the LoopTrans
     # base class has been called, we monkeypatch it to raise an exception.
 
-    def fake_validate(_1, _2, options=None):
+    def fake_validate(_1, _2, options=None, **kwargs):
         raise NotImplementedError("validate test exception")
     monkeypatch.setattr(LoopTrans, "validate", fake_validate)
 
@@ -6487,7 +6465,7 @@ def test_all_loop_trans_base_validate(monkeypatch):
         if isinstance(trans, LoopTrans):
             with pytest.raises(NotImplementedError) as err:
                 if isinstance(trans, LoopFuseTrans):
-                    trans.validate(loop, loop)
+                    trans.validate((loop, loop))
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
@@ -6574,7 +6552,7 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
             "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
             "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6667,7 +6645,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6710,33 +6688,9 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
             "(colour,tile), 1" in result)
     assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
             "tmap_field1(colour,tile,cell))" in result)
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_deprecated_names(capsys):
-    '''
-    Check that the old Dynamo0p3-based transformation names are still
-    accepted, but will print a deprecation message when they are
-    instantiated.
-    '''
-
-    # Since these names are deprecated, they are imported in this one test
-    # only, to make it easier to remove them later all at once
-    # pylint: disable=no-name-in-module, import-outside-toplevel
-    from psyclone.transformations import (
-        Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-        Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans)
-    for trans_cls in [Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-                      Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans]:
-        old_name = trans_cls.__name__
-        new_name = old_name.replace("Dynamo0p3", "LFRic")
-        _ = trans_cls()
-        out, _ = capsys.readouterr()
-        assert (f"Deprecation warning: the script uses the legacy name "
-                f"'{old_name}', please use new name "
-                f"'{new_name}' instead.") in out
 
 
 def test_reprod_red_with_parallel_do(tmpdir, monkeypatch, annexed,

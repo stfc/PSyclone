@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-#              L. Turner, Met Office
-#              T. Vockerodt, Met Office
-#              J. Dendy, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -59,17 +27,10 @@ BASE_PATH = os.path.join(
     "test_files", "lfric")
 
 
-@pytest.fixture(scope="function", autouse=True)
-def setup():
-    '''Make sure that all tests here use lfric as API.'''
-    Config.get().api = "lfric"
-
-
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture():
+def create_prog_fixture() -> Routine:
     '''
     :returns: a PSyIR Routine node representing a program.
-    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
     prog = Routine.create("test_prog", is_program=True)
@@ -292,9 +253,9 @@ module testkern_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(2) :: meta_args =        &
-          (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,  gh_real, gh_inc,  w1)  &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_scalar, gh_real, gh_read),    &
+             arg_type(gh_field,  gh_real, gh_inc,  w1) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -344,7 +305,7 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
     assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3, "
             "element_order_h + 3, element_order_v + 3, quadrature_rule)"
             in gen)
-    # TODO #240 - test for compilation.
+    # TODO #284 - test for compilation.
 
 
 def test_create_from_kernel_invalid_kernel(tmpdir):
@@ -378,20 +339,28 @@ def test_create_from_kernel_invalid_field_type(monkeypatch):
 
 def test_create_from_kernel_with_scalar(fortran_writer):
     ''' Check that create_from_kernel() returns the expected Fortran for a
-    valid LFRic kernel that has a scalar argument. '''
+    valid LFRic kernel that has scalar and scalar-array arguments. '''
     psyir = LFRicAlg().create_from_kernel(
-        "test", os.path.join(BASE_PATH, "testkern_mod.F90"))
+        "test", os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
     code = fortran_writer(psyir)
     assert "module test_mod" in code
-    assert "use constants_mod, only : i_def, r_def" in code
-    assert "real(kind=r_def) :: rscalar_1" in code
-    assert ("    rscalar_1 = 1_i_def\n"
-            "    call invoke(setval_c(field_2, 1.0_r_def), "
-            "setval_c(field_3, 1.0_r_def), "
-            "setval_c(field_4, 1.0_r_def), "
-            "setval_c(field_5, 1.0_r_def), "
-            "testkern_type(rscalar_1, field_2, field_3, field_4, field_5))\n"
-            in code)
+    assert "use constants_mod, only : i_def, l_def, r_def" in code
+    assert "integer(kind=i_def) :: iscalar_5" in code
+    # The extent of each dimension of a scalar array is unknown so we
+    # arbirtrarily use a value of 3 to get something that compiles.
+    assert "real(kind=r_def), dimension(3,3) :: rscalar_array_2" in code
+
+    assert """
+    ! Since kernel metadata only specifies the *rank* of this 'scalar array' \
+argument, each dimension has been given the arbitrary extent of 3 in order to \
+create compilable code.
+    lscalar_array_3 = .true._l_def""" in code
+
+    assert ("    iscalar_array_4 = 1_i_def\n"
+            "    iscalar_5 = 1_i_def\n"
+            "    call invoke(setval_c(field_1, 1.0_r_def), "
+            "testkern_scalar_array_type(field_1, rscalar_array_2, "
+            "lscalar_array_3, iscalar_array_4, iscalar_5))\n" in code)
 
 
 def test_create_from_kernel_with_vector(fortran_writer):

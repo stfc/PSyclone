@@ -52,13 +52,14 @@ on:
 
 env:
   CUDA_VERSION: "13"
-  GFORTRAN_VERSION: "15"
-  HDF5_VERSION: "2.1"
+  GFORTRAN_VERSION: "16"
+  INTEL_VERSION: "2026.2"
+  HDF5_VERSION: "2.2"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
-  NVFORTRAN_VERSION: "26.5"
+  NVFORTRAN_VERSION: "26.9"
   OPENMPI_VERSION: "5.0"
-  PYTHON_VERSION: "3.14"
+  PYTHON_VERSION: "3.15"
   NUM_PARALLEL: 16
 
 jobs:
@@ -67,7 +68,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
@@ -94,13 +95,26 @@ jobs:
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # TODO #3142 it would be good to check for implicitly-declared
+        # procedures (-Werror=implicit-procedure) but we can't until PSyclone
+        # has support for the EXTERNAL statement.
         pytest -n ${NUM_PARALLEL} --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
     - name: Unit tests with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
+        # We need '-Mrecursive' to get the Fortran2018 behaviour of assuming
+        # all routines to be RECURSIVE unless otherwise specified.
+        pytest -n ${NUM_PARALLEL} --f90=nvfortran --f90flags='-Mrecursive' --compile --compileopencl src/psyclone/tests
+    - name: Unit tests with OpenMP compilation - ifx
+      run: |
+        . .runner_venv/bin/activate
+        module load oneapi/${INTEL_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # As of Fortran2018, routines are assumed RECURSIVE but ifx doesn't do
+        # that unless you tell it.
+        pytest -n ${NUM_PARALLEL} --f90=ifx --f90flags="-fopenmp -assume recursion" --compile  src/psyclone/tests
     - name: Libraries compilation - gfortran
       run: |
         . .runner_venv/bin/activate
@@ -149,8 +163,10 @@ jobs:
         make -C examples allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # Since this is the second execution of the examples, we also test the psyclone part with
+        # PYTHONOPTIMIZE=2 which removes asserts and annotations
         # TODO #3074: Examples compilation cannot be run in parallel
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
+        PYTHONOPTIMIZE=2 F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
@@ -158,6 +174,9 @@ jobs:
         make -C tutorial/training allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # Since this is the second execution of the examples, we also test the psyclone part with
+        # PYTHONOPTIMIZE=2 which removes asserts and annotations
+        export PYTHONOPTIMIZE=2
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         # We cannot run non-GPU examples with the openacc flag, since output_field

@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
-#          and A. Pirrie, Met Office;
-#          C. M. Maynard, Met Office/University of Reading;
-#          J. Henrichs, Bureau of Meteorology.
 
 '''
 Module containing pytest tests for kernel stub code generation for the
@@ -120,11 +88,11 @@ module testkern_three_scalars_mod
   public
 
   contains
-  subroutine testkern_three_scalars_code(nlayers, rscalar_1, field_2_w1, \
-field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, ndf_w1, undf_w1, \
-map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
+  subroutine testkern_three_scalars_code(nlayers_field_2, rscalar_1, \
+field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, \
+ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_2
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -176,12 +144,12 @@ module testkern_scalar_array_mod
   public
 
   contains
-  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+  subroutine testkern_scalar_array_code(nlayers_field_1, field_1_w1, \
 dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
 lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
 iscalar_5, ndf_w1, undf_w1, map_w1)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: undf_w1

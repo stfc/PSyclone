@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
-#         C. M. Maynard, Met Office/University of Reading,
-#         J. Henrichs, Bureau of Meteorology.
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
@@ -102,18 +71,18 @@ def test_stencil_metadata():
 
 
 def test_stencil_field_metadata_too_many_arguments():
-    ''' Check that we raise an exception if more than 5 arguments
+    ''' Check that we raise an exception if more than 7 arguments
     are provided in the metadata for a 'gh_field' argument type
     with stencil access.
 
     '''
     result = STENCIL_CODE.replace(
         "(gh_field, gh_real, gh_read, w2, stencil(cross))",
-        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
+        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast)
-    assert ("each 'meta_arg' entry must have at most 5 arguments" in
+    assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
 
@@ -228,7 +197,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f0, f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f1__1, undf_ads1_f1__1, "
+        "map_ads1_f1__1(:,cell))")
     assert output1 in result
     # Use a different stencil dofmap
     output2 = (
@@ -236,8 +206,9 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f3, f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f4, undf_ads1_f4, map_ads1_f4(:,cell), "
-        "ndf_ads2_f5, undf_ads2_f5, map_ads2_f5(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell), ndf_ads2_f5__1, undf_ads2_f5__1, "
+        "map_ads2_f5__1(:,cell))")
     assert output2 in result
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
@@ -1271,8 +1242,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4_data, f4_stencil_size(cell), direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_ads1_f4, undf_ads1_f4, "
-        "map_ads1_f4(:,cell))")
+        "map_w2(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell))")
     assert output5 in result
 
     # Check compilation
@@ -1752,15 +1723,15 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))")
+        "ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell))")
     assert output2 in result
     output3 = (
         "      call testkern_different_anyspace_stencil_code(nlayers_f3, "
         "f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_as2_f5, "
-        "undf_as2_f5, map_as2_f5(:,cell))")
+        "ndf_as1_f4__1, undf_as1_f4__1, map_as1_f4__1(:,cell), ndf_as2_f5__1, "
+        "undf_as2_f5__1, map_as2_f5__1(:,cell))")
     # Use a different stencil dofmap
     assert output3 in result
 

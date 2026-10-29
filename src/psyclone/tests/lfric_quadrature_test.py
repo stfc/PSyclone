@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
@@ -50,7 +20,7 @@ from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
-from psyclone.psyir.symbols import DataSymbol, UnresolvedType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -603,7 +573,7 @@ def test_lfricbasisfunctions(monkeypatch):
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     with pytest.raises(InternalError) as excinfo:
-        _ = qr_basis_alloc_args("size1", basis_dict)
+        _ = qr_basis_alloc_args(SymbolTable(), "size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
             in str(excinfo.value))
 
@@ -668,11 +638,6 @@ def test_lfricbasisfns_initialise(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
-    # We need some pre-declared symbol in order to call the initialise directly
-    for name in ["quadrature_xyoz_proxy_type", "qr_proxy", "f1_proxy",
-                 "f2_proxy", "m2_proxy"]:
-        psy.container.children[0].symbol_table.add(
-             DataSymbol(name, UnresolvedType()))
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -680,7 +645,9 @@ def test_lfricbasisfns_initialise(monkeypatch):
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
             "one of " in str(err.value))
     # Break the internal list of basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf.initialise(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
@@ -696,6 +663,9 @@ def test_lfricbasisfns_compute(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
+    # Add an expected symbol to the internal table.
+    dinf.symtab.add(DataSymbol("dim1", ScalarType.integer_type()),
+                    tag="dim:w1")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -704,7 +674,9 @@ def test_lfricbasisfns_compute(monkeypatch):
             "Should be one of: ['gh_quadrature_xyoz', "
             in str(err.value))
     # Now supply an invalid type for one of the basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf._compute_basis_fns(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
@@ -824,8 +796,8 @@ module dummy_mod
   public
 
   contains
-  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, \
-field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
+  subroutine dummy_code(cell, nlayers_field_1, field_1_w0, op_2_ncell_3d, \
+op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
 field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, op_10_ncell_3d, op_10, \
 field_11_w2htrace, op_12_ncell_3d, op_12, ndf_w0, undf_w0, map_w0, \
 basis_w0_qr_xyoz, ndf_w1, basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, \
@@ -837,7 +809,7 @@ basis_w2trace_qr_xyoz, ndf_w2htrace, undf_w2htrace, map_w2htrace, \
 basis_w2htrace_qr_xyoz, ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, \
 np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2

@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory.
-# Modified by: R. W. Ford, STFC Daresbury Laboratory.
-#              L. Turner, Met Office
-#              T. Vockerodt, Met Office
-#              J. Dendy, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -55,7 +23,7 @@ from psyclone.psyir.nodes import (Assignment, Container, Literal,
                                   Reference, Routine)
 from psyclone.psyir.symbols import (
     UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
-    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
+    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol, ScalarType,
     ArgumentInterface)
 
 
@@ -89,16 +57,13 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        # Parse the kernel metadata. Currently this uses fparser1 as that's
-        # what the existing meta-data handling is based upon. Ultimately, this
-        # will be replaced by the new, fparser2-based functionality being
-        # implemented in #1631.
+        # Parse the kernel metadata
         parse_tree = get_kernel_parse_tree(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
         kernel_mod_name = parse_tree.content[0].name
-        # TODO #1806. The current meta-data parsing requires that we specify
+        # TODO #2151. The current meta-data parsing requires that we specify
         # the name of the kernel. It would be much better if we could query the
         # meta-data for the name of the kernel. For now we require that the
         # LFRic naming scheme is strictly adhered to (since this is simpler
@@ -125,15 +90,27 @@ class LFRicAlg:
         # associated with the routine we are constructing.
         kern_args = self.construct_kernel_args(sub, kern)
 
-        # Initialise argument values to unity. Since we are using this somewhat
-        # arbitrary value, we use an *integer* literal for this, irrespective
-        # of the actual type of the scalar argument. The compiler/run-time will
-        # take care of appropriate type casting.
+        # Initialise argument values to unity (or True for bools). Since we
+        # are using this somewhat arbitrary value, we use an *integer* literal
+        # for numerical literals, irrespective of the actual type of the scalar
+        # argument (including whether or not it is an array). The compiler/
+        # run-time will take care of appropriate type casting.
         LFRicTypes.add_precision_symbol(table, "i_def")
         for sym in kern_args.scalars:
-            sub.addchild(Assignment.create(
-                Reference(sym),
-                Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+            if sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+                literal = Literal("true",
+                                  LFRicTypes("LFRicLogicalScalarDataType")())
+            else:
+                literal = Literal("1",
+                                  LFRicTypes("LFRicIntegerScalarDataType")())
+            sub.addchild(Assignment.create(Reference(sym),
+                                           literal))
+            if sym.is_array:
+                sub.children[-1].append_preceding_comment(
+                    "Since kernel metadata only specifies the *rank* of "
+                    "this 'scalar array' argument, each dimension has been "
+                    "given the arbitrary extent of 3 in order to create "
+                    "compilable code.")
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision

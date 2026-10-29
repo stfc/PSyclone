@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''This module tests the loop fusion transformation.
 '''
@@ -61,7 +30,7 @@ def test_fusetrans_error_incomplete():
 
     # Check first loop
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "five children but found: " in str(err.value))
 
@@ -73,7 +42,7 @@ def test_fusetrans_error_incomplete():
 
     # Check second loop
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "five children but found: " in str(err.value))
 
@@ -84,7 +53,33 @@ def test_fusetrans_error_incomplete():
     loop2.loop_body.addchild(Return())
 
     # Validation should now pass
-    fuse.validate(loop1, loop2)
+    fuse.validate((loop1, loop2))
+
+
+def test_fusetrans_error_not_enough_inputs():
+    ''' Check that the LoopFuseTrans rejects the input if there aren't exactly
+    two input loops.'''
+    loop1 = Loop.create(DataSymbol("i", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()),
+                        Literal("10", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()), [Return()])
+    sch1 = Schedule()
+    sch1.addchild(loop1)
+
+    fuse = LoopFuseTrans()
+    # Check the input if its not a Tuple.
+    with pytest.raises(
+        TransformationError,
+        match=r"LoopFuseTrans expected an Iterable of 2 "
+              r"input nodes but was provided Loop\[variable:'i'\]"):
+        fuse.validate(loop1)
+
+    # CHeck the input if its not got 2 elements.
+    with pytest.raises(
+        TransformationError,
+        match=r"LoopFuseTrans expected an Iterable of 2 input nodes but was "
+              r"provided \(<psyclone.psyir.nodes.loop.Loop"):
+        fuse.validate((loop1, ))
 
 
 # ----------------------------------------------------------------------------
@@ -111,7 +106,7 @@ def test_fusetrans_error_not_same_parent():
 
     # Try to fuse loops with different parents
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. Loops do not have the "
             "same parent" in str(err.value))
 
@@ -140,7 +135,7 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     # Raise the language-level PSyIR to NEMO PSyIR
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     return fortran_writer(psyir), psyir
 
@@ -171,7 +166,7 @@ def test_fuse_dependency_tools_called(fortran_reader):
     fuse = LoopFuseTrans()
     with mock.patch("psyclone.psyir.tools.dependency_tools.DependencyTools."
                     "can_loops_be_fused", result=True) as dep_fuse_check:
-        fuse.apply(loop1, loop2)
+        fuse.apply((loop1, loop2))
     dep_fuse_check.assert_called_once_with(loop1, loop2)
 
 
@@ -210,8 +205,8 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
 
     # Then fuse the inner ji loops
     fuse = LoopFuseTrans()
-    fuse.apply(psyir.children[0][0].loop_body[0],
-               psyir.children[0][0].loop_body[1])
+    fuse.apply((psyir.children[0][0].loop_body[0],
+               psyir.children[0][0].loop_body[1]))
 
     out = fortran_writer(psyir)
     expected = """
@@ -279,11 +274,11 @@ def test_fuse_removes_unused_symbols(
     # Monkeypatch to mimic the case where these are fine to fuse (e.g.
     # because of additional DSL knowledge)
     monkeypatch.setattr(fuse, "validate",
-                        lambda _1, _2, options, **kwargs: True)
+                        lambda _1, options, **kwargs: True)
 
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     out = fortran_writer(psyir)
     # The unused symbol n1 now should not be declared
@@ -580,7 +575,7 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     # two children which are the two loops:
     loop1 = psyir.children[0].children[0][0]
     loop2 = psyir.children[0].children[0][1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     out = fortran_writer(psyir)
     assert """
@@ -607,7 +602,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     # generic loop bounds would be enough. Otherwise this should be moved
     # into a PSyLoopFuseTrans specialization.
     with pytest.raises(TransformationError) as err:
-        fuse.apply(schedule.children[0], schedule.children[1])
+        fuse.apply((schedule.children[0], schedule.children[1]))
     assert "Loops do not have the same iteration space" in str(err.value)
 
     # Generic loops compare the loop bounds
@@ -629,7 +624,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     with pytest.raises(TransformationError) as err:
-        fuse.apply(loop1, loop2)
+        fuse.apply((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. Loops do not have "
             "the same iteration space" in str(err.value))
 
@@ -652,7 +647,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     # TODO #2668 deprecate options dict. This is to keep current coverage.
-    fuse.apply(loop1, loop2, options={"force": False})
+    fuse.apply((loop1, loop2), options={"force": False})
 
 
 def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
@@ -673,7 +668,7 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
-    fuse.apply(loops[1], loops[2])
+    fuse.apply((loops[1], loops[2]))
     out = fortran_writer(psyir)
     correct = '''subroutine sub()
   integer :: ji
@@ -699,7 +694,7 @@ end subroutine sub'''
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as err:
-        fuse.apply(loops[2], loops[1])
+        fuse.apply((loops[2], loops[1]))
     assert ("Error in LoopFuseTrans transformation. The second loop does not "
             "immediately follow the first loop" in str(err.value))
 
@@ -724,7 +719,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        fuse.apply(loops[1], loops[2])
+        fuse.apply((loops[1], loops[2]))
     assert ("LoopFuseTrans. Error: Second loop contains "
             "accesses to the first loop's variable: ji." in str(excinfo.value))
 
@@ -745,7 +740,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        fuse.apply(loops[1], loops[2])
+        fuse.apply((loops[1], loops[2]))
     assert ("LoopFuseTrans. Error: First loop contains "
             "accesses to the second loop's variable: jk."
             in str(excinfo.value))

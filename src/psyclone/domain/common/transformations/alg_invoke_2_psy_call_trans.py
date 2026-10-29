@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Abstract base class to Transform a PSyclone
 algorithm-layer-specific invoke call into a call to the corresponding
@@ -39,6 +11,7 @@ PSy-layer routine.
 
 '''
 import abc
+from typing import Any, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
@@ -46,7 +19,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Call, Routine, Literal, Reference, UnaryOperation, Node, CodeBlock,
-    StructureReference)
+    StructureReference, Container)
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -68,22 +41,19 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     transformation.
 
     '''
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: AlgorithmInvokeCall, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an invoke call.
-        :type node: \
-            :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied call argument is \
+        :raises TransformationError: if the supplied call argument is
             not a PSyIR AlgorithmInvokeCall node.
         :raises InternalError: if no corresponding 'invoke' symbol is present.
 
         '''
-        if not options:
-            self.validate_options(**kwargs)
+
+        super().validate(node, **kwargs)
+        self.validate_options(**kwargs)
 
         if not isinstance(node, AlgorithmInvokeCall):
             raise TransformationError(
@@ -100,13 +70,13 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 "one AlgorithmInvokeCall node present.")
 
     @abc.abstractmethod
-    def get_arguments(self, node, options=None):
+    def get_arguments(self, node: AlgorithmInvokeCall,
+                      **kwargs: Any) -> list[Node]:
         '''
+        Create the algorithm layer argument list for the given invoke call.
+
         :param node: a PSyIR algorithm invoke call node.
-        :type node: \
-            :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param kwargs: additional keyword arguments.
         '''
 
     @staticmethod
@@ -202,28 +172,33 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 # so can not be removed.
                 pass
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: AlgorithmInvokeCall,
+              kernels: Optional[dict[int, Container]] = None,
+              check_args: bool = False,
+              **kwargs: Any) -> None:
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
         arguments. If there are no more invoke calls in the scope of the symbol
         table containing the 'invoke' symbol then that symbol is removed.
 
         :param node: a PSyIR algorithm invoke call node.
-        :type node: \
-            :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param kernels: this option provides a list of LFRic kernels for
+            this LFRic Algorithm Invoke call.
+        :param check_args: if True, checks the number of kernel
+            functor arguments matches the number expected by the kernel
+            metadata. Defaults to False.
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, kernels=kernels, **kwargs)
         node.create_psylayer_symbol_root_names()
-        arguments = self.get_arguments(node, options=options)
+        arguments = self.get_arguments(node, kernels=kernels,
+                                       check_args=check_args)
         symbol_table = node.ancestor(Routine).symbol_table
 
         # Remove functor symbols that are no longer used.
         self.remove_imported_symbols(node)
 
-        # TODO #753. At the moment the container and routine names
+        # TODO #1618. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
         # there is a name clash in the algorithm layer.
         container_tag = node.psylayer_container_root_name
