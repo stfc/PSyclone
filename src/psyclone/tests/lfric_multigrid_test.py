@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, O. Brunt and L. Turner, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
@@ -410,14 +380,14 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
             "null()\n" in output)
     assert "type(field_proxy_type) :: field1_proxy\n" in output
     assert "type(field_proxy_type) :: field2_proxy\n" in output
-    assert ("integer(kind=i_def), pointer :: map_as1_field1(:,:) => "
+    assert ("integer(kind=i_def), pointer :: map_as1_field1__1(:,:) => "
             "null()" in output)
-    assert ("integer(kind=i_def), pointer :: map_as2_field2(:,:) => "
+    assert ("integer(kind=i_def), pointer :: map_as2_field2__1(:,:) => "
             "null()" in output)
-    assert "integer(kind=i_def) :: ndf_as1_field1\n" in output
-    assert "integer(kind=i_def) :: undf_as1_field1\n" in output
-    assert "integer(kind=i_def) :: ndf_as2_field2\n" in output
-    assert "integer(kind=i_def) :: undf_as2_field2\n" in output
+    assert "integer(kind=i_def) :: ndf_as1_field1__1\n" in output
+    assert "integer(kind=i_def) :: undf_as1_field1__1\n" in output
+    assert "integer(kind=i_def) :: ndf_as2_field2__1\n" in output
+    assert "integer(kind=i_def) :: undf_as2_field2__1\n" in output
     assert "integer(kind=i_def) :: ncell_field2\n" in output
     assert "integer(kind=i_def) :: ncpc_field2_field1_x\n" in output
     assert "integer(kind=i_def) :: ncpc_field2_field1_y\n" in output
@@ -457,8 +427,8 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "get_ntarget_cells_per_source_y()\n"
         "\n"
         "    ! Look-up dofmaps for each function space\n"
-        "    map_as1_field1 => field1_proxy%vspace%get_whole_dofmap()\n"
-        "    map_as2_field2 => field2_proxy%vspace%get_whole_dofmap()\n")
+        "    map_as1_field1__1 => field1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_field2__1 => field2_proxy%vspace%get_whole_dofmap()\n")
     assert inits in output
 
     if dist_mem:
@@ -491,8 +461,9 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "      call restrict_test_kernel_code(nlayers_field1, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
-        "field1_data, field2_data, undf_as1_field1, map_as1_field1(:,cell), "
-        "ndf_as2_field2, undf_as2_field2, map_as2_field2)\n"
+        "field1_data, field2_data, undf_as1_field1__1, "
+        "map_as1_field1__1(:,cell), "
+        "ndf_as2_field2__1, undf_as2_field2__1, map_as2_field2__1)\n"
         "    enddo\n")
     assert kern_call in output
 
@@ -672,16 +643,17 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "    do cell = loop2_start, loop2_stop, 1\n"
             "      call restrict_test_kernel_code(nlayers_fld_m, "
             "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
-            " ncell_fld_f, fld_m_data, fld_f_data, undf_as1_fld_m, "
-            "map_as1_fld_m(:,cell), ndf_as2_fld_f, undf_as2_fld_f, "
-            "map_as2_fld_f)\n"
+            " ncell_fld_f, fld_m_data, fld_f_data, undf_as1_fld_m__1, "
+            "map_as1_fld_m__1(:,cell), ndf_as2_fld_f__1, undf_as2_fld_f__1, "
+            "map_as2_fld_f__1)\n"
             "    enddo\n"
             "    do cell = loop3_start, loop3_stop, 1\n"
             "      call restrict_test_kernel_code(nlayers_cmap_fld_c, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
-            "fld_m_data, undf_as1_cmap_fld_c, map_as1_cmap_fld_c"
-            "(:,cell), ndf_as2_fld_m, undf_as2_fld_m, map_as2_fld_m)\n")
+            "fld_m_data, undf_as1_cmap_fld_c__1, map_as1_cmap_fld_c__1"
+            "(:,cell), ndf_as2_fld_m__1, undf_as2_fld_m__1, "
+            "map_as2_fld_m__1)\n")
         for line in expected.split("\n"):
             assert line in output, line
 
@@ -768,21 +740,21 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     output = str(psy.gen)
     # Check maps for any_discontinuous_space
     expected = (
-        "    map_ads1_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads2_fld_f => fld_f_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads1_fld_c => fld_c_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads2_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n")
+        "    map_ads1_fld_m__1 => fld_m_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads2_fld_f__1 => fld_f_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_fld_c__1 => fld_c_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads2_fld_m__1 => fld_m_proxy%vspace%get_whole_dofmap()\n")
     assert expected in output
     # Check ndf and undf initialisations the second restrict kernel
     # (fld_m to fld_c)
     expected = (
-        "    ! Initialise number of DoFs for ads1_fld_c\n"
-        "    ndf_ads1_fld_c = fld_c_proxy%vspace%get_ndf()\n"
-        "    undf_ads1_fld_c = fld_c_proxy%vspace%get_undf()\n"
+        "    ! Initialise number of DoFs for ads1_fld_c__1\n"
+        "    ndf_ads1_fld_c__1 = fld_c_proxy%vspace%get_ndf()\n"
+        "    undf_ads1_fld_c__1 = fld_c_proxy%vspace%get_undf()\n"
         "\n"
-        "    ! Initialise number of DoFs for ads2_fld_m\n"
-        "    ndf_ads2_fld_m = fld_m_proxy%vspace%get_ndf()\n"
-        "    undf_ads2_fld_m = fld_m_proxy%vspace%get_undf()\n")
+        "    ! Initialise number of DoFs for ads2_fld_m__1\n"
+        "    ndf_ads2_fld_m__1 = fld_m_proxy%vspace%get_ndf()\n"
+        "    undf_ads2_fld_m__1 = fld_m_proxy%vspace%get_undf()\n")
     assert expected in output
     # Check an example of restrict loop and all upper loop bounds
     expected = (
@@ -790,9 +762,9 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call restrict_kernel_code(nlayers_fld_m, "
         "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
-        "ncell_fld_f, fld_m_data, fld_f_data, undf_ads1_fld_m, "
-        "map_ads1_fld_m(:,cell), ndf_ads2_fld_f, "
-        "undf_ads2_fld_f, map_ads2_fld_f)\n"
+        "ncell_fld_f, fld_m_data, fld_f_data, undf_ads1_fld_m__1, "
+        "map_ads1_fld_m__1(:,cell), ndf_ads2_fld_f__1, "
+        "undf_ads2_fld_f__1, map_ads2_fld_f__1)\n"
         "    enddo\n")
     assert expected in output
     assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output

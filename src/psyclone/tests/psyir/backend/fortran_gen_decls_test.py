@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs pytest tests on the 'gen_decls()' method of the fortran
@@ -182,8 +153,16 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(use_statement)
     local_variable = DataSymbol("local", ScalarType.integer_type())
     symbol_table.add(local_variable)
-    dtype = StructureType.create([
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
@@ -252,9 +231,9 @@ def test_gen_decls(fortran_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown'" in str(excinfo.value))
 
 
 def test_gen_decls_char(fortran_writer):
@@ -347,9 +326,10 @@ def test_gen_decls_nested_scope(fortran_writer):
     # be brought into scope
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown1'" in str(err.value))
     # Add a ContainerSymbol with a wildcard import in the outermost scope
     csym = ContainerSymbol("other_mod")
     csym.wildcard_import = True
@@ -528,6 +508,17 @@ def test_gen_interfacedecl(fortran_writer):
 end interface subx
 ''')
 
+    # Check we get the preceding comment as expected
+    isub.preceding_comment = "Here is my preceding comment"
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """\
+! Here is my preceding comment
+interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+""")
+
 
 def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     ''' Check that the procedure declarations are generated, and they have the
@@ -567,3 +558,16 @@ def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     assert "procedure(my_public_inter), public :: proc_ptr_public\n" in output
     assert ("procedure(my_save_inter), pointer, save :: proc_ptr => null()\n"
             in output)
+
+
+def test_structure_initialiser(fortran_reader, fortran_writer):
+    ''' Check a variable declaration with a structure intialiser.'''
+    code = """
+    subroutine my_sub
+        type(some_type), parameter :: x = some_type()
+    end subroutine my_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.walk(Routine)[0].symbol_table
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == "type(some_type), parameter :: x = some_type()\n"

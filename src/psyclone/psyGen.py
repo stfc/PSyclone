@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by I. Kavcic and L. Turner, Met Office
-# Modified by C.M. Maynard, Met Office / University of Reading
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -46,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
+import sys
 from collections import OrderedDict
 import abc
 from typing import Any, Dict, Optional, Union
@@ -60,10 +29,10 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
-    UnresolvedType, ImportInterface, RoutineSymbol)
+    Symbol, UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.utils import stringify_annotation
 
@@ -778,31 +747,32 @@ class Kern(Statement):
     PSy layer.
 
     :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param call: information on the call itself, as obtained by parsing \
+    :param call: information on the call itself, as obtained by parsing
                  the Algorithm layer code.
-    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param str name: the name of the routine being called.
-    :param ArgumentsClass: class to create the object that holds all \
-        information on the kernel arguments, as extracted from kernel \
+    :param name: the name of the routine being called.
+    :param ArgumentsClass: class to create the object that holds all
+        information on the kernel arguments, as extracted from kernel
         meta-data (and accessible here via call.ktype).
-    :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
-    :param bool check: whether to check for consistency between the \
+    :param check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if any of the arguments to the call are \
+    :raises GenerationError: if any of the arguments to the call are
                              duplicated.
-
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, ArgumentsClass, check=True):
+    def __init__(self,
+                 parent: Node,
+                 call: KernelCall,
+                 name: str,
+                 ArgumentsClass: type,
+                 check: bool = True):
         # pylint: disable=too-many-arguments
         super().__init__(parent=parent)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
-        self._arguments = ArgumentsClass(call, self, check=check)
+        self._arguments: Arguments = ArgumentsClass(call, self, check=check)
 
         # check algorithm arguments are unique for a kernel or
         # built-in call
@@ -887,6 +857,20 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
+    def _create_reduction_initial_value(self, variable: Symbol) -> Node:
+        '''
+        Creates the initial value for the reduction variable used for this
+        Kern or builtin. The base classes defaults to a Literal with value
+        0 with the datatype of the provided variable.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return Literal("0", variable.datatype.copy())
+
     def initialise_reduction_variable(self) -> None:
         '''
         Generate PSyIR to zero the reduction variable and to zero the local
@@ -894,8 +878,6 @@ class Kern(Statement):
         reductions, if specified.
 
         :raises GenerationError: if the variable to initialise is not a scalar.
-        :raises GenerationError: if the reprod_pad_size (read from the
-            configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
 
@@ -927,8 +909,9 @@ class Kern(Statement):
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
-                        lhs=Reference(variable),
-                        rhs=Literal("0", variable.datatype.copy()))
+            lhs=Reference(variable),
+            rhs=self._create_reduction_initial_value(variable)
+        )
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
@@ -938,10 +921,77 @@ class Kern(Statement):
                 f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal("0", variable.datatype.copy())
+                rhs=self._create_reduction_initial_value(local_var)
             )
             insert_loc.addchild(assign, cursor)
         return new_node
+
+    def store_thread_private_value_to_shared_array(
+            self, parallel_region_body: Schedule,
+            table: SymbolTable
+    ) -> None:
+        '''
+        Generate the appropriate code to transfer the private reduction
+        temporary into the shared array for reproducible reductions.
+        The assignment is always placed as the final child of parent.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parallel_region_body: the schedule to which to add the
+            assignment as a child.
+        :param table: the SymbolTable to use.
+        '''
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        array_symbol = table.lookup_with_tag(tag)
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        thread_idx = table.lookup_with_tag("omp_thread_index")
+        arr_ref = ArrayReference.create(
+            array_symbol, [Reference(thread_idx)]
+        )
+
+        assign = Assignment.create(
+            arr_ref, Reference(local_var)
+        )
+
+        assign.preceding_comment = (
+            "Store the thread private value of the reduction into the "
+            "shared array."
+        )
+
+        # Add the assignment at the end of the parallel region.
+        parallel_region_body.addchild(assign)
+
+    def create_thread_private_variable(
+        self, parallel_directive: OMPParallelDirective,
+        position: int, table: SymbolTable
+    ) -> None:
+        '''
+        Generate the appropriate code to initialise the scalar reduction
+        variable inside the parallel region, and add it to the private clause.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parallel_directive: the parallel region to which to add
+            the initialisation as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
+        '''
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        assign = Assignment.create(Reference(local_var),
+                                   Literal("0", local_var.datatype))
+        parallel_directive.dir_body.addchild(assign, position)
+        assign.preceding_comment = (
+            "Initialise thread-private reduction variable"
+        )
+        # The local var also needs to be thread private.
+        parallel_directive.private_clause.addchild(
+                Reference(local_var)
+        )
 
     def reduction_sum_loop(self,
                            parent: Node,
@@ -982,8 +1032,7 @@ class Kern(Statement):
                BinaryOperation.Operator.ADD,
                Reference(var_symbol),
                ArrayReference.create(local_symbol,
-                                     [Literal("1", ScalarType.integer_type()),
-                                      Reference(thread_idx)]))))
+                                     [Reference(thread_idx)]))))
         do_loop.append_preceding_comment(
                     "sum the partial results sequentially")
         do_loop.parent.addchild(
@@ -996,7 +1045,7 @@ class Kern(Statement):
         Return the reference to the reduction variable if OpenMP is set to
         be unreproducible, as we will be using the OpenMP reduction clause.
         Otherwise we will be computing the reduction ourselves and therefore
-        need to store values into a (padded) array separately for each
+        need to store values into a temporary variable for each
         thread.
 
         :returns: reference to the variable to be reduced.
@@ -1007,12 +1056,8 @@ class Kern(Statement):
         symtab = self.ancestor(InvokeSchedule).symbol_table
         if self.reprod_reduction:
             local_var = symtab.lookup_with_tag(
-                f"{self.name}:{self._reduction_arg.name}:local")
-            # Return a multi-valued ArrayReference for a reproducible reduction
-            array_dim = [
-                Literal("1", ScalarType.integer_type()),
-                Reference(symtab.lookup_with_tag("omp_thread_index"))]
-            return ArrayReference.create(local_var, array_dim)
+                f"{self.name}:{self._reduction_arg.name}:templocal")
+            return Reference(local_var)
         # Return a single-valued Reference for a non-reproducible reduction
         local_var = symtab.lookup_with_tag(
             f"AlgArgs_{self._reduction_arg.text}")
@@ -1070,24 +1115,22 @@ class Kern(Statement):
             # For reproducible reductions, we need a rank-2 array to store
             # the thread-local results.
             nthreads = table.lookup_with_tag("omp_num_threads")
-            if Config.get().reprod_pad_size < 1:
-                raise GenerationError(
-                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
-                    f"positive integer, but it is set to "
-                    f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size),
-                               ScalarType.integer_type())
 
             array_type = ArrayType(arg_sym.datatype,
-                                   2*[ArrayType.Extent.DEFERRED])
+                                   [ArrayType.Extent.DEFERRED])
+            # Create a scalar temp to store to in the loop.
+            _ = table.find_or_create_tag(
+                root_name=f"thread_private_{self._reduction_arg.name}",
+                tag=f"{self.name}:{self._reduction_arg.name}:templocal",
+                symbol_type=DataSymbol, datatype=arg_sym.datatype)
             local_var = table.find_or_create_tag(
-                root_name="local_"+self._reduction_arg.name,
+                root_name="array_of_partial_"+self._reduction_arg.name,
                 tag=f"{self.name}:{self._reduction_arg.name}:local",
                 symbol_type=DataSymbol, datatype=array_type)
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(local_var,
-                                       [pad_size, Reference(nthreads)])])
+                                       [Reference(nthreads)])])
             # Find a safe location to allocate it.
             insert_loc = self.ancestor((Loop, Directive))
             while insert_loc:
@@ -1142,17 +1185,17 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
-        #: Whether or not to in-line this kernel into the module containing
-        #: the PSy layer
-        self._module_inline = False
+        #: Whether or not this kernel is to be fully inlined when lowered.
+        self._inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
-        # If we have an ancestor InvokeSchedule then add the necessary
-        # symbols.
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
         self.routine: Optional[Reference] = None
+
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
         container = self.ancestor(Container)
         if container:
             symtab = container.symbol_table
@@ -1188,6 +1231,16 @@ class CodedKern(Kern):
         '''
         raise NotImplementedError(
             f"get_callees() must be overridden in class {self.__class__}")
+
+    @property
+    def name(self) -> str:
+        '''
+        Override Kern.name to use the RoutineSymbol name if one is available.
+
+        '''
+        if self.routine:
+            return self.routine.symbol.name
+        return super().name
 
     @property
     def opencl_options(self):
@@ -1230,7 +1283,7 @@ class CodedKern(Kern):
             self._opencl_options[key] = value
 
     def __str__(self):
-        return "kern call: " + self._name
+        return f"kern call: {self.name}"
 
     @property
     def module_name(self):
@@ -1241,6 +1294,14 @@ class CodedKern(Kern):
         return self._module_name
 
     @property
+    def inline(self) -> bool:
+        '''
+        :returns: whether this kernel is marked for inlining when lowered.
+
+        '''
+        return self._inline
+
+    @property
     def dag_name(self):
         '''
         :returns: the name to use in the DAG for this node.
@@ -1248,18 +1309,6 @@ class CodedKern(Kern):
         '''
         _, position = self._find_position(self.ancestor(Routine))
         return f"kernel_{self.name}_{position}"
-
-    @property
-    def module_inline(self) -> bool:
-        '''
-        :returns: whether or not this kernel is being module-inlined.
-        '''
-        # TODO #2054 - once this class sub-classes Call, this method should
-        # probably live in the super class.
-        if (not self.routine or self.routine.symbol.is_import or
-                self.routine.symbol.is_unresolved):
-            return False
-        return True
 
     def node_str(self, colour: Optional[bool] = True) -> str:
         ''' Returns the name of this node with (optional) control codes
@@ -1270,22 +1319,25 @@ class CodedKern(Kern):
         :returns: description of this node, possibly coloured.
 
         '''
-        return (self.coloured_name(colour) + " " + self.name + "(" +
-                self.arguments.names + ") " + "[module_inline=" +
-                str(self.module_inline) + "]")
+        return (self.coloured_name(colour) +
+                f" {self.name}({self.arguments.names})")
 
-    def lower_to_language_level(self) -> Node:
+    def lower_to_language_level(self) -> Optional[Node]:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
-        routine with the appropriate arguments.
+        routine with the appropriate arguments. If the CodedKern has the
+        'inline' flag set, it signifies that a deferred InlineTrans for this
+        kernel was requested. It will be applied to it here after converting
+        the kernel into a Call.
 
-        :returns: the lowered version of this node.
+        :returns: the lowered Call, the first statement inserted by inlining,
+            or ``None`` if an empty kernel routine is inlined.
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        rsymbol = symtab.lookup(self._name)
+        rsymbol = symtab.lookup(self.name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1293,6 +1345,57 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
+
+        # TODO #2216: Ideally InlineTrans should not be deferred and the
+        # reporting should be done in the trasformation script.
+        if self.inline:
+            # These imports are local to avoid a circular import: InlineTrans
+            # uses CodedKern via CalleeTransformationMixin.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.transformations import (
+                InlineTrans, TransformationError)
+
+            try:
+                # Argument matching often fails for LFRic kernels due to mixed
+                # precision symbols not being properly interconnected and other
+                # psy-layer objects having incomplete types. To proceed we set
+                # the 'allow_no_args_check_if_only_one_callee' InlineTrans
+                # option. InlineTrans validates that there is exactly one
+                # possible callee before it skips argument matching.
+                parent = call_node.parent
+                position = call_node.position
+                next_node = (parent.children[position + 1]
+                             if position + 1 < len(parent.children) else None)
+                InlineTrans().apply(
+                    call_node, allow_no_args_check_if_only_one_callee=True)
+
+                # An empty routine removes the Call, which moves its original
+                # next sibling into its position. Otherwise, the first
+                # inlined statement occupies that position.
+                inlined_node = None
+                if position < len(parent.children):
+                    candidate = parent.children[position]
+                    if candidate is not next_node:
+                        inlined_node = candidate
+            except (TransformationError, InternalError) as err:
+                # If inline failes, we still continue with the non-inlined
+                # version. We report the issues in stdout. Even if the most
+                # natural reporting would be to use logging, the lfric call
+                # to psyclone is hardcoded in their build system, but we
+                # want to count this errors in our gpu offloading report.
+                message = (f"Deferred-Inline failed for kernel '{self.name}' "
+                           f"due to: {err.value}")
+                print(message, file=sys.stdout)
+                call_node.append_preceding_comment(message)
+                return call_node
+
+            message = f"Deferred-Inline successful for kernel '{self.name}'"
+            print(message, file=sys.stdout)
+
+            if inlined_node:
+                inlined_node.append_preceding_comment(message)
+            return inlined_node
+
         return call_node
 
     def incremented_arg(self) -> str:
@@ -2136,10 +2239,10 @@ class KernelArgument(Argument):
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param arg: information obtained from the metadata for this kernel \
+    :param arg: information obtained from the metadata for this kernel
                 argument.
     :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
-    :param arg_info: information on how this argument is specified in \
+    :param arg_info: information on how this argument is specified in
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the PSyIR kernel node to which this argument pertains.
@@ -2272,9 +2375,6 @@ class TransInfo():
         Return a list of classes defined within the specified module that
         are a subclass of the specified baseclass.
 
-        Takes care to exclude the 'Dynamo0p3' wrapper classes that are only
-        there for backwards compatibility.
-
         :param module: the module in which to look for classes.
         :param base_class: the base class which classes must subclass.
 
@@ -2283,8 +2383,7 @@ class TransInfo():
         '''
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and not inspect.isabstract(cls) and
-                issubclass(cls, base_class) and cls is not base_class
-                and name[:9] != "Dynamo0p3"]
+                issubclass(cls, base_class) and cls is not base_class]
 
 
 @dataclass
@@ -2351,7 +2450,11 @@ class Transformation(metaclass=abc.ABCMeta):
                 if key in trans.get_valid_options():
                     other_dicts[idx][key] = kwargs[key]
                     if key not in type(self).get_valid_options():
-                        del first_dict[key]
+                        # Sometimes we may have the same option in multiple
+                        # subtransformations, so we only delete the key
+                        # from the first_dict if it's still present.
+                        if key in first_dict:
+                            del first_dict[key]
 
         return first_dict, *other_dicts
 

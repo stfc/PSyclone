@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#          I. Kavcic, Met Office
-#          J. Henrichs, Bureau of Meteorology
-# Modified: O. Brunt, Met Office
 
 '''PSyclone transformation script for the LFRic API to apply all the
 DistributedMemory, OpenMP coloring and serial transformations possible.
@@ -43,7 +12,7 @@ DistributedMemory, OpenMP coloring and serial transformations possible.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import (
-    LFRicRedundantComputationTrans)
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans, OMPParallelTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
@@ -52,6 +21,7 @@ from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans, LFRicAsyncHaloExchangeTrans)
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 
+ENABLE_LOOP_FUSION = True
 ENABLE_REDUNDANT_COMPUTATION = True
 ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
 ENABLE_OMP_COLOURING = True
@@ -67,6 +37,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    fusetrans = LFRicLoopFuseTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
@@ -78,6 +49,28 @@ def trans(psyir):
     mtrans = MoveTrans()
 
     for subroutine in psyir.walk(InvokeSchedule):
+        if ENABLE_LOOP_FUSION:
+            loops = subroutine.loops()
+            num_loops = len(loops)
+            current_index = 0
+            num_fused = 0
+            # Keep trying to fuse loops wherever possible
+            while current_index < num_loops-1:
+                try:
+                    fusetrans.apply((loops[current_index],
+                                     loops[current_index+1]))
+                    kernel_names = [k.name.lower() for k in
+                                    loops[current_index].kernels()]
+                    # If fusion is successful then we have 1 less remaining
+                    # loop and continue at the same index to keep trying to
+                    # fuse.
+                    print(f"Fusion successful: {kernel_names}, "
+                          f"{psyir.name}:{subroutine.name}")
+                    num_loops = num_loops - 1
+                    num_fused = num_fused + 1
+                except TransformationError:
+                    # If fusion fails we move to the next loop.
+                    current_index = current_index + 1
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.

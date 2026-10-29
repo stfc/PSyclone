@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
 
 '''Performs pytest tests on the support for intrinsic statements that
@@ -42,13 +13,17 @@
 '''
 import pytest
 
+from psyclone.configuration import Config
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
+     Assignment, Call, CodeBlock, IntrinsicCall,
+     Literal, Reference, Routine, Schedule
+)
 from psyclone.psyir.symbols import (
     ScalarType, DataSymbol, UnsupportedFortranType, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
@@ -347,3 +322,46 @@ def test_handling_nested_intrinsic():
     processor.process_nodes(fake_parent, fp2node.content)
     cblocks = fake_parent.children[1].walk(CodeBlock)
     assert not cblocks
+
+
+def test_handling_imported_shadowed_function(tmp_path, monkeypatch):
+    '''
+    Check that we correctly don't generate an IntrinsicCall when we have an
+    imported routine symbol that shadows an Intrinsic.
+    '''
+    # Write a first module into a tmp file
+    other1 = tmp_path / "mod_a.f90"
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write("""
+    module mod_a
+
+    interface real
+        module procedure real_i
+    end interface
+    contains
+    integer function real_i(a)
+       integer :: a
+       real_i = a
+    end function real_i
+    end module""")
+
+    code = """module mod_b
+    contains
+    subroutine test
+        use mod_a
+        integer:: a, b
+
+        b = real(a)
+    end subroutine test
+    end module"""
+    fortran_reader = FortranReader(resolve_modules=["mod_a"])
+    monkeypatch.setattr(Config.get(), "_include_paths", [tmp_path])
+
+    psyir = fortran_reader.psyir_from_source(code)
+    # real is imported from mod_a so we get a Call instead of an
+    # IntrinsicCall
+    assert len(psyir.walk(IntrinsicCall)) == 0
+    test = psyir.walk(Routine)[0]
+    assert type(test.children[0].rhs) is Call
+    assert isinstance(test.children[0].rhs.children[0].symbol, RoutineSymbol)
+    assert test.children[0].rhs.children[0].symbol.name == "real"

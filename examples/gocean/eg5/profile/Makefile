@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: . Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 # Get the PSyclone root directory as absolute path. This way
 # directories can be provided as absolute paths to other build
@@ -72,7 +44,7 @@ template:
 	        WRAPPER_NAME="dummy"                  \
 	        template_lib $(NAME).template
 
-simple_timing: 
+simple_timing:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/simple_timing" \
 	        WRAPPER_NAME="simple_timing"               \
 	        simple_timing_lib $(NAME).simple_timing
@@ -147,32 +119,29 @@ alg.f90 psy.f90: test.x90
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB) $(DEP_LIB)
+$(KERNELS): $(INF_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 drhook_lib :
-	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
 
 vernier_lib :
-	$(MAKE) VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
 
 tau_lib :
-	$(MAKE) F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
 
 dl_timer_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
 
 lfric_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 template_lib simple_timing_lib:
-	$(MAKE) -C $(WRAPPER_DIR)
-
-$(DEP_LIB):
-	$(MAKE) -C $(PROFILE_DIR)/simple_timing
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)

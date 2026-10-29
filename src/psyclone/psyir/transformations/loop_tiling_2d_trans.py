@@ -1,50 +1,24 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: M. Naylor, University of Cambridge, UK
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
 construct into a tiled implementation of the construct.'''
 
+from typing import Any, Optional
 import warnings
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopTiling2DTrans(LoopTrans):
     '''
     Apply a 2D loop tiling transformation to a loop.  This is a special
@@ -91,34 +65,35 @@ class LoopTiling2DTrans(LoopTrans):
     def __str__(self):
         return "Tile the loop construct using 2D blocks"
 
-    def validate(self, node, options=None):
+    def validate(self, node: Loop,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Validates that the given Loop node can have a LoopTiling2DTrans
         applied.
 
         :param node: the loop to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
-            currently square tiles are always used. If not specified, the \
-            value 32 is used.
 
-        :raises TransformationError: if an unsupported option has been \
+        :raises TransformationError: if an unsupported option has been
             provided.
-        :raises TransformationError: if the provided tilesize is not a \
+        :raises TransformationError: if the provided tilesize is not a
             integer.
         '''
-        if options is None:
-            options = {}
-        super(LoopTiling2DTrans, self).validate(node, options=options)
+        if options:
+            # TODO #2668: Deprecate options dictionary.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+        else:
+            self.validate_options(**kwargs)
+            tilesize = self.get_option("tilesize", **kwargs)
+        super().validate(node, options=options, **kwargs)
 
         # Validate options map
-        # TODO #613: Hardcoding the valid_options does not allow for
+        # TODO #2668: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
         valid_options = ['tilesize']
-        for key, value in options.items():
+        for key, value in (options or {}).items():
             if key in valid_options:
                 if key == "tilesize" and not isinstance(value, int):
                     raise TransformationError(
@@ -135,28 +110,29 @@ class LoopTiling2DTrans(LoopTrans):
                     f"transformation option '{key}', the supported options "
                     f"are: {valid_options}.")
 
-        tilesize = options.get("tilesize", 32)
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            tilesize = options.get("tilesize", 32)
         LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+              tilesize: int = 32, **kwargs: Any) -> None:
         '''
         Converts the given 2D Loop construct into a tiled version of the nested
         loops.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
-                currently square tiles are always used. If not \
+        :param tilesize: The size of the resulting tile,
+                currently square tiles are always used. If not
                 specified, the value 32 is used.
 
         '''
         warnings.warn("LoopTiling2DTrans is deprecated. "
                       "Use LoopTilingTrans instead.",
                       DeprecationWarning, 2)
-        self.validate(node, options)
-        if options is None:
-            options = {}
-        tilesize = options.get("tilesize", 32)
+        self.validate(node, options, tilesize=tilesize, **kwargs)
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            tilesize = options.get("tilesize", 32)
         LoopTilingTrans().apply(node, tiledims=[tilesize, tilesize])

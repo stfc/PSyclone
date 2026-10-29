@@ -1,54 +1,28 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office
-#          A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange
-from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
+from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Node, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ExtractTrans(PSyDataTrans):
     '''This transformation inserts an ExtractNode or a node derived
     from ExtractNode into the PSyIR of a schedule. At code creation
@@ -81,25 +55,22 @@ class ExtractTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if transformation is applied to a \
-                                     Kernel or a BuiltIn call without its \
-                                     parent Loop.
-        :raises TransformationError: if transformation is applied to a Loop \
-                                     without its parent Directive when \
-                                     optimisations are applied.
-        :raises TransformationError: if transformation is applied to an \
-                                     orphaned Directive without its parent \
-                                     Directive.
+        :raises TransformationError: if transformation is applied to a
+            Kernel or a BuiltIn call without its parent Loop.
+        :raises TransformationError: if transformation is applied to a Loop
+            without its parent Directive when optimisations are applied.
+        :raises TransformationError: if transformation is applied to an
+            orphaned Directive without its parent Directive.
         '''
 
         # Check ExtractTrans specific constraints.
@@ -138,4 +109,15 @@ class ExtractTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this extraction transformation.
+
+        :param nodes: nodes to enclose in the extraction region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)

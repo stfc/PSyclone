@@ -1,42 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
 
 '''This module contains the GOcean-specific loop-fusion transformation.
 '''
+
+from typing import Iterable
 
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.gocean1p0 import GOLoop
@@ -65,14 +37,13 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with GOcean-specific "
                 "validity checks")
 
-    def validate(self, node1: GOLoop, node2: GOLoop, options=None, **kwargs):
+    def validate(self, nodes: Iterable[GOLoop], options=None, **kwargs):
         '''Checks if it is valid to apply the GOceanLoopFuseTrans
         transform. It ensures that the fused loops are over
         the same grid-point types, before calling the normal
         LoopFuseTrans validation function.
 
-        :param node1: the first Node representing a GOLoop.
-        :param node2: the second Node representing a GOLoop.
+        :param nodes: the GOLoops to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -82,6 +53,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if invalid parameters are passed in.
 
         '''
+        node1 = nodes[0]
+        node2 = nodes[1]
         if not (isinstance(node1, GOLoop) and
                 isinstance(node2, GOLoop)):
             raise TransformationError(f"Error in {self.name} transformation. "
@@ -94,16 +67,16 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                 f"fuse loops that are over different grid-point types: "
                 f"{node1.field_space} and {node2.field_space}")
 
-        super().validate(node1, node2, options=options, **kwargs)
+        super().validate(nodes, options=options, **kwargs)
 
-    def apply(self, node1: GOLoop, node2: GOLoop,
+    def apply(self, nodes: Iterable[GOLoop],
               options=None, **kwargs):
         '''Applies the GoceanLoopFuseTrans to the provided nodes.
-        :param node1: the first Node representing a GOLoop.
-        :param node2: the second Node representing a GOLoop.
+
+        :param nodes: the GOLoops to fuse.
         '''
         # This function is used for documentation purposes.
-        super().apply(node1, node2, options=options, **kwargs)
+        super().apply(nodes, options=options, **kwargs)
 
 
 # For automatic documentation generation

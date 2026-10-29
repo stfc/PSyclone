@@ -1,45 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
-#           M. Naylor, University of Cambridge, UK
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
 from enum import IntEnum
+from typing import Optional
 import sympy
 
 from psyclone.configuration import Config
@@ -125,9 +95,8 @@ class Message:
 
     # ------------------------------------------------------------------------
     @property
-    def var_names(self):
+    def var_names(self) -> list[str]:
         ''':returns: the list of variable names to which the message applies.
-        :rtype: List[str]
 
         '''
         # We convert each expression into a string to support LazyStrings
@@ -136,12 +105,10 @@ class Message:
 
     # ------------------------------------------------------------------------
     @property
-    def var_infos(self):
-        ''':returns: the Signature/AccessSequence pair for each variable to
-        which the message applies, or None if this information does not exist.
-
-        :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
-                           :py:class:`psyclone.core.AccessSequence`]]
+    def var_infos(self) -> list[tuple[Signature, AccessSequence]]:
+        '''
+        :returns: the Signature/AccessSequence pair for each variable to which
+            the message applies, or None if this information does not exist.
 
         '''
         return self._var_infos
@@ -839,27 +806,24 @@ class DependencyTools():
         return False
 
     # -------------------------------------------------------------------------
-    def can_loop_be_parallelised(self, loop,
-                                 test_all_variables=False,
-                                 signatures_to_ignore=None):
+    def can_loop_be_parallelised(
+            self,
+            loop: Loop,
+            test_all_variables: bool = False,
+            signatures_to_ignore: Optional[list[Signature]] = None
+    ) -> bool:
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool test_all_variables: if True, it will test if all variable
-                                        accesses can be parallelised,
-                                        otherwise it will stop after the first
-                                        variable is found that can not be
-                                        parallelised.
+        :param test_all_variables: whether to test if *all* variable
+            accesses can be parallelised, otherwise it will stop after the
+            first variable is found that cannot be parallelised.
         :param signatures_to_ignore: list of signatures for which to skip
-                                     the access checks.
-        :type signatures_to_ignore: Optional[
-            List[:py:class:`psyclone.core.Signature`]]
+            the access checks.
 
         :returns: True if the loop can be parallelised.
-        :rtype: bool
 
         :raises TypeError: if the supplied node is not a Loop.
 
@@ -896,11 +860,11 @@ class DependencyTools():
             try:
                 symbol = var_info[0].node.symbol
             except AttributeError:
-                # If its a node without a symbol, look it up
+                # If it's a node without a symbol, look it up.
+                # TODO #3219 - once LFRicKern has 'virtual' children this
+                # branch can be removed.
                 var_name = signature.var_name
-                symbol = symbol_table.lookup(var_name, otherwise=None)
-                if symbol is None:
-                    return False
+                symbol = symbol_table.lookup(var_name)
 
             # TODO #3098 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)

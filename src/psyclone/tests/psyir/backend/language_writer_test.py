@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.language_writer
@@ -121,15 +92,31 @@ def test_lw_arrayreference(fortran_reader, fortran_writer, tmpdir):
 def test_lw_structureref(fortran_writer):
     ''' Test the LanguageWriter support for StructureReference
     using the FortranWriter as instance. '''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
-    grid_type = StructureType.create([
-        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("area", region_type_sym, Symbol.Visibility.PUBLIC, None),
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "area", region_type_sym, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
@@ -157,14 +144,26 @@ def test_lw_structureref(fortran_writer):
 def test_lw_arrayofstructuresmember(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresMember
     using the FortranWriter. '''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
@@ -188,8 +187,13 @@ def test_lw_arrayofstructuresmember(fortran_writer):
 def test_lw_arrayofstructuresref(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresReference
     using the FortranWriter as instance. '''
-    grid_type = StructureType.create([
-        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
@@ -214,14 +218,26 @@ def test_lw_arrayofstructuresref(fortran_writer):
 
 def test_member_node(fortran_writer):
     '''Explicitly test the member_node function.'''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to a member of a structure that is an element of an array

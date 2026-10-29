@@ -1,44 +1,16 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
 
 '''This module provides the sclarization transformation class.'''
 
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
-from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
-        IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
+from psyclone.psyir.nodes import (
+    Literal, IfBlock, Loop, Node, Range, Reference, Routine,
+    StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -110,12 +82,6 @@ class ScalarisationTrans(LoopTrans):
         '''
         if not var_accesses[signature].has_indices():
             return False
-        # If any of the accesses are to a CodeBlock then we stop. This can
-        # happen if there is a string access inside a string concatenation,
-        # e.g. NEMO4.
-        for access in var_accesses[signature]:
-            if isinstance(access.node, CodeBlock):
-                return False
         base_symbol = var_accesses[signature][0].node.symbol
         if not base_symbol.is_automatic:
             return False
@@ -309,13 +275,6 @@ class ScalarisationTrans(LoopTrans):
             if has_complex_index:
                 return False
 
-            # If next access is a Call or CodeBlock or Kern then
-            # we have to assume the value is used. These nodes don't
-            # have the is_read property that Reference has, so we need
-            # to be explicit.
-            if isinstance(next_access, (CodeBlock, Call, Kern)):
-                return False
-
             # If the access is a read, then return False
             if next_access.is_read:
                 return False
@@ -377,6 +336,7 @@ class ScalarisationTrans(LoopTrans):
 
         '''
         self.validate_options(**kwargs)
+        super().validate(node, **kwargs)
 
     def apply(self, node: Loop, **kwargs) -> None:
         '''

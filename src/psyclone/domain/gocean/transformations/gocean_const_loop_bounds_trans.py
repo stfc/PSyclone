@@ -1,41 +1,13 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         J. Henrichs, Bureau of Meteorology
-#         I. Kavcic, Met Office
 
 '''This module contains the GOConstLoopBoundsTrans.'''
+
+from typing import Any, Optional
 
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
@@ -45,8 +17,10 @@ from psyclone.psyir.nodes import Assignment, Reference, StructureReference
 from psyclone.psyir.symbols import ScalarType, DataSymbol, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.configuration import Config
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOConstLoopBoundsTrans(Transformation):
     ''' Use of a common constant variable for each loop bound within
     a GOInvokeSchedule. By default, PSyclone generates loops where
@@ -94,14 +68,14 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         return "GOConstLoopBoundsTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node: GOInvokeSchedule,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Checks if it is valid to apply the GOConstLoopBoundsTrans
         transform.
 
         :param node: the GOInvokeSchedule to transform.
-        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a \
             GOInvokeSchedule.
@@ -114,6 +88,10 @@ class GOConstLoopBoundsTrans(Transformation):
             field argument.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, GOInvokeSchedule):
             raise TransformationError(
                 f"GOConstLoopBoundsTrans can only be applied to "
@@ -167,18 +145,19 @@ class GOConstLoopBoundsTrans(Transformation):
                 f"GOConstLoopBoundsTrans can not transform invoke "
                 f"'{node.name}' because it does not have any field arguments.")
 
-    def apply(self, node, options=None):
+    def apply(self, node: GOInvokeSchedule,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
         common constant loop bound variables.
 
         :param node: the GOInvokeSchedule of which all loops will get the \
             constant loop bounds.
-        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options=options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options=options, **kwargs)
 
         i_stop = node.symbol_table.new_symbol(
             "istop", symbol_type=DataSymbol,

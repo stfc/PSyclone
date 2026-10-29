@@ -1,38 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2026, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, A. Coughtrie, O. Brunt and L. Turner, Met Office
 
 .. highlight:: fortran
 
@@ -145,6 +116,7 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 ``integer`` or ``logical`` data type in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
+See example ``examples/lfric/eg1``.
 
 .. _lfric-array:
 
@@ -156,29 +128,37 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 ``GH_SCALAR_ARRAY`` metadata. As with scalars, array arguments can have
 ``real``, ``integer`` or ``logical`` data type in
 :ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
+See example ``examples/lfric/eg1``.
 
 .. _lfric-field:
 
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent
-FEM discretisations of various dynamical core prognostic and diagnostic
+LFRic API `fields <https://metoffice.github.io/lfric_core/how_to_use_it/lfric_datamodel/field.html>`_, identified with ``GH_FIELD`` metadata, represent FEM
+discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
-inherit a polynomial expansion via the basis functions of that space.
-Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data points.
-Points of evaluation are determined by a quadrature object
-(:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees of
-freedom (hereafter "DoFs"), is determined by the function space the field
-is on.
+inherit a polynomial expansion via the basis functions of that space. Placement
+of field data points, also called
+`degrees of freedom <https://metoffice.github.io/lfric_core/how_it_works/core_data_model/science_model_architecture.html#dofs-dof-maps-and-function-spaces>`_
+(hereafter "DoFs"), is determined by the function space the
+field is on. An LFRic multi-data field can have more than one value
+associated with each data point.
+
 LFRic fields passed as arguments to any :ref:`LFRic kernel
 <lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
 primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
+
+Different fields may be defined on different numbers of vertical layers.
+The number of layers can be as few as one (a 2D field). Additionally,
+LFRic has the concept of multi-data fields where multiple data values can be
+associated with each DoF. Since both the number of layers and the
+number of data values affects the numbering of the DoFs of a field,
+a distinct DoF map is required for each unique combination of function
+space, number of vertical levels and number of data values.
 
 .. _lfric-field-vector:
 
@@ -329,7 +309,8 @@ that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`lfric-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
-``REGION``.
+``REGION``. ``CROSS2D`` differs from ``CROSS`` in that its arms can be
+of varying lengths.
 
 If a stencil operation is specified by the Kernel metadata, the
 Algorithm layer must provide the ``extent`` of the stencil (the
@@ -937,8 +918,9 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
-   permitted as arguments.
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see
+   :ref:`lfric-field-vector`) or
+   multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
 
@@ -1024,8 +1006,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
    :ref:`field vector <lfric-field-vector>` arguments are permitted.
 
 2) All fields must be on discontinuous function spaces.
-
-3) Stencil accesses are not permitted.
 
 .. _lfric-dof-kernel-rules:
 
@@ -1263,8 +1243,9 @@ has. More details about the supported function spaces are in subsection
 For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
-  type(arg_type) :: meta_args(3) = (/                              &
+  type(arg_type) :: meta_args(4) = (/                              &
        arg_type(GH_FIELD, GH_REAL, GH_INC, W1),                    &
+       arg_type(GH_SCALAR_ARRAY, GH_INTEGER, GH_READ, 5),          &
        arg_type(GH_FIELD, GH_REAL, GH_READ, W2H),                  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W1, W2H) &
        /)
@@ -1468,7 +1449,7 @@ Supported Function Spaces
 As mentioned in the :ref:`lfric-field` and :ref:`lfric-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In LFRic API the dimension of the basis function
+point is a vector. In the LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1591,7 +1572,7 @@ Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:lfric-kernel-valid-access: above) may be continuous in the vertical
+:ref:`lfric-kernel-valid-access` above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1654,7 +1635,7 @@ to have stencil accesses, these two options are mutually exclusive.
 The metadata for each case is described in the following sections.
 
 Stencil Metadata
-________________
+""""""""""""""""
 
 
 Stencil metadata specifies that the corresponding field argument is accessed
@@ -1734,8 +1715,7 @@ be found in ``examples/lfric/eg5``.
 .. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
-___________________
-
+"""""""""""""""""""
 
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
@@ -1764,6 +1744,66 @@ Note that an inter-grid kernel must have at least one field (or field-
 vector) argument on each mesh type. Fields that are on different
 meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
+
+
+.. _number-of-layers-metadata:
+
+Number of Layers Metadata
+"""""""""""""""""""""""""
+
+By default, all field/operator kernel arguments on a given function
+space are assumed to have the same number of vertical levels. The
+actual value is obtained at application runtime (by interrogating the
+first such kernel argument) and then passed to the kernel subroutine.
+
+If a particular field/operator kernel argument has a number of vertical
+levels that is *not* the same as the first field/operator argument then
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
+``GH_OPERATOR``. If the value of ``NLAYERS`` is known at compile time
+then it may be an integer literal encoded as a string, e.g. a 2D field
+would be specified as::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
+
+Alternatively, it may be given a name, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some_name")
+
+in which case the actual value is obtained at application runtime by
+interrogating the associated LFRic field or operator object. (As a
+consequence, the name used in the metadata does not have to correspond
+to anything in the LFRic infrastructure.) Note that the name must be
+valid as a Fortran variable name. PSyclone will report an error if
+it isn't.
+
+If two or more field/operator arguments are on the same function space
+and have the same number of layers (whether a literal or a name) then
+only one dofmap is passed to the kernel for those arguments.
+
+.. _ndata-metadata:
+
+Multi-Data Metadata
+"""""""""""""""""""
+
+A multi-data field is the same as a standard field apart from having multiple
+values associated with each DoF. (Note that this is not the same as a
+:ref:`field vector <lfric-field-vector>` which corresponds to a set of fields,
+each with a single value at each DoF.) This is indicated in the field metadata
+by the optional ``NDATA`` argument to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
+
+The value contained in the string specified for ``NDATA`` may be a literal if
+it is known at compile time. Alternatively, it may be a name in which
+case the number of data values at each DoF is determined at runtime by
+querying the field object (in the generated PSy layer). As with ``NLAYERS``,
+this name is just a label and does not have to correspond to anything in the
+LFRic infrastructure. However, it must be valid as a Fortran variable name.
+
+Since the data in an LFRic field object is stored as a 1D array, having more
+than one data value associated with each DoF affects the dofmap. This is
+handled by passing the appropriate dofmap to the kernel - see
+:ref:`lfric-stub-generation-rules`.
 
 
 Column-wise Operators (CMA)
@@ -2057,11 +2097,23 @@ conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
-2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
-   will obtain the value of ``nlayers`` to use for a particular kernel
-   from the first field or operator in the argument list.
-3) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
+
+2) Include each unique value of ``nlayers``, the number of layers in a
+   column, for all of the field/operator arguments. ``nlayers``
+   is an ``integer`` of kind ``i_def`` and has intent ``in``. A typical
+   kernel will have just one value of ``nlayers`` which PSyclone will
+   obtain from the first field/operator argument in the list. For those
+   kernels which have field arguments with ``nlayers`` specified by a
+   label in the metadata (see :ref:`number-of-layers-metadata`), include
+   a value of ``nlayers`` for every unique label, in the same
+   order as they occur in the ``meta_args`` list.
+
+3) If any field/operator arguments have custom values of ``ndata`` (see
+   :ref:`ndata-metadata`) then, for each unique label, include an ``ndata``
+   argument in the same order as they appear in the ``meta_args`` list. Each
+   ``ndata`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
+
+4) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
    the meta_args metadata:
 
    1) If the current entry is a scalar quantity then include the Fortran
@@ -2124,21 +2176,26 @@ conventions, are:
       the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
-4) For each function space in the order they appear in the metadata arguments
-   (the ``to`` function space of an operator is considered to be before the
-   ``from`` function space of the same operator as it appears first in
-   lexicographic order)
+5) DoF maps for function spaces are handled in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is considered
+   to be before the ``from`` function space of the same operator as it appears
+   first in lexicographic order). Note that if two fields on a given function
+   space have differing ``NLAYERS`` and/or ``NDATA`` values,
+   then each requires that a dofmap be supplied (because both the number of
+   vertical layers *and* the number of data values per DoF alter the
+   *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
       has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
+
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
          space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an ``integer``
+      2) Include the **dofmap** itself. This is an ``integer``
          array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
@@ -2200,7 +2257,7 @@ conventions, are:
       |               |           | W2Vtrace, W3, Wtheta, Wchi         |
       +---------------+-----------+------------------------------------+
 
-5) If either the ``normals_to_horizontal_faces`` or
+6) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
    element are required then pass the number of horizontal faces of the
    reference element (``nfaces_re_h``). Similarly, if either the
@@ -2222,7 +2279,7 @@ conventions, are:
       a rank-2 ``integer`` array of kind ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-6) If the ``adjacent_face`` mesh property is required then:
+7) If the ``adjacent_face`` mesh property is required then:
 
    1) If the number of horizontal cell faces obtained from the reference
       element (``nfaces_re_h``) is not already being passed to the kernel (due
@@ -2231,7 +2288,7 @@ conventions, are:
    2) Pass a rank-1, ``integer`` array of kind ``i_def`` and extent
       ``nfaces_re_h``.
 
-7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+8) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include ``integer``, scalar arguments of kind ``i_def`` with intent
@@ -2461,8 +2518,9 @@ dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
 not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
 column-wise operator is, by definition, assembled for a whole column,
-there is no loop over levels when applying it.)
-The full set of rules is then:
+there is no loop over levels when applying it.) Note that fields with
+non-standard ``nlayers`` or ``ndata > 1`` cannot be supplied as
+arguments to CMA kernels. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
@@ -2594,15 +2652,49 @@ arguments to inter-grid kernels are as follows:
 Rules for Domain Kernels
 ########################
 
-The rules for kernels that have ``operates_on = DOMAIN`` are almost
-identical to those for general-purpose kernels (described :ref:`above
-<lfric-stub-generation-rules>`), allowing for the fact that they
-are not permitted any type of operator argument or any argument with a
-stencil access. The only difference is that, since the kernel operates
+The rules for kernels that have ``operates_on = DOMAIN`` are very
+similar to those for general-purpose kernels (described :ref:`above
+<lfric-stub-generation-rules>`), allowing for the fact that they are
+not permitted any type of operator argument. Since the kernel operates
 on the whole domain, the number of columns in the mesh excluding those
-in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
-as the second argument to the kernel (after ``nlayers``).
-``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
+in the halo (``ncell_2d_no_halos``), must be passed in. This is
+provided as the second argument to the kernel (after
+``nlayers``). ``ncell_2d_no_halos`` is an ``integer`` of kind
+``i_def`` with intent ``in``.
+
+Domain kernels require stencil information for every cell in the local
+domain. Therefore, for each field with stencil metadata, the
+kernel interface includes the following arguments:
+
+1) A stencil-size array of ``integer(kind=i_def)`` with intent ``in``:
+
+   * for stencils other than ``CROSS2D``, its shape is
+     ``(ncell_2d_no_halos)``;
+   * for a ``CROSS2D`` stencil, its shape is
+     ``(4, ncell_2d_no_halos)``, with the first dimension ordered West,
+     South, East, North.
+
+   Each entry gives the number of stencil cells for the corresponding
+   cell in the domain. For ``CROSS2D``, it gives the number of cells in
+   each branch.
+
+2) For ``CROSS2D``, an ``integer(kind=i_def)`` maximum-branch-length
+   argument with intent ``in``. This is required because branch lengths
+   may vary on planar meshes.
+
+3) A stencil-dofmap array of ``integer(kind=i_def)`` with intent ``in``:
+
+   * for stencils other than ``CROSS2D``, its shape is
+     ``(number-of-dofs-in-cell, stencil-size, ncell_2d_no_halos)``;
+   * for ``CROSS2D``, its shape is
+     ``(number-of-dofs-in-cell, max-branch-length, 4,
+     ncell_2d_no_halos)``.
+
+4) For an ``XORY1D`` stencil, an additional
+   ``integer(kind=i_def)`` direction argument with intent ``in``.
+
+LFRic example ``eg5`` in the ``examples/lfric`` directory includes an invocation
+of a Domain kernel which has arguments with stencil accesses.
 
 Rules for DoF Kernels
 #####################
@@ -2677,11 +2769,9 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are available in this
-`LFRic wiki page
-<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
-to the LFRic API).
+The latest version of the LFRic coding style guidelines are available in the
+`LFRic github pages
+<https://metoffice.github.io/lfric_core/how_to_contribute/coding_standards/fortran_coding_standards.html>`_.
 
 .. _lfric-built-ins:
 
@@ -4132,10 +4222,9 @@ LFRic API. This is because the properties that it makes constant
 are API specific.
 
 The LFRic API-specific transformations currently available
-are given below. Early transformations include "Dynamo0p3" or "Dynamo"
-in their name to indicate that these transformations are only valid
-for this particular API. More recent transformations typically include
-"LFRic" in their name to indicate the same restriction. However, more
+are given below. These transformations typically include "LFRic" in 
+their name to indicate that these transformations are only valid
+for this particular API. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
 directory. Note, the early LFRic API-specific
@@ -4167,6 +4256,10 @@ transformations have not yet been migrated to this directory.
     :noindex:
 
 .. autoclass:: psyclone.transformations.LFRicColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicColourAndOMPTrans
     :members:
     :noindex:
 

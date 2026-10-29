@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the the various utility functions in
 tests/utilities.py.'''
@@ -50,7 +21,8 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (
     change_dir, check_links, count_lines, Compile, CompileError, get_ast,
-    get_base_path, get_infrastructure_path, get_invoke, line_number,
+    get_base_path, get_examples_path, get_infrastructure_path, get_invoke,
+    line_number,
     make_external_module, print_diffs)
 
 
@@ -148,9 +120,9 @@ def test_compiler_with_flags(monkeypatch):
     we pass something that is definitely not a flag and check that
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
-    if not Compile.TEST_COMPILE:
-        # If compilation is disable, use '/usr/bin/true' as 'compile'
-        # to cover more lines:
+    if not Compile.TEST_COMPILE or Compile.F90 == "ifx":
+        # If compilation is disabled, or the compiler is ifx
+        # use '/usr/bin/true' as 'compile' to cover more lines:
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "false")
 
@@ -353,6 +325,12 @@ def test_get_invoke():
     assert "No such file or directory" in str(excinfo.value)
 
 
+def test_get_examples_path():
+    '''Test that get_examples_path returns the expected absolute path.'''
+    path = get_examples_path("gocean/eg1/shallow_alg.f90")
+    assert path.endswith("examples/gocean/eg1/shallow_alg.f90")
+
+
 # -----------------------------------------------------------------------------
 def test_change_directory():
     '''Tests the change_directory context manager.'''
@@ -361,7 +339,8 @@ def test_change_directory():
 
     with change_dir("/tmp"):
         tmp_dir = os.getcwd()
-        assert tmp_dir == "/tmp"
+        # on MacOS the temporary directory is /private/tmp
+        assert tmp_dir.endswith("/tmp")
 
     assert os.getcwd() == old_dir
 
@@ -401,7 +380,7 @@ def test_get_ast():
     """Tests the get_ast function.
     """
     ast = get_ast("lfric", "19.12_single_stencil_region.f90")
-    program = ast.content[1]
+    program = ast.content[7]  # 0:6 are comments
     assert isinstance(program, Program)
     assert program.name == "single_stencil_region"
 

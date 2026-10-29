@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -42,6 +10,7 @@
 from typing import Optional
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.errors import PSycloneError
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
@@ -49,7 +18,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     AutomaticInterface,
     RoutineSymbol,
-    IntrinsicSymbol
+    IntrinsicSymbol, ArgumentInterface
 )
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -100,6 +69,7 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        from psyclone.psyir.nodes.call import Call
 
         # If the symbol is a RoutineSymbol or IntrinsicSymbol we don't read
         # the symbol.
@@ -117,6 +87,24 @@ class Reference(DataNode):
             if parent.arguments[0] is self and parent.is_inquiry:
                 return False
 
+        # For all other Intrinsic arguments we assume the worst-case
+        if isinstance(parent, IntrinsicCall):
+            return True
+
+        # For user-defined calls, if we can find the intents we use them,
+        # otherwise we assume readwrite
+        if isinstance(parent, Call):
+            try:
+                callee, _ = parent.get_callee()
+                # Get the matching argument (-1 to skip the routine at child 0)
+                arg_idx = parent.get_argument_map(callee)[self.position - 1]
+            except (NotImplementedError, PSycloneError, AttributeError):
+                return True
+
+            # Use the intent access pattern
+            arg = callee.symbol_table.argument_list[arg_idx]
+            return arg.interface.access != ArgumentInterface.Access.WRITE
+
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
         return True
@@ -130,6 +118,7 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.call import Call
+        from psyclone.psyir.nodes.codeblock import CodeBlock
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         from psyclone.psyir.nodes.loop import Loop
         parent = self.parent
@@ -137,13 +126,29 @@ class Reference(DataNode):
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
                                                    parent.is_pure)):
             return False
-        # All other arguments of all other Calls are assumed to write to their
-        # arguments. This could be improved in the future by looking at
-        # intents where available.
-        if isinstance(parent, Call):
+        # For all other Intrinsic arguments we assume the worst-case
+        if isinstance(parent, IntrinsicCall):
             return True
+
+        # For user-defined calls, if we can find the intents we use them,
+        # otherwise we assume readwrite
+        if isinstance(parent, Call):
+            try:
+                callee, _ = parent.get_callee()
+                # Get the matching argument (-1 to skip the routine at child 0)
+                arg_idx = parent.get_argument_map(callee)[self.position - 1]
+            except (NotImplementedError, PSycloneError, AttributeError):
+                return True
+
+            # Use the intent access pattern
+            arg = callee.symbol_table.argument_list[arg_idx]
+            return arg.interface.access != ArgumentInterface.Access.READ
+
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        # Assume the worst for CodeBlocks
+        if isinstance(parent, CodeBlock):
             return True
         # Loop control variable is also a write
         if isinstance(parent, Loop) and parent.variable_reference is self:

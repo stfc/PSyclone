@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic and L. Turner, Met Office
-# Modified: R. W. Ford, STFC Daresbury Laboratory
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
@@ -96,10 +66,10 @@ module testkern_mesh_prop_mod
   public
 
   contains
-  subroutine testkern_mesh_prop_code(nlayers, rscalar_1, field_2_w1, ndf_w1, \
-undf_w1, map_w1, nfaces_re_h, adjacent_face)
+  subroutine testkern_mesh_prop_code(nlayers_field_2, rscalar_1, field_2_w1, \
+ndf_w1, undf_w1, map_w1, nfaces_re_h, adjacent_face)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_2
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: undf_w1
@@ -131,13 +101,13 @@ module testkern_mesh_prop_quad_mod
   public
 
   contains
-  subroutine testkern_mesh_prop_quad_code(nlayers, field_1_w1, \
+  subroutine testkern_mesh_prop_quad_code(nlayers_field_1, field_1_w1, \
 field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, ndf_wtheta, \
 undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, nfaces_re_h, nfaces_re, \
 normals_to_horiz_faces, out_normals_to_faces, adjacent_face, np_xy_qr_xyoz, \
 np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_wtheta

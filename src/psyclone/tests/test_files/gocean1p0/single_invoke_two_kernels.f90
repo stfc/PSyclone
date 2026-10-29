@@ -1,18 +1,20 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2015.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
-! Author A. Porter STFC Daresbury Lab
-! Funded by the GOcean project
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: The copyright relating to this work is
+!                         owned jointly by the Crown, Met Office and NERC 2015.
+!                         However, it has been created with the help of the
+!                         GungHo Consortium, whose members are identified at
+!                         https://puma.nerc.ac.uk/trac/GungHo/wiki
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+! Funded by the NERC GOcean project
 
 PROGRAM single_invoke_two_kernels
 
   ! Fake Fortran program for testing aspects of
   ! the PSyclone code generation system.
 
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use grid_mod
   use field_mod
   use compute_cu_mod,  only: compute_cu

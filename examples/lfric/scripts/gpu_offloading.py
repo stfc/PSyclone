@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, STFC Daresbury Lab
-#          R. W. Ford, STFC Daresbury Lab
-#          S. Siso, STFC Daresbury Lab
-#          L. Mosimann, NVIDIA.
 
 '''PSyclone transformation script for LFRic to apply GPU offloading directives.
 Also adds redundant computation to the level-1 halo for setval_* generically.
@@ -42,16 +11,17 @@ Also adds redundant computation to the level-1 halo for setval_* generically.
 '''
 import os
 import sys
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.common.transformations import (
+    KernelInlineTrans, KernelModuleInlineTrans)
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.transformations import (
-    LFRicRedundantComputationTrans)
+    LFRicRedundantComputationTrans, LFRicLoopFuseTrans)
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError,
-    OMPDeclareTargetTrans, OMPParallelTrans, InlineTrans)
+    OMPDeclareTargetTrans, OMPParallelTrans)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     ACCParallelTrans, ACCRoutineTrans,
@@ -62,9 +32,19 @@ from psyclone.psyir.transformations import ACCLoopTrans
 # Names of any Algorithm module that we won't add any GPU offloading
 ALG_EXCLUSIONS = ('diagnostic_', )
 
-# We won't attempt to inline calls to routines with names that contain
-# these strings (because they're not computationally important).
-INLINE_EXCLUSIONS = ["abort", "logging"]
+# We won't attempt to inline calls to routines or kernels with these names
+# because they're not computationally important or cause runtime errors.
+INLINE_EXCLUSIONS = [
+    "abort", "logging",
+    # TODO #3611: The problem could be the L/UBOUND offloaded intrinsics.
+    "sample_eos_operators_code_inlined_",
+    "apply_mixed_wp_operator_code_inlined_",
+    "weighted_proj_2thetav_code_inlined_",
+    "weighted_proj_theta2v_code_inlined_",
+    "weighted_div_code_inlined_",
+]
+
+ENABLE_FUSING = False
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
@@ -126,7 +106,10 @@ def _replace_matmuls(sched: Schedule):
         # routine) that we are not to mark this kernel for offload.
         if (isinstance(call, IntrinsicCall) and
                 call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
-            matrans.apply(call)
+            try:
+                matrans.apply(call)
+            except TransformationError as err:
+                print(f"Matmul2Code failed with: {err}")
 
 
 def trans(psyir):
@@ -138,13 +121,14 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    fusetrans = LFRicLoopFuseTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
-    inline_trans = InlineTrans()
+    inline_trans = KernelInlineTrans()
 
     if OFFLOAD_DIRECTIVES.startswith("omp"):
         # Use OpenMP offloading
@@ -227,37 +211,63 @@ def trans(psyir):
                     kern.append_preceding_comment(f"{err.value}")
                     loop.append_preceding_comment(f"{err.value}")
 
-                # Attempt to fully inline the kernel
+                # Ensure MATMULs within the kernel are also inlined
+                for routine in kern.get_callees():
+                    _replace_matmuls(routine)
+
                 try:
-                    # Ensure any MATMULs within the kernel are also inlined
-                    for routine in kern.get_callees():
-                        _replace_matmuls(routine)
-
-                    inline_trans.apply(kern)
-                    print(f"Inline successful for kernel "
-                          f"'{kern.name}'")
-                    continue
-                except TransformationError as err:
-                    failed_inline.add(kern.name.lower())
-                    print(f"Inline failed for kernel "
-                          f"'{kern.name}' due to:\n{err.value}")
-
-                    # If it cannot be inlined, fallback to annotate the
-                    # kernel with GPU routine directives.
-                    try:
-                        gpu_annotation_trans.apply(
+                    # Attempt annotations first, since if inlining fails
+                    # during lowering we can't fallback at that point
+                    gpu_annotation_trans.apply(
                             kern,
                             assume_valid_on_device=MANUALLY_ANNOTATED
-                        )
-                        print(f"Annotation successful for kernel "
-                              f"'{kern.name}'")
-                    except TransformationError as err:
-                        failed_to_offload.add(kern.name.lower())
-                        print(f"Annotation failed for kernel '{kern.name}' "
-                              f"due to:\n{err.value}")
-                        kern.append_preceding_comment(f"{err.value}")
-                        loop.append_preceding_comment(f"{err.value}")
+                    )
+                    print(f"Annotation successful for kernel "
+                          f"'{kern.name}'")
+                    try:
+                        if kern.name in INLINE_EXCLUSIONS:
+                            continue
+                        if OFFLOAD_DIRECTIVES.startswith("acc"):
+                            # TODO #423: PSyclone doesn't support the OpenACC
+                            # private clause yet, which we need for the inlined
+                            # version
+                            continue
+                        # For the kernels that can be on the GPU, attempt to
+                        # fully inline them to improve performance.
+                        inline_trans.apply(kern)
+                        print(f"Kernel '{kern.name}' marked for deferred "
+                              f"inlining")
+                    except TransformationError:
+                        # If it fails continue as normal, as the kenrel will
+                        # still be in the GPU (just not inlined)
+                        continue
+                except TransformationError as err:
+                    failed_to_offload.add(kern.name.lower())
+                    loop.append_preceding_comment(f"{err.value}")
+                    print(f"Annotation failed for kernel '{kern.name}' "
+                          f"due to:\n{err.value}")
 
+        if ENABLE_FUSING:
+            # Try to fuse all of the loops.
+            loops = subroutine.loops()
+            num_loops = len(loops)
+            current_index = 0
+            # Keep trying to fuse loops wherever possible
+            while current_index < num_loops-1:
+                try:
+                    fusetrans.apply((loops[current_index],
+                                     loops[current_index+1]))
+                    kernel_names = [k.name.lower() for k in
+                                    loops[current_index].kernels()]
+                    # If fusion is successful then we have 1 less remaining
+                    # loop and continue at the same index to keep trying to
+                    # fuse.
+                    num_loops = num_loops - 1
+                    print(f"Fusion successful: {kernel_names}, "
+                          f"{psyir.name}:{subroutine.name}")
+                except TransformationError:
+                    # If fusion fails we move to the next loop.
+                    current_index = current_index + 1
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]
