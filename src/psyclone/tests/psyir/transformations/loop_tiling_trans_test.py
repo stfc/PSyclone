@@ -232,7 +232,6 @@ def test_loop_tiling_trans_apply3(fortran_reader, fortran_writer):
 
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
-    print(result)
     expected = '''\
 do i = 1, 100, 1
   do j = 1, 100, 1
