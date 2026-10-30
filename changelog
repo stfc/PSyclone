@@ -1,3 +1,6 @@
+   80) #3657. Reverts Python version for the readthedocs build as 3.15 is
+   not yet supported.
+
    79) PR #3510 towards #868. Implement support for custom function spaces
    with user-defined multi-data fields and number of layers.
 
