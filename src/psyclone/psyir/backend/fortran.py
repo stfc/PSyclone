@@ -2037,7 +2037,7 @@ class FortranWriter(LanguageWriter):
         for node in node.children[1:]:
             result = result + self._visit(node)
         self._depth -= 1
-        result += f"{self._nindent}end select"
+        result += f"{self._nindent}end select\n"
         return result
 
     def _get_typeguard_datatype_str(

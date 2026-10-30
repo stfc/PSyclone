@@ -6110,6 +6110,10 @@ class Fparser2Reader():
                 symbol = DataTypeSymbol(type_name, UnresolvedType(),
                                         interface=UnresolvedInterface())
                 symbol_table.add(symbol)
+            if not isinstance(symbol, DataTypeSymbol):
+                symbol.specialise(DataTypeSymbol,
+                                  interface=UnresolvedInterface())
+                symbol.datatype = UnresolvedType()
             # Use the DataTypeSymbol instead of the datatype so
             # the backend can find the name.
             dtype = symbol

@@ -58,6 +58,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -122,6 +123,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -203,6 +205,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
       type is(real)
         branch3 = 1
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -279,6 +282,7 @@ def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
         branch2 = 0
         iinfo = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -316,6 +320,7 @@ def test_unresolved_selector_symbol(fortran_reader, fortran_writer, tmpdir,
         !  - Unsupported statement: Write_Stmt
         WRITE(*, *) "yes"
     end select
+
   end subroutine my_sub"""
     result = fortran_writer(psyir)
     assert correct in result
@@ -394,6 +399,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo2 = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -436,6 +442,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         branch1 = 1
         field_type_info = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -494,6 +501,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         branch3 = 1
         complex_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -533,6 +541,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -569,6 +578,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -619,6 +629,7 @@ def test_character_kind(
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -657,8 +668,43 @@ def test_class_target(
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
+    assert correct in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_imported_type_target(
+        fortran_reader, fortran_writer, tmpdir
+):
+    '''Test that if we have an imported type we still correctly create the
+    required DataTypeSymbol to not crash the creation of the TypeGuard.'''
+    code = """
+    subroutine test(input)
+        use mod, only: some_type
+        class(*) :: input
+
+        select type(input)
+          type is(some_type)
+             print *, "test print"
+        end select
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir).lower()
+    correct = """
+    subroutine test(input)
+  use mod, only :
+  class(*) :: input
+
+  select type(input)
+    type is(some_type)
+      ! psyclone codeblock (unsupported code) reason:
+      !  - unsupported statement: print_stmt
+      print *, "test print"
+  end select
+
+end subroutine test"""
     assert correct in result
     assert Compile(tmpdir).string_compiles(result)

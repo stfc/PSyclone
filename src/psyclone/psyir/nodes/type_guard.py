@@ -8,15 +8,15 @@
 ''' This module contains the TypeGuard node implementation.'''
 
 from enum import Enum
-from typing import Union
+from typing import Any, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.datatypes import DataType
+from psyclone.psyir.symbols import (DataTypeSymbol, DataType, Symbol,
+                                    SymbolTable)
 
 
 class TypeGuard(Statement):
@@ -53,6 +53,23 @@ class TypeGuard(Statement):
         # Use the setter to setup the type guard type.
         self.type_guard_type = type_guard_type
         self.comparison_type = comparison_type
+
+    def __eq__(self, other: Any) -> bool:
+        '''
+        Checks whether this typeguard is equal to other. Its equal if
+        the super.__eq__ is true and the type_guard_type and comparison_type
+        are the same.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        # The super class equal checks type equivalence.
+        equal = super().__eq__(other)
+        equal = equal and self.comparison_type == other.comparison_type
+        equal = equal and self.type_guard_type == other.type_guard_type
+        return equal
 
     @property
     def comparison_type(self) -> Union[DataTypeSymbol, DataType, None]:
@@ -187,6 +204,35 @@ class TypeGuard(Statement):
             var_accesses.update(child.reference_accesses())
 
         return var_accesses
+
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ) -> None:
+        '''
+        Replace the Symbol referred to by this object's `comparison_type` with
+        those in the supplied SymbolTable (or just the supplied Symbol
+        instance) if they have matching names. If there is no match for a
+        given Symbol then it is left unchanged.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+
+        '''
+        if self.comparison_type:
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self.comparison_type.name.lower()):
+                    self.comparison_type = table_or_symbol
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(
+                            self.comparison_type.name)
+                    self.comparison_type = new_sym
+                except KeyError:
+                    pass
+
+        super().replace_symbols_using(table_or_symbol)
 
 
 __all__ = ["TypeGuard"]

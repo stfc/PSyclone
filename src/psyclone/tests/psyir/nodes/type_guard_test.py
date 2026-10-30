@@ -11,6 +11,8 @@ import pytest
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Schedule, TypeGuard
+from psyclone.psyir.symbols import (DataTypeSymbol, SymbolTable,
+                                    UnresolvedType, UnresolvedInterface)
 
 
 def test_typeguard_init():
@@ -97,3 +99,62 @@ def test_typeguard_reference_accesses(fortran_reader):
     assert ref_accesses[i_sig].is_written()
     assert not ref_accesses[j_sig].is_read()
     assert ref_accesses[j_sig].is_written()
+
+
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_type_guard_replace_symbols_using(fortran_reader, table):
+    '''Test the replace_symbols_using() method of TypeGuard.'''
+
+    code = """subroutine test(a)
+    use some_mod, only: test_type
+    class(*), allocatable :: a
+
+    select type(a)
+        type is(test_type)
+            i = 1
+            j = i + 1
+    end select
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    type_guard = psyir.walk(TypeGuard)[0]
+    assert type_guard.comparison_type.name == "test_type"
+    # Create a replacement symbol.
+    new_tt = DataTypeSymbol("test_type", datatype=UnresolvedType(),
+                            interface=UnresolvedInterface())
+    assert type_guard.comparison_type is not new_tt
+    if table is not None:
+        # Test nothing bad happens if no replacement is in the table.
+        type_guard.replace_symbols_using(table)
+        assert type_guard.comparison_type is not new_tt
+        table.add(new_tt)
+        type_guard.replace_symbols_using(table)
+    else:
+        type_guard.replace_symbols_using(new_tt)
+    # Comparison Type should have been updated.
+    assert type_guard.comparison_type is new_tt
+
+
+def test_type_guard_eq(fortran_reader):
+    '''Test the equality functionality of TypeGuard.'''
+    code = """subroutine test(a)
+
+    use some_mod, only: test_type, tt2
+    class(*), allocatable :: a
+
+    select type(a)
+        type is(test_type)
+        type is(test_type)
+        type is(tt2)
+        class is(test_type)
+        class default
+    end select
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    type_guards = psyir.walk(TypeGuard)
+
+    # Only the first two type guards should be equal.
+    assert type_guards[0] == type_guards[1]
+    assert type_guards[0] != type_guards[2]
+    assert type_guards[0] != type_guards[3]
+    assert type_guards[0] != type_guards[4]
