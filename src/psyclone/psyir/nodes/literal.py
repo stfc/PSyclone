@@ -175,9 +175,10 @@ class Literal(DataNode):
         is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         self.datatype.replace_symbols_using(table_or_symbol)

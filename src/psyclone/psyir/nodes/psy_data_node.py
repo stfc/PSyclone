@@ -662,14 +662,15 @@ class PSyDataNode(Statement):
             call = gen_type_bound_call(self._var_name, "PreEnd")
             self.parent.children.insert(self.position, call)
 
-        # Insert the body of the profiled region between the start and
-        # end calls
-        for child in self.psy_data_body.pop_all_children():
-            self.parent.children.insert(self.position, child)
         # If there is any symbol in the PSyData scope (it could have been
         # added by any posterior modification writing to child.scope) it needs
-        # to be moved together with the nodes
+        # to be moved together with the nodes. Merge while the body is still
+        # attached so references to reused symbols can be updated.
         self.scope.symbol_table.merge(self.psy_data_body.symbol_table)
+        # Insert the body of the profiled region between the start and
+        # end calls.
+        for child in self.psy_data_body.pop_all_children():
+            self.parent.children.insert(self.position, child)
 
         if has_var:
             # Only add PostStart() if there is at least one variable.

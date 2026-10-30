@@ -164,7 +164,8 @@ class ScopingNode(Node):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: Union[SymbolTable, Symbol,
+                                   dict[Symbol, Symbol]]) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
         those in the supplied table (or just the supplied Symbol instance) if
@@ -176,11 +177,21 @@ class ScopingNode(Node):
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
 
+        A dictionary matches symbols by identity and also updates declarations
+        in this scope. Definitions of the replaced and replacement symbols
+        themselves are left unchanged.
+
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
 
         '''
         next_table = table_or_symbol
+        if isinstance(table_or_symbol, dict):
+            for symbol in self.symbol_table.symbols:
+                if (symbol not in table_or_symbol and
+                        symbol not in table_or_symbol.values()):
+                    symbol.replace_symbols_using(table_or_symbol)
         if self.parent and isinstance(table_or_symbol, SymbolTable):
             try:
                 # If this node is not within a scope we get a SymbolError

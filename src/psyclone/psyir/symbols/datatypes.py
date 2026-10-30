@@ -62,9 +62,10 @@ class DataType(metaclass=abc.ABCMeta):
         is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
 
@@ -276,9 +277,10 @@ class UnsupportedFortranType(UnsupportedType):
         must not be traversed because the datatype definition may be recursive.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         partial_datatype = self.partial_datatype
@@ -289,15 +291,8 @@ class UnsupportedFortranType(UnsupportedType):
             partial_datatype.replace_symbols_using(table_or_symbol)
             return
 
-        if isinstance(table_or_symbol, Symbol):
-            if table_or_symbol.name.lower() != partial_datatype.name.lower():
-                return
-            replacement = table_or_symbol
-        else:
-            replacement = table_or_symbol.lookup(
-                partial_datatype.name, otherwise=partial_datatype)
-
-        self._partial_datatype = replacement
+        self._partial_datatype = partial_datatype.get_replacement(
+            table_or_symbol)
 
     @property
     def intrinsic(self):
@@ -592,7 +587,8 @@ class ScalarType(DataType):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: Union[SymbolTable, Symbol,
+                                   dict[Symbol, Symbol]]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -600,7 +596,8 @@ class ScalarType(DataType):
         left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-                                symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
@@ -1219,22 +1216,15 @@ class ArrayType(DataType):
         left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         if isinstance(self.elemental_type, DataTypeSymbol):
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == \
-                        self._elemental_type.name.lower():
-                    self._elemental_type = table_or_symbol
-            else:
-                try:
-                    self._elemental_type = \
-                        table_or_symbol.lookup(self.elemental_type.name)
-                except KeyError:
-                    pass
+            self._elemental_type = self.elemental_type.get_replacement(
+                table_or_symbol)
         else:
             self.elemental_type.replace_symbols_using(table_or_symbol)
 
@@ -1548,7 +1538,7 @@ class StructureType(DataType):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[SymbolTable, Symbol]
+        table_or_symbol: Union[SymbolTable, Symbol, dict[Symbol, Symbol]]
     ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
@@ -1559,22 +1549,15 @@ class StructureType(DataType):
         This base implementation simply propagates the call to any child Nodes.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
 
         '''
         # Since ComponentType is a frozen dataclass it is immutable, therefore
         # we must construct new ones.
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
-                if isinstance(table_or_symbol, Symbol):
-                    if (table_or_symbol.name.lower() ==
-                            component.datatype.name.lower()):
-                        new_type = table_or_symbol
-                    else:
-                        new_type = component.datatype
-                else:
-                    new_type = table_or_symbol.lookup(
-                        component.datatype.name, otherwise=component.datatype)
+                new_type = component.datatype.get_replacement(table_or_symbol)
 
             else:
                 # Make a copy before updating any Symbol references so that
@@ -1611,12 +1594,7 @@ class StructureType(DataType):
 
         # Update reference in the extends attribute
         if self.extends:
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.extends.name.lower():
-                    self._extends = table_or_symbol
-            else:
-                self._extends = table_or_symbol.lookup(
-                    self.extends.name, otherwise=self.extends)
+            self._extends = self.extends.get_replacement(table_or_symbol)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

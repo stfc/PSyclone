@@ -413,19 +413,13 @@ class Reference(DataNode):
         Symbol then it is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
-        if isinstance(table_or_symbol, Symbol):
-            if self.symbol.name.lower() == table_or_symbol.name.lower():
-                self.symbol = table_or_symbol
-        else:
-            try:
-                self.symbol = table_or_symbol.lookup(self.symbol.name)
-            except KeyError:
-                pass
+        self.symbol = self.symbol.get_replacement(table_or_symbol)
 
         # Walk on down the tree.
         super().replace_symbols_using(table_or_symbol)
