@@ -953,8 +953,10 @@ def test_haloexchange_accesses():
     '''Test that the next/previous_accesses on HaloExchange class returns
     an empty list.'''
     halo_exchange = HaloExchange(None)
-    assert halo_exchange.next_accesses() == []
-    assert halo_exchange.previous_accesses() == []
+    with pytest.raises(NotImplementedError):
+        _ = halo_exchange.next_accesses()
+    with pytest.raises(NotImplementedError):
+        _ = halo_exchange.previous_accesses()
 
 
 def test_args_filter():

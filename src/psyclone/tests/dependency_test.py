@@ -9,6 +9,7 @@
 ''' Module containing py.test tests for dependency analysis.'''
 
 import os
+import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
@@ -595,5 +596,7 @@ def test_lfrickern_accesses():
     '''Check that next/previous_accesses methods on Kern classes
     return an empty list.'''
     kernel = LFRicKern()
-    assert kernel.next_accesses() == []
-    assert kernel.previous_accesses() == []
+    with pytest.raises(NotImplementedError):
+        _ = kernel.next_accesses()
+    with pytest.raises(NotImplementedError):
+        _ = kernel.previous_accesses()

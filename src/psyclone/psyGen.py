@@ -740,21 +740,21 @@ class HaloExchange(Statement):
                 f"type='{self._halo_type}', depth={self._halo_depth}, "
                 f"check_dirty={self._check_dirty}]")
 
-    def next_accesses(self) -> list[Node]:
+    def next_accesses(self) -> None:
         '''
-        next_accesses on base HaloExchange class returns an empty list.
+        next_accesses on base HaloExchange class is NYI.
 
-        :returns: an empty list.
+        :raises NotImplementedError: if called.
         '''
-        return []
+        raise NotImplementedError()
 
-    def previous_accesses(self) -> list[Node]:
+    def previous_accesses(self) -> None:
         '''
-        previous_accesses on base HaloExchange class returns an empty list.
+        previous_accesses on base HaloExchange class is NYI.
 
-        :returns: an empty list.
+        :raises NotImplementedError: if called.
         '''
-        return []
+        raise NotImplementedError()
 
 
 class Kern(Statement):
@@ -1164,21 +1164,21 @@ class Kern(Statement):
 
         return super().lower_to_language_level()
 
-    def next_accesses(self) -> list[Node]:
+    def next_accesses(self) -> None:
         '''
-        next_accesses on base Kern class returns an empty list.
+        next_accesses on base Kern class is NYI.
 
-        :returns: an empty list.
+        :raises NotImplementedError: if called.
         '''
-        return []
+        raise NotImplementedError()
 
-    def previous_accesses(self) -> list[Node]:
+    def previous_accesses(self) -> None:
         '''
-        previous_accesses on base Kern class returns an empty list.
+        previous_accesses on base Kern class is NYI.
 
-        :returns: an empty list.
+        :raises NotImplementedError: if called.
         '''
-        return []
+        raise NotImplementedError()
 
 
 class CodedKern(Kern):
