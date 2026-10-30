@@ -7,13 +7,12 @@
 
 ''' This module contains the Statement abstract node implementation.'''
 
-import abc
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
-class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
+class Statement(Node, CommentableMixin):
     '''
     Abstract node representing a general PSyIR Statement.
     '''
