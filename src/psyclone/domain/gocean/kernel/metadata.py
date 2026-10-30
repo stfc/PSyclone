@@ -25,7 +25,7 @@ dataclasses:
             GOceanScalarArgMetadata:
                 access: str
                 datatype: str
-                form: str = "go_pointwise"
+                form: ClassVar[str] = "go_pointwise"
             GOceanGridPropertyArgMetadata:
                 access: str
                 name: str
@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import re
-from typing import ClassVar, Optional, TYPE_CHECKING, Union
+from typing import ClassVar, Optional, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
@@ -193,7 +193,7 @@ class GOceanScalarArgMetadata:
 
     access: str
     datatype: str
-    form: str = "go_pointwise"
+    form: ClassVar[str] = "go_pointwise"
 
     def __post_init__(self) -> None:
         """Validate and normalise the scalar-argument metadata.
@@ -209,10 +209,6 @@ class GOceanScalarArgMetadata:
             self, "datatype",
             normalise(
                 self.datatype, "scalar datatype", const.VALID_SCALAR_TYPES))
-        object.__setattr__(
-            self, "form",
-            normalise(
-                self.form,  "scalar access form", const.VALID_STENCIL_NAMES))
 
     def fortran_string(self) -> str:
         """
@@ -266,16 +262,11 @@ class GOceanGridPropertyArgMetadata:
         return GOceanConstants().ACCESS_MAPPING[self.access]
 
 
-_META_ARG_TYPES = (
-    GOceanFieldArgMetadata,
-    GOceanScalarArgMetadata,
-    GOceanGridPropertyArgMetadata,
+GOceanArgumentMetadata = (
+    GOceanFieldArgMetadata
+    | GOceanScalarArgMetadata
+    | GOceanGridPropertyArgMetadata
 )
-
-
-GOceanArgumentMetadata = Union[
-    GOceanFieldArgMetadata, GOceanScalarArgMetadata,
-    GOceanGridPropertyArgMetadata]
 
 
 @dataclass(frozen=True)
@@ -313,7 +304,7 @@ class GOceanKernelMetadata(KernelMetadata):
                 const.VALID_OFFSET_NAMES))
         object.__setattr__(self, "meta_args", tuple(self.meta_args))
         if any(
-            not isinstance(argument, _META_ARG_TYPES)
+            not isinstance(argument, GOceanArgumentMetadata)
             for argument in self.meta_args
         ):
             raise TypeError(
@@ -543,9 +534,13 @@ def _parse_meta_arg(
             stencil = GOceanPointwiseMetadata()
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
-        return GOceanScalarArgMetadata(
-            access, second,
-            KernelMetadata._validate_and_get_value(arguments[2]))
+        form = KernelMetadata._validate_and_get_value(arguments[2])
+        if form not in const.VALID_STENCIL_NAMES:
+            raise ValueError(
+                f"Expected scalar access form to be one of "
+                f"{const.VALID_STENCIL_NAMES} but found '{form}'."
+            )
+        return GOceanScalarArgMetadata(access, second)
     raise ParseError(
         "Expected the second go_arg entry to identify a field or scalar, "
         f"but found '{second}'."

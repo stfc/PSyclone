@@ -241,10 +241,13 @@ def _update_access_metadata(
     if var_access == ArgumentInterface.Access.READWRITE:
         # pylint: disable=unidiomatic-typecheck
         if type(meta_arg) is ScalarArgMetadata:
-            # TODO #2333 - in LFRic only Builtin kernels are currently allowed
-            # to write to a scalar argument (since this implies a reduction).
-            # We therefore need to flag this case.
-            access = "gh_reduction"
+            raise GenerationError(
+                f"PSyAD cannot generate valid LFRic metadata for active "
+                f"scalar argument '{found_symbol.name}' because its adjoint "
+                f"has intent inout and therefore requires a scalar "
+                f"reduction. LFRic only permits built-in kernels to "
+                f"write/update scalar arguments (issue #2333)."
+            )
         elif type(meta_arg) in [
                 OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
             access = "gh_readwrite"

@@ -1289,8 +1289,7 @@ class GOKernelArguments(Arguments):
         # position in the argument list of the argument to which this
         # descriptor corresponds. (This argument is appended in the code
         # below.)
-        descriptor = GOceanScalarArgMetadata(
-            "go_read", argument_type, "go_pointwise")
+        descriptor = GOceanScalarArgMetadata("go_read", argument_type)
 
         # Create the argument and append it to the argument list
         arg = Arg("variable", name)

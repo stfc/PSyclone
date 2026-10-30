@@ -178,8 +178,8 @@ def test_argument_metadata_validation():
     with pytest.raises(ValueError, match="field grid-point type"):
         GOceanFieldArgMetadata("go_read", "invalid")
 
-    scalar = GOceanScalarArgMetadata(
-        "GO_READ", "GO_R_SCALAR", "GO_POINTWISE")
+    scalar = GOceanScalarArgMetadata("GO_READ", "GO_R_SCALAR")
+    assert scalar.form == "go_pointwise"
     assert scalar.fortran_string() == (
         "go_arg(go_read, go_r_scalar, go_pointwise)")
     grid = GOceanGridPropertyArgMetadata("GO_READ", "GO_GRID_AREA_T")
@@ -291,6 +291,8 @@ def test_find_symbol_discovery_errors(fortran_reader):
      "must use go_stencil"),
     ("go_arg(go_read, go_cu, invalid)", ValueError,
      "field access form"),
+    ("go_arg(go_read, go_r_scalar, invalid)", ValueError,
+     "scalar access form"),
     ("go_arg(go_read, invalid, go_pointwise)", ParseError,
      "identify a field or scalar"),
 ])

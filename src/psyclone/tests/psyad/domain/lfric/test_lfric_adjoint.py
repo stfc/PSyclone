@@ -388,22 +388,18 @@ def test_update_access_metadata_index_error():
 
 
 def test_update_access_metadata_scalar_reduction():
-    '''Test that a scalar with intent inout results in metadata with
-    access gh_reduction.
-
-    TODO #2333 - only Builtin kernels are permitted to write to scalars so
-    really we need to check with the user or flag it as an error.
-
-    '''
+    """An active scalar requiring a reduction is rejected explicitly."""
     metadata, dummy, field_1, field_2, field_3, scalar, operator = \
         get_metadata_args()
     assert metadata.meta_args[3].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated_args = _update_access_metadata(
-        "scalar", arguments, metadata)
-    assert access.lower() == "gh_reduction"
-    assert updated_args[3].access.lower() == access.lower()
+    with pytest.raises(
+            GenerationError,
+            match=("cannot generate valid LFRic metadata for active scalar "
+                   "argument 'scalar'.*requires a scalar reduction.*"
+                   "issue #2333")):
+        _update_access_metadata("scalar", arguments, metadata)
 
 
 def test_update_access_metadata_operator_readwrite():
