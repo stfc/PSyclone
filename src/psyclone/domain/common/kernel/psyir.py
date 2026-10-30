@@ -5,7 +5,7 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-"""Common kernel definitions and domain-specific kernel PSyIR nodes."""
+""" Defines the Kernel object and the PSyIR node that encapsulates a Kernel."""
 
 from __future__ import annotations
 
@@ -58,7 +58,10 @@ class Kernel:
                 "Kernel procedure name must be provided explicitly or "
                 "by the metadata.")
         if not isinstance(procedure_name, str):
-            raise TypeError("Kernel procedure name must be a string.")
+            raise TypeError(
+                f"Kernel procedure name must be a string but found "
+                f"{type(procedure_name).__name__}."
+            )
         object.__setattr__(self, "procedure_name", procedure_name)
 
     @classmethod
@@ -77,7 +80,6 @@ class Kernel:
         :returns: the metadata, source PSyIR and resolved implementations.
 
         :raises TypeError: if the PSyIR or metadata class is unsupported.
-
         :raises ParseError: if metadata validation or procedure resolution
             fails.
         """
@@ -101,12 +103,11 @@ class Kernel:
 
 
 class KernelContainer(Container):
-    '''A domain-specific Container. This specialises the generic Container
-    node and adds in any domain-specific information.
+    ''' Container that encapsulates a PSyKAl kernel.
 
     :param name: the name of the container.
     :param metadata: the metadata object.
-    :param kwargs: additional keyword arguments to pass to parent \
+    :param kwargs: additional keyword arguments to pass to parent
         constructor.
 
     '''
@@ -131,10 +132,9 @@ class KernelContainer(Container):
 
         :param name: the name of the Container.
         :param metadata: the metadata object.
-        :param symbol_table: the symbol table associated with this \
-            Container.
-        :param children: a list of PSyIR nodes contained in the \
-            Container. These must be Containers or Routines.
+        :param symbol_table: the symbol table associated with this Container.
+        :param children: a list of PSyIR nodes contained in the Container.
+            These must be Containers or Routines.
 
         :returns: an instance of `cls`.
 
