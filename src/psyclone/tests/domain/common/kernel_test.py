@@ -36,12 +36,18 @@ end module demo_mod
 """
 
 
+def _create_gocean_metadata(psyir):
+    """Create GOcean metadata from the sole declaration in a PSyIR tree."""
+    return GOceanKernelMetadata.create_from_psyir(
+        GOceanKernelMetadata.find_symbols(psyir)[0][1])
+
+
 @pytest.mark.parametrize("container_type", [
     KernelContainer, LFRicKernelContainer, GOceanKernelContainer])
 def test_kernel_container_lifecycle(container_type, fortran_reader):
     """Shared construction and lowering preserve tree and symbol ownership."""
     source = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
-    metadata = GOceanKernelMetadata.create_from_psyir(source)
+    metadata = _create_gocean_metadata(source)
     original = source.children[0]
     table = original.symbol_table
     children = original.pop_all_children()
@@ -106,7 +112,7 @@ def test_kernel_from_psyir(fortran_reader):
 
 def test_kernel_procedure_name(fortran_reader):
     """Construction stores either an explicit name or the metadata name."""
-    metadata = GOceanKernelMetadata.create_from_psyir(
+    metadata = _create_gocean_metadata(
         fortran_reader.psyir_from_source(GOCEAN_SOURCE))
     kernel = Kernel(metadata)
     assert kernel.procedure_name == "demo_code"

@@ -12,9 +12,9 @@ functionality for the LFRic fields.
 
 import os
 import pytest
-from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicFields, LFRicKernelMetadata)
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicFields
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # Constants
@@ -60,7 +60,7 @@ def test_lfricfields_stub_err(fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(FIELD_CODE)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
@@ -111,7 +111,7 @@ def test_int_field_gen_stub(fortran_writer, fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(INTEGER_FIELD_CODE)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -173,7 +173,7 @@ def test_int_field_all_stencils_gen_stub(fortran_writer, fortran_reader):
     contain integer-valued fields with all supported stencil accesses. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -241,7 +241,7 @@ def test_real_int_field_gen_stub(fortran_writer, fortran_reader):
         "func_type(w1, gh_basis),",
         "func_type(w1, gh_basis, gh_diff_basis),", 1)
     psyir = fortran_reader.psyir_from_source(code)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)

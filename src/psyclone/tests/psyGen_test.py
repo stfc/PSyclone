@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
 from psyclone.utils import colored
@@ -726,7 +726,7 @@ def test_codedkern_node_str(fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
@@ -799,7 +799,7 @@ def test_kern_children_validation(fortran_reader):
     '''
     # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kern = LFRicKern()
     kern.load_meta(metadata)
 
@@ -817,7 +817,7 @@ def test_codedkern_get_callees(monkeypatch, fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kern = LFRicKern()
     kern.load_meta(metadata)
     monkeypatch.setattr(kern, "__class__", CodedKern)
@@ -878,7 +878,7 @@ def test_incremented_arg(fortran_reader):
     # Therefore, we change the object produced by parsing the metadata
     # instead
     psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     metadata = replace(
         metadata,
         meta_args=tuple(

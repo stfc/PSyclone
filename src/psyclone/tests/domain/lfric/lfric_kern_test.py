@@ -19,7 +19,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
-                                   LFRicKernelMetadata, LFRicLoop)
+                                   LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -28,7 +28,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
     ScalarType)
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
@@ -73,7 +73,7 @@ def test_scalar_kernel_load_meta_err(fortran_reader):
     '''
     name = "testkern_qr_type"
     psyir = fortran_reader.psyir_from_source(CODE)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     # Get a scalar argument descriptor and set an invalid data type
     with pytest.raises(ValueError) as err:
         replace(metadata.meta_args[5], datatype="gh_triple")

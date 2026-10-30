@@ -13,12 +13,12 @@ LFRic scalar arguments.
 import os
 import pytest
 
-from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernelMetadata, LFRicScalarArgs,
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern, LFRicScalarArgs,
                                    LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.utils import ParseError
+from psyclone.tests.utilities import create_lfric_metadata
 
 # Constants
 BASE_PATH = os.path.join(
@@ -36,7 +36,7 @@ def test_lfricscalars_stub_err(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_one_int_scalar_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
@@ -58,7 +58,7 @@ def test_lfricscalararray_stub_err(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type

@@ -13,10 +13,10 @@ import pytest
 
 import fparser
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (
-    LFRicConstants, LFRicKern, LFRicKernelMetadata)
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
+from psyclone.tests.utilities import create_lfric_metadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -35,7 +35,7 @@ def test_kernel_stub_invalid_iteration_space(fortran_reader):
     stub for a kernel with an unsupported iteration space. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_dofs_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -122,7 +122,7 @@ def test_load_meta_wrong_type(monkeypatch, fortran_reader):
     if the metadata contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     psyir = fortran_reader.psyir_from_source(INTENT)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     # Break the metadata
     monkeypatch.setattr(
@@ -138,7 +138,7 @@ def test_load_meta_wrong_type(monkeypatch, fortran_reader):
 def test_intent(fortran_writer, fortran_reader):
     ''' test that field intent is generated correctly for kernel stubs '''
     psyir = fortran_reader.psyir_from_source(INTENT)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -208,7 +208,7 @@ def test_spaces(fortran_writer, fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(SPACES)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -343,7 +343,7 @@ def test_any_spaces(fortran_writer, fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(ANY_SPACES)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -406,7 +406,7 @@ end module dummy_mod
 def test_vectors(fortran_writer, fortran_reader):
     ''' test that field vectors are handled correctly for kernel stubs '''
     psyir = fortran_reader.psyir_from_source(VECTORS)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -444,7 +444,7 @@ def test_enforce_bc_kernel_stub_gen(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -486,7 +486,7 @@ def test_enforce_op_bc_kernel_stub_gen(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "enforce_operator_bc_kernel_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -523,7 +523,7 @@ def test_multi_qr_stub_gen(fortran_writer, fortran_reader):
     more than one quadrature rule. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_2qr_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -570,7 +570,7 @@ def test_qr_plus_eval_stub_gen(fortran_writer, fortran_reader):
     and quadrature. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_qr_eval_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -630,7 +630,7 @@ def test_sub_name(fortran_writer, fortran_reader):
     name. In this case we append "_code to the name and _mod to the
     kernel name.'''
     psyir = fortran_reader.psyir_from_source(SUB_NAME)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -663,7 +663,7 @@ def test_nlayers_ndata_stub(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_nlayers_ndata_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)

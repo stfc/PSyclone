@@ -13,8 +13,7 @@ import pytest
 
 from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   LFRicConstants, LFRicKern,
-                                   LFRicKernelMetadata, LFRicLoop)
+                                   LFRicConstants, LFRicKern, LFRicLoop)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -22,7 +21,8 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
 from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import (
+    create_lfric_metadata, get_base_path, get_invoke)
 
 TEST_API = "lfric"
 
@@ -173,7 +173,7 @@ def test_kernel_invalid_scalar_argument(fortran_reader):
     when using the KernStubArgList or KernCallArgList scalar methods. '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         get_base_path(TEST_API), "testkern_one_int_scalar_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
@@ -284,7 +284,7 @@ def test_kernel_stub_ind_dofmap_errors(fortran_reader):
     are supplied to KernelStubArgList.indirection_dofmap() '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         get_base_path(TEST_API), "testkern_one_int_scalar_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -405,7 +405,7 @@ def test_kernstubarglist_arglist_error(fortran_reader):
     kernstubarglist without first calling the generate method'''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         get_base_path(TEST_API), "testkern_one_int_scalar_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -424,7 +424,7 @@ def test_kernstubarglist_eval_shape_error(fortran_reader):
     invalid. '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         get_base_path(TEST_API), "testkern_qr_faces_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     create_arg_list = KernStubArgList(kernel)
@@ -446,7 +446,7 @@ def test_refelem_stub_arglist_err(fortran_reader):
     # Create the Kernel object
     psyir = fortran_reader.psyir_from_file(os.path.join(
         get_base_path(TEST_API), "testkern_ref_elem_all_faces_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Break the list of ref-element properties required by the Kernel

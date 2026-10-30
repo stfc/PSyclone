@@ -341,12 +341,11 @@ class GOceanKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, psyir: Union[DataTypeSymbol, Node], name: Optional[str] = None
+        cls, psyir: DataTypeSymbol
     ) -> "GOceanKernelMetadata":
-        """Create metadata from a PSyIR tree or type symbol.
+        """Create metadata from a PSyIR type symbol.
 
-        :param psyir: PSyIR containing the metadata declaration.
-        :param name: optional metadata type name when ``psyir`` is a tree.
+        :param psyir: PSyIR symbol containing the metadata declaration.
 
         :returns: the parsed GOcean kernel metadata.
 
@@ -354,8 +353,7 @@ class GOceanKernelMetadata(KernelMetadata):
         :raises TypeError: if its datatype is not a StructureType.
         :raises ParseError: if the metadata declaration is invalid.
         """
-        symbol = cls._validate_and_get_symbol(psyir, "GOcean", name=name)
-        datatype = cls._validate_and_get_structure(symbol, "GOcean")
+        datatype = cls._validate_and_get_structure(psyir, "GOcean")
 
         components = datatype.components
         missing = {
@@ -381,7 +379,7 @@ class GOceanKernelMetadata(KernelMetadata):
             if not datatype.procedure_components:
                 raise ParseError(
                     f"GOcean metadata must bind a kernel procedure but "
-                    f"{symbol.name} does not have any procedure declarations."
+                    f"{psyir.name} does not have any procedure declarations."
                 )
             procedure = next(iter(datatype.procedure_components.values()))
             procedure_name = (
@@ -398,11 +396,11 @@ class GOceanKernelMetadata(KernelMetadata):
                 scalar_values[1],
                 arguments,
                 procedure_name,
-                symbol.name,
+                psyir.name,
             )
         except (TypeError, ValueError) as err:
             raise ParseError(
-                f"Invalid GOcean metadata '{symbol.name}': {err}"
+                f"Invalid GOcean metadata '{psyir.name}': {err}"
             ) from err
 
     @property

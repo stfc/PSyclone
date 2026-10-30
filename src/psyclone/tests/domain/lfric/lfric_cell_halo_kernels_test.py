@@ -11,11 +11,11 @@
 '''
 
 import pytest
-from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
+from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 
 TEST_API = "lfric"
 
@@ -47,7 +47,7 @@ contains
 end module testkern_halo_mod
 '''
     psyir = fortran_reader.psyir_from_source(source)
-    dkm = LFRicKernelMetadata.create_from_psyir(
+    dkm = create_lfric_metadata(
         psyir, name="testkern_halo_type")
     assert dkm.iterates_over == operates_on
 
@@ -76,7 +76,7 @@ contains
 end module testkern_domain_mod
 '''
     psyir = fortran_reader.psyir_from_source(source)
-    mdata = LFRicKernelMetadata.create_from_psyir(
+    mdata = create_lfric_metadata(
         psyir, name="testkern_domain_type")
     assert mdata.iterates_over == operates_on
 

@@ -56,6 +56,12 @@ def _expression(source):
     return FortranReader().psyir_from_expression(source)
 
 
+def _create_metadata(psyir):
+    """Create GOcean metadata from the sole declaration in a PSyIR tree."""
+    return GOceanKernelMetadata.create_from_psyir(
+        GOceanKernelMetadata.find_symbols(psyir)[0][1])
+
+
 def test_metadata_from_psyir(fortran_reader):
     """Metadata is extracted from a complete language-level PSyIR tree."""
     root = fortran_reader.psyir_from_source(MODULE)
@@ -86,7 +92,7 @@ def test_gocean_container_create():
     """Preserve direct construction and metadata access for the specialised
     GOcean container.
     """
-    metadata = GOceanKernelMetadata.create_from_psyir(
+    metadata = _create_metadata(
         FortranReader().psyir_from_source(
             f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"))
     container = GOceanKernelContainer("name", None)
@@ -103,13 +109,13 @@ def test_gocean_container_create():
 def test_metadata_fortran_round_trip(fortran_reader):
     """Generated metadata remains valid Fortran and preserves its values."""
     source = f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"
-    metadata = GOceanKernelMetadata.create_from_psyir(
+    metadata = _create_metadata(
         fortran_reader.psyir_from_source(source))
     regenerated_source = (
         "module metadata_mod\n"
         f"{metadata.fortran_string()}"
         "end module metadata_mod\n")
-    regenerated = GOceanKernelMetadata.create_from_psyir(
+    regenerated = _create_metadata(
         fortran_reader.psyir_from_source(regenerated_source))
     assert regenerated == metadata
 
@@ -227,8 +233,9 @@ def test_kernel_metadata_common_properties():
 
 def test_create_from_psyir_errors():
     """Test error handling when constructing metadata from a PSyIR symbol."""
-    with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
-        GOceanKernelMetadata.create_from_psyir("not a symbol")
+    for invalid in ("not a symbol", Container("node")):
+        with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
+            GOceanKernelMetadata.create_from_psyir(invalid)
     symbol = DataTypeSymbol("bad", ScalarType.real_type())
     with pytest.raises(TypeError, match="StructureType"):
         GOceanKernelMetadata.create_from_psyir(symbol)
@@ -259,18 +266,18 @@ def test_kernel_missing_routine():
         Kernel.create_from_psyir(GOceanKernelMetadata, root, "compute_cu")
 
 
-def test_create_from_psyir_discovery_errors(fortran_reader):
+def test_find_symbol_discovery_errors(fortran_reader):
     """Test invalid metadata discovery from complete PSyIR."""
     no_metadata = fortran_reader.psyir_from_source(
         "module metadata_mod\ninteger :: value\nend module metadata_mod")
-    with pytest.raises(ParseError, match="exactly one"):
-        GOceanKernelMetadata.create_from_psyir(no_metadata)
+    with pytest.raises(ParseError, match="does not exist"):
+        GOceanKernelMetadata.find_symbol(no_metadata)
 
     two_metadata = fortran_reader.psyir_from_source(
         "module metadata_mod\n" + METADATA + METADATA.replace(
             "compute_cu", "compute_cv") + "\nend module metadata_mod")
-    with pytest.raises(ParseError, match="exactly one"):
-        GOceanKernelMetadata.create_from_psyir(two_metadata)
+    with pytest.raises(ParseError, match="not unique"):
+        GOceanKernelMetadata.find_symbol(two_metadata)
 
 
 @pytest.mark.parametrize("expression, error, message", [

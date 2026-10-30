@@ -11,7 +11,8 @@ functionality of the LFRic API.
 '''
 
 import os
-from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
+from psyclone.domain.lfric import LFRicKern
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # Constants
@@ -49,7 +50,7 @@ def test_refelem_stub_gen(fortran_writer, fortran_reader):
     metadata contain reference element properties. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_ref_elem_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
@@ -99,7 +100,7 @@ def test_refelem_quad_stub_gen(fortran_writer, fortran_reader):
     contain reference element and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     psyir = fortran_reader.psyir_from_source(REF_ELEM_QUAD_MDATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)

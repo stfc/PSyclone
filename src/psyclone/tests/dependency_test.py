@@ -11,12 +11,12 @@
 import os
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-from psyclone.domain.lfric import (
-    KernStubArgList, LFRicKern, LFRicKernelMetadata)
+from psyclone.domain.lfric import KernStubArgList, LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
-from psyclone.tests.utilities import get_psylayer_schedule, get_invoke
+from psyclone.tests.utilities import (
+    create_lfric_metadata, get_psylayer_schedule, get_invoke)
 
 # Constants
 API = "nemo"
@@ -397,7 +397,7 @@ def test_lfric_stub_args(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "testkern_stencil_multi_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -434,7 +434,7 @@ def test_lfric_stub_args2(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "testkern_mesh_prop_face_qr_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -455,7 +455,7 @@ def test_lfric_stub_args3(fortran_reader, lfric_config):
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric",
         "testkern_any_discontinuous_space_op_1_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -475,7 +475,7 @@ def test_lfric_stub_boundary_dofs(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "enforce_bc_kernel_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -490,7 +490,7 @@ def test_lfric_stub_field_vector(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "testkern_stencil_vector_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -512,7 +512,7 @@ def test_lfric_stub_basis(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "testkern_qr_eval_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -534,7 +534,7 @@ def test_lfric_stub_cma_operators(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "columnwise_op_mul_2scalars_kernel_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -559,7 +559,7 @@ def test_lfric_stub_banded_dofmap(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "columnwise_op_asm_kernel_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -575,7 +575,7 @@ def test_lfric_stub_indirection_dofmap(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "columnwise_op_app_kernel_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -593,7 +593,7 @@ def test_lfric_stub_boundary_dofmap(fortran_reader, lfric_config):
     '''
     psyir = fortran_reader.psyir_from_file(os.path.join(
         BASE_PATH, "lfric", "enforce_operator_bc_kernel_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()

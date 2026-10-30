@@ -14,14 +14,14 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel import Kernel
-from psyclone.domain.lfric import (
-    LFRicConstants, LFRicKern, LFRicKernelMetadata)
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -726,7 +726,7 @@ def test_lfrickern_setup(monkeypatch, fortran_reader):
     name = "testkern_qr_type"
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_qr_mod.F90"))
-    dkm = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
+    dkm = create_lfric_metadata(psyir, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(Kernel(dkm), "my module", None, None)
@@ -786,7 +786,7 @@ def test_qr_basis_stub(fortran_writer, fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source(BASIS)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -901,7 +901,7 @@ def test_stub_basis_wrong_shape(monkeypatch, fortran_reader):
     for quadrature raises the correct errors if the kernel metadata is
     broken '''
     psyir = fortran_reader.psyir_from_source(BASIS)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -931,7 +931,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch, fortran_reader):
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     psyir = fortran_reader.psyir_from_source(diff_basis)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

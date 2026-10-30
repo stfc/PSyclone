@@ -756,12 +756,11 @@ class LFRicKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, psyir: Union[DataTypeSymbol, Node], name: Optional[str] = None
+        cls, psyir: DataTypeSymbol
     ) -> "LFRicKernelMetadata":
-        """Create typed metadata from a PSyIR tree or type symbol.
+        """Create typed metadata from a PSyIR type symbol.
 
-        :param psyir: PSyIR containing the metadata declaration.
-        :param name: optional metadata type name when ``psyir`` is a tree.
+        :param psyir: PSyIR symbol containing the metadata declaration.
 
         :returns: the parsed language-level kernel metadata.
 
@@ -769,8 +768,7 @@ class LFRicKernelMetadata(KernelMetadata):
         :raises ParseError: if the metadata declaration is invalid.
         """
         # pylint: disable=too-many-branches,too-many-locals
-        symbol = cls._validate_and_get_symbol(psyir, "LFRic", name=name)
-        datatype = cls._validate_and_get_structure(symbol, "LFRic")
+        datatype = cls._validate_and_get_structure(psyir, "LFRic")
 
         components = datatype.components
         valid_components = {
@@ -789,7 +787,7 @@ class LFRicKernelMetadata(KernelMetadata):
                 f"{sorted(unexpected)}.")
         if "meta_args" not in components:
             raise ParseError(
-                f"No meta_args found in kernel metadata '{symbol.name}'."
+                f"No meta_args found in kernel metadata '{psyir.name}'."
             )
 
         def array_values(component_name: str) -> tuple[Node, ...]:
@@ -890,7 +888,7 @@ class LFRicKernelMetadata(KernelMetadata):
             meta_ref_element=ref_element,
             meta_mesh=mesh,
             procedure_name=procedure_name,
-            name=symbol.name,
+            name=psyir.name,
         )
 
     @property

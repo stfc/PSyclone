@@ -420,8 +420,9 @@ def test_parse_func_errors(expression, message):
 
 def test_create_language_metadata_from_psyir_errors():
     """Test type checking when creating language metadata from a symbol."""
-    with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
-        LFRicKernelMetadata.create_from_psyir("not a symbol")
+    for invalid in ("not a symbol", Container("node")):
+        with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
+            LFRicKernelMetadata.create_from_psyir(invalid)
     symbol = DataTypeSymbol("bad_type", ScalarType.real_type())
     with pytest.raises(TypeError, match="StructureType"):
         LFRicKernelMetadata.create_from_psyir(symbol)

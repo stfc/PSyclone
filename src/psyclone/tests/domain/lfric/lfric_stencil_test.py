@@ -20,6 +20,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # constants
@@ -72,7 +73,7 @@ def test_fixed_stencil_extent(fortran_reader):
 def test_stencil_metadata(fortran_reader):
     ''' Check that we can parse Kernels with stencil metadata. '''
     psyir = fortran_reader.psyir_from_source(STENCIL_CODE)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
 
     stencil_descriptor_0 = metadata.meta_args[0]
     assert stencil_descriptor_0.stencil is None
@@ -97,7 +98,7 @@ def test_stencil_field_metadata_too_many_arguments(fortran_reader):
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
     psyir = fortran_reader.psyir_from_source(result)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_psyir(psyir)
+        _ = create_lfric_metadata(psyir)
     assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
@@ -108,7 +109,7 @@ def test_unsupported_second_argument(fortran_reader):
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     psyir = fortran_reader.psyir_from_source(result)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_psyir(psyir)
+        _ = create_lfric_metadata(psyir)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -120,7 +121,7 @@ def test_valid_stencil_types(fortran_reader):
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         psyir = fortran_reader.psyir_from_source(result)
-        _ = LFRicKernelMetadata.create_from_psyir(psyir)
+        _ = create_lfric_metadata(psyir)
 
 
 def test_stencil_read_only(fortran_reader):
@@ -130,7 +131,7 @@ def test_stencil_read_only(fortran_reader):
                                 "gh_inc, w2, stencil(cross)", 1)
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_psyir(
+        _ = create_lfric_metadata(
             psyir, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
@@ -149,7 +150,7 @@ def test_stencil_field_arg_lfricconst_properties(
 
     # Test 'real'-valued field of 'field_type' with stencil access
     psyir = fortran_reader.psyir_from_source(STENCIL_CODE)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -164,7 +165,7 @@ def test_stencil_field_arg_lfricconst_properties(
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     psyir = fortran_reader.psyir_from_source(code)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]

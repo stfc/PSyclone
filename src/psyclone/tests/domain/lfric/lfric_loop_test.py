@@ -14,8 +14,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (
-    LFRicConstants, LFRicKern, LFRicKernelMetadata, LFRicLoop,
-    LFRicInvokeSchedule)
+    LFRicConstants, LFRicKern, LFRicLoop, LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
@@ -24,7 +23,7 @@ from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
 BASE_PATH = os.path.join(
@@ -750,7 +749,7 @@ contains
 end module testkern_mod
 '''
     psyir = fortran_reader.psyir_from_source(source)
-    dkm = LFRicKernelMetadata.create_from_psyir(
+    dkm = create_lfric_metadata(
         psyir, name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)

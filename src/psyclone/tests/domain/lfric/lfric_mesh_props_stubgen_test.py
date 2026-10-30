@@ -11,7 +11,8 @@ generation functionality with the LFRic API.
 '''
 
 import os
-from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
+from psyclone.domain.lfric import LFRicKern
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # Constants
@@ -53,7 +54,7 @@ def test_mesh_prop_stub_gen(fortran_writer, fortran_reader):
     metadata contains a mesh property. '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_mesh_prop_mod.F90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
@@ -88,7 +89,7 @@ def test_mesh_props_quad_stub_gen(fortran_writer, fortran_reader):
     specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     psyir = fortran_reader.psyir_from_source(MESH_PROP_MDATA)
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)

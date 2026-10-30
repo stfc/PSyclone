@@ -10,7 +10,8 @@
 
 import os
 
-from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
+from psyclone.domain.lfric import LFRicKern
+from psyclone.tests.utilities import create_lfric_metadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -25,7 +26,7 @@ def test_stub_stencil_extent(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -50,7 +51,7 @@ def test_stub_cross2d_stencil(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_cross2d_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -78,7 +79,7 @@ def test_stub_stencil_direction(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_xory1d_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -100,7 +101,7 @@ def test_stub_stencil_vector(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_vector_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -122,7 +123,7 @@ def test_stub_stencil_multi(fortran_writer, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_file(
         os.path.join(BASE_PATH, "testkern_stencil_multi_mod.f90"))
-    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)

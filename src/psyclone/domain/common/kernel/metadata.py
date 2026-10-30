@@ -5,7 +5,7 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-"""Common interfaces and PSyIR utilities for kernel metadata."""
+"""Common Metadata interface and utilities to validate and normalise them."""
 
 from __future__ import annotations
 
@@ -25,20 +25,20 @@ if TYPE_CHECKING:
 
 
 class KernelMetadata(ABC):
-    """Common interface implemented by API-specific kernel metadata."""
+    """Common abstract interface to be implemented by each DSL metadata"""
 
     @classmethod
     @abstractmethod
     def create_from_psyir(
             cls,
-            psyir: Union[DataTypeSymbol, Node],
-            name: Optional[str] = None,
+            psyir: DataTypeSymbol,
     ) -> KernelMetadata:
-        """Create metadata from language-level PSyIR.
+        """ Given a Fortran derived type create metadata that it encodes.
 
-        :param psyir: metadata type symbol or PSyIR containing its declaration.
-        :param name: optional metadata type name to select from the PSyIR.
+        :param psyir: metadata type symbol containing its declaration.
+
         :returns: the API-specific metadata parsed from the declaration.
+
         :raises TypeError: if the supplied PSyIR has an unsupported type.
         :raises ParseError: if the metadata declaration is invalid.
         """
@@ -201,38 +201,6 @@ class KernelMetadata(ABC):
                         (name is None or symbol.name.lower() == name.lower())):
                     result.append((container, symbol))
         return result
-
-    @classmethod
-    def _validate_and_get_symbol(
-            cls,
-            psyir: Union[DataTypeSymbol, Node],
-            api_name: str,
-            name: Optional[str] = None,
-    ) -> DataTypeSymbol:
-        """Return the unique metadata symbol in a PSyIR tree or the supplied
-        symbol itself.
-
-        :param psyir: a metadata type symbol or tree containing its
-            declaration.
-        :param api_name: the API name to use in diagnostics.
-        :param name: optional metadata type name to select from a tree.
-
-        :returns: the supplied symbol or the unique matching metadata symbol.
-
-        :raises ParseError: if a tree contains zero or multiple matching
-            declarations.
-        """
-        if isinstance(psyir, Node):
-            candidates = cls.find_symbols(psyir, name=name)
-            if len(candidates) != 1:
-                raise ParseError(
-                    f"Expected exactly one {api_name} kernel metadata "
-                    f"declaration but found {len(candidates)}."
-                )
-            symbol = candidates[0][1]
-        else:
-            symbol = psyir
-        return symbol
 
     @staticmethod
     def _validate_and_get_structure(
