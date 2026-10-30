@@ -2300,10 +2300,41 @@ def test_validate_array_reshape(fortran_reader):
     sub_s = psyir.walk(Routine)[1]
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0],
+            call.arguments[0],
             sub_s, sub_s.symbol_table.lookup("x"))
     assert ("actual argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
+
+
+def test_validate_unknown_type_array_arg(fortran_reader):
+    '''Test that _validate_inline_of_call_and_routine_argument_pairs rejects
+    an attempt to inline a call when the actual argument has an unknown type
+    but the corresponding formal argument is an array.'''
+    code = """\
+module test_mod
+contains
+subroutine main
+  use some_mod, only: mystery
+  call sub(mystery)
+end subroutine
+subroutine sub(x)
+  real, dimension(10), intent(inout) :: x
+  x(:) = 0.0
+end subroutine
+end module
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    sub = psyir.walk(Routine)[1]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+            call.arguments[0], sub, sub.symbol_table.lookup("x"))
+    assert (
+        "Routine 'sub' cannot be inlined because the type of the actual "
+        "argument 'mystery' corresponding to an array formal argument "
+        "('x') is unknown." in str(err.value)
+    )
 
 
 def test_validate_array_arg_expression(fortran_reader):
@@ -2710,13 +2741,15 @@ def test_validate_unknown_actual_array_arg(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0], routine, routine_arg)
+            call_arg=call.arguments[0], routine_node=routine,
+            routine_arg=routine_arg)
     assert ("the type of the actual argument 'a' corresponding to an array"
             " formal argument ('x') is unknown." in str(err.value))
 
     # With the no-argument-check override, an unknown rank is acceptable.
     inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-        call, call.arguments[0], routine, routine_arg, allow_unknown=True)
+        call_arg=call.arguments[0], routine_node=routine,
+        routine_arg=routine_arg, allow_unknown=True)
 
 
 def test_apply_array_sized_by_arg(fortran_reader, fortran_writer):
@@ -3043,10 +3076,8 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     original_output = fortran_writer(original)
     assert "character(len=1) :: string_work" in main_output
 
-    # The original should be (len=3)
-    assert "character(len=1) :: string_work" in original_output
-    pytest.xfail("#3536: After inlining symbols should be independent"
-                 "copies")
+    # The original should be (len=3).
+    assert "character(len=3) :: string_work" in original_output
 
 
 def test_apply_array_access_check_unresolved_override_option(
@@ -3076,3 +3107,417 @@ def test_apply_array_access_check_unresolved_override_option(
     inline_trans.apply(
         call, allow_no_args_check_if_only_one_callee=True)
     # TODO check results
+
+
+def test_apply_common_block_no_duplicate(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining two routines that share a COMMON block does not
+    produce duplicate COMMON declarations (which would cause a Fortran compile
+    error "Symbol X is already in a COMMON block").'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+  end subroutine caller
+  subroutine sub1()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    volume = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    lmmpi = 2.0
+  end subroutine sub2
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # Exactly one COMMON declaration must appear.
+    assert result.count("common /blk/") == 1
+    # Both variables must still be present.
+    assert "volume" in result
+    assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_no_duplicate_three_routines(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining three routines that all share the same COMMON block
+    does not produce duplicate COMMON declarations. This mirrors the real-world
+    case of inlining zetabc_tile, u2dbc_tile and v2dbc_tile (each of which
+    includes the same set of COMMON-block headers) into step2D_FB_tile.'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+    call sub3()
+  end subroutine caller
+  subroutine sub1()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    zeta = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    ubar = 2.0
+  end subroutine sub2
+  subroutine sub3()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    vbar = 3.0
+  end subroutine sub3
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # Each COMMON block must appear exactly once.
+    assert result.count("common /ocean_zeta/") == 1
+    assert result.count("common /ocean_ubar/") == 1
+    assert result.count("common /ocean_vbar/") == 1
+    # All three variables must still be present.
+    assert "zeta" in result
+    assert "ubar" in result
+    assert "vbar" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_caller_has_extra_block(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining a routine whose only COMMON block is already present
+    in the caller does not produce a duplicate COMMON declaration, even when
+    the caller also has an *additional* COMMON block that the inlined routine
+    does not declare.  This is a regression test derived from the real-world
+    test.f file: the presence of the extra /comm_setup_mpi1/ block in the
+    caller was enough to confuse the earlier deduplication logic and caused
+    "Symbol 'zeta' at (1) is already in a COMMON block".'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: lmmpi
+    COMMON /comm_setup_mpi1/ lmmpi
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    call subfoo()
+  end subroutine caller
+  subroutine subfoo()
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    zeta = zeta + 1.0
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # /ocean_zeta/ must appear exactly once – not duplicated.
+    assert result.count("common /ocean_zeta/") == 1
+    # The extra block from the caller must be preserved.
+    assert result.count("common /comm_setup_mpi1/") == 1
+    assert "zeta" in result
+    assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_accept_different_names(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining is accepted when the same COMMON block is declared
+    in both the caller and the callee with different variable names but the
+    same type.  The callee's variable ('height') is an alias of the caller's
+    variable ('depth') at the same block position, so all references to
+    'height' inside the inlined body must be replaced by 'depth'.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real :: height
+    integer :: a
+
+    a = height
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(psyir)
+    # 'height' must have been replaced by 'depth' (the caller's alias).
+    assert """\
+  subroutine caller()
+    real :: depth
+    integer :: b
+    common /ocean/ depth
+
+    b = depth
+
+  end subroutine caller
+""" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+@pytest.mark.parametrize("callee_name", ["k", "n"])
+def test_apply_common_block_array_bound(
+        fortran_reader, fortran_writer, tmp_path, callee_name):
+    """COMMON aliases in automatic array bounds must use the caller symbol."""
+    psyir = fortran_reader.psyir_from_source(f"""
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: n
+    common /blk/ n
+    n = 10
+    call sub()
+  end subroutine caller
+  subroutine sub()
+    integer :: {callee_name}
+    common /blk/ {callee_name}
+    real :: a({callee_name} + 1, {callee_name})
+    a = 1.0
+  end subroutine sub
+end module test_mod
+""")
+    caller, callee = psyir.walk(Routine)
+    original = fortran_writer(callee)
+    caller_symbol = caller.symbol_table.lookup("n")
+    InlineTrans().apply(caller.walk(Call)[0])
+
+    allocation = next(call for call in caller.walk(IntrinsicCall)
+                      if call.intrinsic == IntrinsicCall.Intrinsic.ALLOCATE)
+    bounds = [ref for ref in allocation.walk(Reference)
+              if ref.symbol.name in ("n", "k")]
+    assert len(bounds) == 2
+    assert all(ref.symbol is caller_symbol for ref in bounds)
+    assert "k" not in caller.symbol_table
+    assert "ALLOCATE(a(n + 1,n))" in fortran_writer(caller)
+    assert fortran_writer(callee) == original
+    assert Compile(tmp_path).string_compiles(fortran_writer(psyir))
+
+
+@pytest.mark.parametrize("callee_name", ["height", "depth"])
+def test_apply_common_block_reject_due_to_different_types(
+        fortran_reader, fortran_writer, tmp_path, callee_name):
+    '''Test that inlining is rejected when the same COMMON block is declared
+    in both the caller and the callee with matching or different variable
+    names and different types.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real(kind=4) :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real(kind=8) :: height
+    integer :: a
+
+    a = 3
+  end subroutine subfoo
+end module test_mod
+"""
+    src = src.replace("height", callee_name)
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    with pytest.raises(TransformationError) as err:
+        # Should raise a TransformationError because
+        # the types of the common-block variables differ.
+        trans.apply(calls[0])
+    assert ("Cannot inline 'subfoo' because COMMON block '/ocean/' maps"
+            " 'depth' (type 'Scalar<REAL, Literal[value:'4',"
+            f" Scalar<INTEGER, UNDEFINED>]>') in the caller to '{callee_name}'"
+            " (type 'Scalar<REAL, Literal[value:'8', Scalar<INTEGER,"
+            " UNDEFINED>]>') in the routine being inlined - the types"
+            " are incompatible.") in str(err.value)
+
+
+@pytest.mark.parametrize(
+    "caller_declarations, callee_declarations, body, reused, expected",
+    [
+        pytest.param(
+            "real, parameter :: constval = 123.0",
+            "real, parameter :: constval = 123.0",
+            "a = int(constval)", {"constval"},
+            "b = INT(constval)", id="identical"),
+        pytest.param(
+            "real, parameter :: constval = 42.0",
+            "real, parameter :: constval = 123.0",
+            "a = int(constval)", set(),
+            "b = INT(constval_1)", id="different-value"),
+        pytest.param(
+            "", "real, parameter :: constval = 123.0",
+            "a = int(constval)", set(),
+            "b = INT(constval)", id="no-match"),
+        pytest.param(
+            "integer, parameter :: n = 5",
+            "integer, parameter :: n = 5\nreal, dimension(n) :: tmp",
+            "tmp(1) = real(a)\na = int(tmp(1))", {"n"},
+            "real, dimension(n) :: tmp", id="array-bound"),
+        pytest.param(
+            "integer, parameter :: shared = 10",
+            "integer, parameter :: shared = 10, local_only = 99",
+            "a = shared + local_only", {"shared"},
+            "b = shared + local_only", id="multiple-parameters"),
+        pytest.param(
+            "integer, parameter :: base_val = 10, constval = 123 + base_val",
+            "integer, parameter :: base_val = 10, constval = 123 + base_val",
+            "a = constval", {"base_val", "constval"},
+            "b = constval", id="identical-expression"),
+        pytest.param(
+            "integer, parameter :: base_val = 10, constval = 100 + base_val",
+            "integer, parameter :: base_val = 10, constval = 123 + base_val",
+            "a = constval", {"base_val"},
+            "b = constval_1", id="different-expression"),
+        pytest.param(
+            "logical, parameter :: flag = .true., negflag = .not. flag",
+            "logical, parameter :: flag = .false., negflag = .not. flag",
+            "if (negflag) a = 42", set(),
+            "if (negflag_1)", id="different-dependency"),
+        pytest.param(
+            "integer, parameter :: wp = kind(1.0d0)\n"
+            "real(kind=wp), parameter :: pi = 3.14592",
+            "integer, parameter :: wp = kind(1.0)",
+            "a = 42 * wp", set(),
+            "b = 42 * wp_1", id="different-kind-expression"),
+        pytest.param(
+            "integer, parameter :: wp = kind(1.0d0)\n"
+            "real(kind=wp), parameter :: constval = 1.0",
+            "integer, parameter :: wp = kind(1.0)\n"
+            "real(kind=wp), parameter :: constval = 1.0",
+            "a = int(constval)", set(),
+            "b = INT(constval_1)", id="different-kind-dependency"),
+        pytest.param(
+            "integer :: constval",
+            "integer, parameter :: constval = 10",
+            "a = constval", set(),
+            "b = constval_1", id="non-constant"),
+        pytest.param(
+            "integer, parameter :: constval = 10",
+            "real, parameter :: constval = 10.0",
+            "a = int(constval)", set(),
+            "b = INT(constval_1)", id="different-datatype"),
+    ])
+def test_apply_duplicate_parameters(
+        fortran_reader, fortran_writer, tmp_path, caller_declarations,
+        callee_declarations, body, reused, expected):
+    '''Reuse proven-identical constants, including their references in
+    expressions and array bounds. Copy other constants and rename clashes.
+    The original callee and existing caller symbols must remain unchanged.
+    '''
+    code = f"""
+module test_mod
+contains
+  subroutine bar(b)
+    {caller_declarations}
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    {callee_declarations}
+    integer :: a
+    {body}
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar, foo = psyir.walk(Routine)
+    caller_symbols = {sym.name: sym for sym in bar.symbol_table.symbols}
+    callee_before = fortran_writer(foo)
+    constants = [sym for sym in foo.symbol_table.datasymbols
+                 if sym.is_constant]
+
+    InlineTrans().apply(bar.walk(Call)[0], routine=foo)
+
+    for name, symbol in caller_symbols.items():
+        assert bar.symbol_table.lookup(name) is symbol
+    for symbol in constants:
+        name = symbol.name
+        if name in reused:
+            assert bar.symbol_table.lookup(name) is caller_symbols[name]
+            assert name + "_1" not in bar.symbol_table
+        else:
+            new_name = name + "_1" if name in caller_symbols else name
+            copied = bar.symbol_table.lookup(new_name)
+            assert copied is not symbol
+            assert copied.is_constant
+    assert len(bar.symbol_table.datasymbols) == (
+        len([sym for sym in caller_symbols.values()
+             if isinstance(sym, DataSymbol)]) +
+        len([sym for sym in foo.symbol_table.datasymbols
+             if not sym.is_argument and sym.name not in reused]))
+
+    # Check symbol identity in the body, initial values and datatype bounds.
+    for ref in bar.walk(Reference):
+        if isinstance(ref.symbol, DataSymbol):
+            assert ref.symbol is bar.symbol_table.lookup(ref.symbol.name)
+    for symbol in bar.symbol_table.datasymbols:
+        for dependency in symbol.get_all_accessed_symbols():
+            if dependency.name in reused:
+                assert dependency is caller_symbols[dependency.name]
+    assert fortran_writer(foo) == callee_before
+    result = fortran_writer(bar)
+    assert expected in result
+    assert Compile(tmp_path).string_compiles(result)
