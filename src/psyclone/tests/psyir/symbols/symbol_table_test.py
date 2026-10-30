@@ -16,7 +16,8 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
-    Literal, Reference, Assignment, Routine, Schedule)
+    Literal, Reference, Assignment, Routine, Schedule, IfBlock, Loop,
+    OMPParallelDirective)
 from psyclone.psyir import symbols
 from psyclone.tests.utilities import make_external_module
 
@@ -958,6 +959,252 @@ def test_table_merge():
     table3.specify_argument_list([arg_sym])
     table1.merge(table3)
     assert table1.lookup("trillian") is arg_sym
+
+
+@pytest.mark.parametrize("value", [3, 4])
+@pytest.mark.parametrize("attached", [False, True])
+def test_merge_parameter_dependencies(value, attached):
+    '''Only reuse dependent parameters when their dependencies also match.
+    Declaration expressions must be updated even for unattached tables.
+    '''
+    tables = []
+    for initial_value in [3, value]:
+        table = (Schedule().symbol_table if attached else
+                 symbols.SymbolTable())
+        base = symbols.DataSymbol(
+            "base", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=initial_value)
+        middle = symbols.DataSymbol(
+            "middle", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=Reference(base))
+        last = symbols.DataSymbol(
+            "last", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=Reference(middle))
+        # Deliberately insert in reverse dependency order.
+        for sym in [last, middle, base]:
+            table.add(sym)
+        tables.append(table)
+    target, source = tables
+    array = symbols.DataSymbol(
+        "array", symbols.ArrayType(symbols.ScalarType.real_type(),
+                                   [Reference(source.lookup("last"))]))
+    source.add(array)
+    target.check_for_clashes(source)
+    assert (source.lookup("middle").initial_value.symbol is
+            source.lookup("base"))
+    target.merge(source)
+    if value == 3:
+        assert len(target.datasymbols) == 4
+        assert array.shape[0].upper.symbol is target.lookup("last")
+    else:
+        assert len(target.datasymbols) == 7
+        assert array.shape[0].upper.symbol is target.lookup("last_1")
+        assert target.lookup("last_1").initial_value.symbol is target.lookup(
+            "middle_1")
+        assert target.lookup("middle_1").initial_value.symbol is target.lookup(
+            "base_1")
+
+
+def test_merge_parameter_kinds(fortran_reader):
+    '''Reuse kind parameters in declarations, initial values, COMMON array
+    bounds and executable literals, including intrinsic-valued parameters.
+    '''
+    declarations = """
+  integer, parameter :: wp = kind(1.0d0)
+  real(wp), parameter :: constant = 1.0_wp
+  real(wp) :: buffer(wp)
+  common /blk/ buffer
+"""
+    psyir = fortran_reader.psyir_from_source(f"""
+subroutine target()
+{declarations}
+end subroutine
+subroutine source()
+{declarations}
+  real(wp) :: initial = constant
+  initial = constant + 1.0_wp
+end subroutine
+""")
+    target, source = psyir.walk(Routine)
+    target.symbol_table.merge(source.symbol_table)
+    assert "wp_1" not in target.symbol_table
+    assert "constant_1" not in target.symbol_table
+    initial = target.symbol_table.lookup("initial")
+    assert (initial.datatype.precision.symbol is
+            target.symbol_table.lookup("wp"))
+    assert initial.initial_value.symbol is target.symbol_table.lookup(
+        "constant")
+    literal = source.walk(Literal)[0]
+    assert (literal.datatype.precision.symbol is
+            target.symbol_table.lookup("wp"))
+
+
+def test_merge_parameter_outer_dependencies():
+    '''Matching names in distinct outer scopes do not prove equivalence.'''
+    tables = []
+    for value in [3, 4]:
+        outer = Container.create("outer", symbols.SymbolTable(), [])
+        base = symbols.DataSymbol(
+            "base", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=value)
+        outer.symbol_table.add(base)
+        routine = Routine.create("sub")
+        outer.addchild(routine)
+        routine.symbol_table.add(symbols.DataSymbol(
+            "n", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=Reference(base)))
+        tables.append(routine.symbol_table)
+    tables[0].merge(tables[1])
+    assert "n_1" in tables[0]
+
+
+def test_merge_common_alias_references(fortran_reader):
+    '''Resolve aliases by identity in statements, bounds and nested scopes,
+    including aliases whose names are exchanged between the two tables.
+    '''
+    psyir = fortran_reader.psyir_from_source("""
+subroutine target()
+  integer :: n, m
+  common /BLK/ n, m
+end subroutine
+subroutine source()
+  integer :: m, n
+  common /blk/ m, n
+  real :: work(m + n)
+  do m = 1, n
+    work(m) = n
+  end do
+end subroutine
+""")
+    target, source = psyir.walk(Routine)
+    old_m = source.symbol_table.lookup("m")
+    old_n = source.symbol_table.lookup("n")
+    new_n = target.symbol_table.lookup("n")
+    new_m = target.symbol_table.lookup("m")
+    loop = source.walk(Loop)[0]
+    directive = OMPParallelDirective.create([loop.detach()])
+    directive.explicitly_private_symbols.add(old_m)
+    source.addchild(directive)
+    shadow = symbols.DataSymbol("m", symbols.ScalarType.integer_type())
+    nested = IfBlock.create(
+        Literal("true", symbols.ScalarType.boolean_type()),
+        [Assignment.create(Reference(shadow), Reference(old_m))])
+    nested.if_body.symbol_table.add(shadow)
+    nested_array = symbols.DataSymbol(
+        "nested_array", symbols.ArrayType(symbols.ScalarType.real_type(),
+                                          [Reference(old_m)]))
+    nested.if_body.symbol_table.add(nested_array)
+    source.addchild(nested)
+
+    target.symbol_table.merge(source.symbol_table)
+
+    assert len(target.symbol_table.datasymbols) == 3
+    assert loop.variable is new_n
+    assert loop.stop_expr.symbol is new_m
+    assert directive.explicitly_private_symbols == {new_n}
+    bounds = source.symbol_table.lookup("work").shape[0].upper
+    assert [ref.symbol for ref in bounds.walk(Reference)] == [new_n, new_m]
+    assignment = nested.if_body.children[0]
+    assert assignment.lhs.symbol is shadow
+    assert assignment.rhs.symbol is new_n
+    assert nested_array.shape[0].upper.symbol is new_n
+    assert not {old_m, old_n}.intersection(
+        ref.symbol for ref in source.walk(Reference))
+
+
+@pytest.mark.parametrize("same_name", [False, True])
+@pytest.mark.parametrize("different_bound", [False, True])
+def test_merge_common_incompatible(same_name, different_bound):
+    '''Clash checking and merging reject incompatible COMMON declarations,
+    including equal-looking bounds whose parameters have different values.
+    Checks must not modify either table before rejecting the merge.
+    '''
+    target, source = symbols.SymbolTable(), symbols.SymbolTable()
+    for index, table in enumerate([target, source]):
+        bound = symbols.DataSymbol(
+            "n", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=3+index)
+        table.add(bound)
+        if different_bound:
+            datatype = symbols.ArrayType(symbols.ScalarType.real_type(),
+                                         [Reference(bound)])
+        else:
+            datatype = (symbols.ScalarType.integer_type() if index else
+                        symbols.ScalarType.real_type())
+        table.add(symbols.DataSymbol(
+            "a" if same_name or not index else "b", datatype,
+            interface=symbols.CommonBlockInterface("blk", 0)))
+    original = source.lookup("n")
+    for operation in [target.check_for_clashes, target.merge]:
+        with pytest.raises(
+                symbols.SymbolError,
+                match="COMMON block '/blk/' at position 0 has "
+                      "incompatible declarations"):
+            operation(source)
+        assert source.lookup("n") is original
+        assert len(target.symbols) == len(source.symbols) == 2
+
+
+def test_merge_common_positions_and_skip():
+    '''Match stored positions rather than zipping ordered lists, and honour
+    exclusions when resolving COMMON aliases and parameter dependencies.
+    '''
+    target, source = symbols.SymbolTable(), symbols.SymbolTable()
+    for name, position in [("a", 0), ("c", 2)]:
+        target.add(symbols.DataSymbol(
+            name, symbols.ScalarType.real_type(),
+            interface=symbols.CommonBlockInterface("blk", position)))
+    for name, position in [("b", 1), ("alias_c", 2), ("skipped", 0)]:
+        source.add(symbols.DataSymbol(
+            name, symbols.ScalarType.real_type(),
+            interface=symbols.CommonBlockInterface("BLK", position)))
+    skipped = source.lookup("skipped")
+    # An incompatible symbol is harmless if it is excluded.
+    skipped.datatype = symbols.ScalarType.integer_type()
+    target.merge(source, symbols_to_skip=(sym for sym in [skipped]))
+    assert {sym.name for sym in target.datasymbols} == {"a", "b", "c"}
+
+    source = symbols.SymbolTable()
+    for table in [target, source]:
+        param = symbols.DataSymbol(
+            "p", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=3)
+        table.add(param)
+        table.add(symbols.DataSymbol(
+            "q", symbols.ScalarType.integer_type(), is_constant=True,
+            initial_value=Reference(param)))
+    target.merge(source, symbols_to_skip=[source.lookup("p")])
+    assert "q_1" in target
+    # Merging a table into itself, or re-adding a shared symbol, is a no-op.
+    before = target.symbols[:]
+    target.merge(target)
+    shared = symbols.SymbolTable()
+    shared.add(target.lookup("a"))
+    target.merge(shared)
+    assert target.symbols == before
+
+
+@pytest.mark.parametrize("interface", [symbols.AutomaticInterface,
+                                       symbols.UnresolvedInterface])
+def test_merge_shared_symbol(interface):
+    '''A shared symbol instance does not clash and must not be renamed,
+    including when its interface would otherwise prevent a merge.
+    '''
+    target, source = symbols.SymbolTable(), symbols.SymbolTable()
+    shared = symbols.DataSymbol("shared", symbols.ScalarType.integer_type(),
+                                interface=interface())
+    target.add(shared)
+    source.add(shared)
+    incoming = symbols.DataSymbol("incoming", symbols.ScalarType.real_type())
+    source.add(incoming)
+
+    target.check_for_clashes(source)
+    target.merge(source)
+
+    assert target.symbols == source.symbols == [shared, incoming]
+    assert target.lookup("shared") is source.lookup("shared") is shared
+    assert target.lookup("incoming") is incoming
+    assert shared.name == "shared"
 
 
 def test_merge_container_syms():
@@ -3003,11 +3250,21 @@ def test_import_symbol_from_wildcard(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     cntr = psyir.children[0]
+    # A public symbol with no known origin (e.g. one introduced by an
+    # unsupported CodeBlock) must not be re-exported by this module.
+    unresolved = symbols.Symbol("unresolved",
+                                visibility=symbols.Symbol.Visibility.PUBLIC,
+                                interface=symbols.UnresolvedInterface())
+    cntr.symbol_table.add(unresolved)
     table = symbols.SymbolTable()
     csym = symbols.ContainerSymbol("my_mod", wildcard_import=True)
     table.add(csym)
     imported = table._import_symbols_from(csym, cntr)
     assert len(imported) == 4
+    assert unresolved not in imported
+    assert "unresolved" not in table
+    assert cntr.symbol_table.lookup("unresolved") is unresolved
+    assert unresolved.is_unresolved
     sym_names = [sym.name for sym in imported]
     assert "iflag" in sym_names
     iflag = table.lookup("iflag")

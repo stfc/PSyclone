@@ -1796,9 +1796,10 @@ class Node():
         This base implementation simply propagates the call to any child Nodes.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         for child in self.children:

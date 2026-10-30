@@ -460,6 +460,24 @@ def test_symbol_replace_symbols_using(table):
     assert bsym.interface.container_symbol is cont2
 
 
+def test_symbol_get_replacement():
+    '''Tables and single symbols match by name; maps match by identity and
+    can replace an alias with a differently named symbol.
+    '''
+    original = Symbol("name")
+    shadow = Symbol("name")
+    replacement = Symbol("alias")
+    mapping = {original: replacement}
+    assert original.get_replacement(mapping) is replacement
+    assert shadow.get_replacement(mapping) is shadow
+    assert original.get_replacement(replacement) is original
+    assert original.get_replacement(shadow) is shadow
+    table = SymbolTable()
+    assert original.get_replacement(table) is original
+    table.add(shadow)
+    assert original.get_replacement(table) is shadow
+
+
 def test_symbol_get_all_accessed_symbols():
     '''Test that the get_all_accessed_symbols() method of a Symbol does not add
     any accesses.'''

@@ -274,9 +274,9 @@ class DataSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        N.B. any other Symbols referenced in either the datatype or the
-        initial_value properties of the original symbol will remain unchanged
-        in the copied object. See the `replace_symbols_using` method.
+        N.B. we also copy the datatype and initial value expressions (so that
+        if we alter them the change is not reflected in the original), but the
+        referenced symbols are still the same.
 
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -290,15 +290,14 @@ class DataSymbol(TypedSymbol):
         else:
             new_init_value = None
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
-        if self.is_array or isinstance(self.datatype, UnsupportedFortranType):
-            # Ensure any References in the shape definition of an ArrayType
-            # or in the partial datatype of an UnsupportedFortranType are also
-            # copied. They will still point to the same Symbols as the
-            # original.
-            new_datatype = self.datatype.copy()
-        else:
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            # Preserve the identity of an existing type declaration.
             new_datatype = self.datatype
+        else:
+            # Copy datatype expressions. Any Symbols that are referenced will
+            # be the same objects as in the original
+            new_datatype = self.datatype.copy()
         copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
@@ -339,9 +338,10 @@ class DataSymbol(TypedSymbol):
         is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         # pylint: disable=import-outside-toplevel
