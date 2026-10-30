@@ -21,8 +21,9 @@ def test_typeguard_init():
     assert typg.type_guard_type == TypeGuard.TypeGuardType.CLASS_IS
 
     with pytest.raises(
-        TypeError, match="A TypeGuard needs a DataType or None as the "
-                         "comparison type but '123' was provided"):
+        TypeError, match="A TypeGuard needs a DataTypeSymbol, DataType "
+                         "or None as the comparison type but '123' was "
+                         "provided"):
         typg.comparison_type = 123
 
     with pytest.raises(

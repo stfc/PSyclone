@@ -74,9 +74,9 @@ class TypeGuard(Statement):
         '''
         if (comparison_type is not None and
                 not isinstance(comparison_type, (DataTypeSymbol, DataType))):
-            raise TypeError(f"A TypeGuard needs a DataType or None as the "
-                            f"comparison type but '{comparison_type}' was "
-                            f"provided.")
+            raise TypeError(f"A TypeGuard needs a DataTypeSymbol, DataType or "
+                            f"None as the comparison type but "
+                            f"'{comparison_type}' was provided.")
         self._comparison_type = comparison_type
 
     @property
