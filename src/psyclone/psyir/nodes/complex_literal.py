@@ -128,7 +128,8 @@ class ComplexLiteral(DataNode):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: Union[SymbolTable, Symbol,
+                                   dict[Symbol, Symbol]]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -136,7 +137,8 @@ class ComplexLiteral(DataNode):
         is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
 
         '''
         self.datatype.replace_symbols_using(table_or_symbol)

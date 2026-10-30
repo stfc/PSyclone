@@ -4330,10 +4330,10 @@ class Fparser2Reader():
 
         # Step 5: We didn't encounter any problems so finally attach our new
         # nodes to the PSyIR tree in the location we saved earlier.
+        # Merge before moving the body so reused symbols can be updated.
+        parent.scope.symbol_table.merge(tmp_parent.symbol_table)
         for child in reversed(tmp_parent.pop_all_children()):
             parent.addchild(child, index=insert_index)
-        # Ensure any Symbols are moved over too.
-        parent.scope.symbol_table.merge(tmp_parent.symbol_table)
 
         return outer_ifblock
 

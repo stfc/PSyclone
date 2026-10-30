@@ -280,22 +280,16 @@ class GenericInterfaceSymbol(RoutineSymbol):
         to a RoutineSymbol, if necessary.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         # Construct a new list of RoutineSymbols.
         new_routines = []
         for routine in self.routines:
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == routine.symbol.name.lower():
-                    new_rt = table_or_symbol
-                else:
-                    new_rt = routine.symbol
-            else:
-                new_rt = table_or_symbol.lookup(routine.symbol.name,
-                                                otherwise=routine.symbol)
+            new_rt = routine.symbol.get_replacement(table_or_symbol)
             if not isinstance(new_rt, RoutineSymbol):
                 new_rt.specialise(RoutineSymbol)
             new_routines.append((new_rt, routine.from_container))

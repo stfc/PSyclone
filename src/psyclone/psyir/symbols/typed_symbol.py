@@ -213,23 +213,17 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+            symbols, a single replacement Symbol, or a dictionary mapping
+            original Symbols to replacements by identity.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+            :py:class:`psyclone.psyir.symbols.Symbol` | dict
 
         '''
         super().replace_symbols_using(table_or_symbol)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.datatype.name.lower():
-                    self._datatype = table_or_symbol
-            else:
-                try:
-                    self._datatype = table_or_symbol.lookup(self.datatype.name)
-                except KeyError:
-                    pass
+            self._datatype = self.datatype.get_replacement(table_or_symbol)
         else:
             self._datatype.replace_symbols_using(table_or_symbol)
 
