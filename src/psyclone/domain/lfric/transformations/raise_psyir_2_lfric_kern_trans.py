@@ -13,40 +13,12 @@ from typing import Any, Optional
 
 from psyclone.domain.lfric.kernel import (
     LFRicKernelContainer, LFRicKernelMetadata)
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
-
-
-# TODO issue #1877. Find an appropriate place for the find_symbol()
-# method as it can be useful beyond this particular
-# transformation. Although the generic one would probably not return
-# the scoping node as well.
-def find_symbol(node, name):
-    '''Utility method to find the symbol associated with the supplied
-    name. The supplied node and all of its descendants are searched
-    and the symbol and its scoping node are returned if the symbol is
-    found. If not found, None is returned for the symbol and scoping
-    node.
-
-    :param node: the starting node for the search.
-    :type: :py:class:`psyclone.psyir.nodes.node`
-    :param str name: the name of the symbol being searched.
-
-    :returns: a tuple containing the symbol with the same name as the \
-        supplied name and the scoping node for that symbol.
-    :rtype: Tuple[Optional[:py:class:`psyclone.psyir.symbols.datasymbol], \
-        Optional[:py:class:`psyclone.psyir.nodes.node`]]
-
-    '''
-    for test_node in node.walk(ScopingNode):
-        if name in test_node.symbol_table:
-            symbol = test_node.symbol_table.lookup(name)
-            scoping_node = test_node
-            return (symbol, scoping_node)
-    return (None, None)
 
 
 @transformation_documentation_wrapper
@@ -142,24 +114,15 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"containing the metadata to be set to a "
                 f"valid Fortran name, but found '{metadata_name}'.") from err
 
-        metadata_symbol, scoping_node = find_symbol(node, metadata_name)
-        if not metadata_symbol:
+        try:
+            _, metadata_symbol = LFRicKernelMetadata.find_symbol(
+                node, metadata_name)
+        except ParseError as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
                 f"'{metadata_name}' provided to the transformation "
-                f"does not correspond to a symbol in the supplied PSyIR.")
-
-        # Find the nearest ancestor container including self. There
-        # will always be at least one ancestor container as otherwise
-        # an earlier test will fail.
-        # TODO issue #1886. Avoid replicating tests (see gocean
-        # raising transformation).
-        container = scoping_node.ancestor(Container, include_self=True)
-        if isinstance(container, FileContainer):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The Container in "
-                f"which the metadata symbol resides is a FileContainer, "
-                f"but should be a generic Container.")
+                f"does not correspond to a symbol in the supplied PSyIR."
+            ) from err
 
         # Check that the metadata can be generated without any errors.
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
@@ -184,10 +147,8 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         metadata_name = options["metadata_name"]
 
         # Find the metadata symbol based on the supplied name.
-        metadata_symbol, scoping_node = find_symbol(node, metadata_name)
-
-        # Find the container in which this metadata resides.
-        container = scoping_node.ancestor(Container, include_self=True)
+        container, metadata_symbol = LFRicKernelMetadata.find_symbol(
+            node, metadata_name)
 
         # Create the metadata.
         metadata = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
@@ -196,7 +157,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         # TODO issue #898: support needs to be added for removing a
         # DataSymbol from the symbol table. At the moment we need to
         # use internal methods.
-        symbol_table = scoping_node.symbol_table
+        symbol_table = container.symbol_table
         # pylint: disable=protected-access
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)
@@ -212,4 +173,4 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
-__all__ = ['RaisePSyIR2LFRicKernTrans', 'find_symbol']
+__all__ = ['RaisePSyIR2LFRicKernTrans']

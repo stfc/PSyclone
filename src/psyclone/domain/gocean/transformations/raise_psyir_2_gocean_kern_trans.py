@@ -15,36 +15,12 @@ from psyclone.domain.gocean.kernel import (
     GOceanKernelMetadata, GOceanKernelContainer)
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
-
-
-def find_symbol(node, name):
-    '''Utility method to find the symbol associated with the supplied
-    name. The supplied node and all of its siblings are searched and the
-    symbol and its scoping node are returned if the symbol is found.
-
-    :param node: the starting node for the search.
-    :type: :py:class:`psyclone.psyir.nodes.node`
-    :param str name: the name of the symbol being searched.
-
-    :returns: a tuple containing the symbol with the same name as the \
-        supplied name and the scoping node for that symbol.
-    :rtype: Optional[(:py:class:`psyclone.psyir.symbols.datasymbol, \
-        :py:class:`psyclone.psyir.nodes.node`)]
-
-    '''
-    symbol = None
-    scoping_node = None
-    for test_node in node.walk(ScopingNode):
-        if name in test_node.symbol_table:
-            symbol = test_node.symbol_table.lookup(name)
-            scoping_node = test_node
-            break
-    return (symbol, scoping_node)
 
 
 @transformation_documentation_wrapper
@@ -136,22 +112,15 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent ({type(node.parent).__name__}).")
 
-        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
-        if not metadata_symbol:
+        try:
+            container, metadata_symbol = GOceanKernelMetadata.find_symbol(
+                node, self._metadata_name)
+        except ParseError as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
                 f"({self._metadata_name}) provided to the transformation "
-                f"does not correspond to a symbol in the supplied PSyIR.")
-
-        # Find the nearest ancestor container including self.  There
-        # will always be at least one ancestor container as otherwise
-        # an earlier test will fail.
-        container = scoping_node.ancestor(Container, include_self=True)
-        if isinstance(container, FileContainer):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The Container in "
-                f"which the metadata symbol resides is a FileContainer, "
-                f"but should be a generic Container.")
+                f"does not correspond to a symbol in the supplied PSyIR."
+            ) from err
 
         # Check that the metadata can be generated without any errors.
         try:
@@ -190,10 +159,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         self.validate(node, options=options, **kwargs)
 
         # Find the metadata symbol based on the supplied name.
-        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
-
-        # Find the container in which this metadata resides.
-        container = scoping_node.ancestor(Container, include_self=True)
+        container, metadata_symbol = GOceanKernelMetadata.find_symbol(
+            node, self._metadata_name)
 
         # Create metadata.
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
@@ -202,7 +169,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # TODO #898: support needs to be added for removing a DataSymbol from
         # the symbol table. At the moment we need to use internal methods.
         # pylint: disable=protected-access
-        symbol_table = scoping_node.symbol_table
+        symbol_table = container.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)
         # pylint: enable=protected-access
@@ -230,4 +197,4 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         routine.replace_with(gokernsched)
 
 
-__all__ = ['RaisePSyIR2GOceanKernTrans', 'find_symbol']
+__all__ = ['RaisePSyIR2GOceanKernTrans']
