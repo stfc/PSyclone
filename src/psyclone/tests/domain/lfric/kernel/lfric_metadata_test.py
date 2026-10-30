@@ -75,7 +75,7 @@ end module testkern_field_mod
     assert isinstance(ktype, LFRicKernelMetadata)
     assert ktype.name == "testkern_field_type"
     assert ktype.iterates_over == "cell_column"
-    assert ktype.nargs == 8
+    assert ktype.algorithm_arg_count == 8
     assert ktype.eval_shapes == ("gh_quadrature_xyoz",)
 
     kernel = LFRicKern()

@@ -637,7 +637,7 @@ class LFRicKernelMetadata(KernelMetadata):
     _kernel_type: str = field(init=False, repr=False, compare=False)
 
     @property
-    def nargs(self) -> int:
+    def algorithm_arg_count(self) -> int:
         """:returns: the number of algorithm-layer metadata arguments."""
         return len(self.meta_args)
 
@@ -1455,7 +1455,7 @@ class LFRicKernelMetadata(KernelMetadata):
                     "an extension."
                 )
             name = module_name[:-4] + "_type"
-        matches = cls.find_symbols(psyir, name=name)
+        matches = cls._find_symbols(psyir, name=name)
         if not matches:
             raise ParseError(f"Kernel type {name} does not exist.")
         if len(matches) > 1:

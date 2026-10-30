@@ -64,6 +64,40 @@ class KernelMetadata(ABC):
             identified.
         """
 
+    @staticmethod
+    def _find_symbols(
+            psyir: Node,
+            name: Optional[str] = None,
+    ) -> list[tuple[Container, DataTypeSymbol]]:
+        """Utility method for the APIs find_symbol implementation that lists
+        all the possible candidates. Final decisions are API-specific.
+
+        :param psyir: the PSyIR tree to search.
+        :param name: optional metadata type name to match, ignoring case.
+
+        :returns: matching module and metadata-symbol pairs in traversal order.
+
+        :raises TypeError: if psyir is not a PSyIR node.
+        """
+        if not isinstance(psyir, Node):
+            raise TypeError(
+                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
+            )
+        result = []
+        for container in psyir.walk(Container):
+            if isinstance(container, FileContainer):
+                continue
+            for symbol in container.symbol_table.symbols:
+                # pylint: disable=too-many-boolean-expressions
+                if (isinstance(symbol, DataTypeSymbol) and
+                        isinstance(symbol.datatype, StructureType) and
+                        symbol.datatype.extends and
+                        (symbol.datatype.extends.name.lower() ==
+                         "kernel_type") and
+                        (name is None or symbol.name.lower() == name.lower())):
+                    result.append((container, symbol))
+        return result
+
     @abstractmethod
     def resolve_procedures(
             self,
@@ -79,16 +113,9 @@ class KernelMetadata(ABC):
         :raises ParseError: if the implementation cannot be resolved.
         """
 
-    def validate(self) -> None:
-        """Validate additional constraints before assembling a complete kernel.
-
-        APIs whose constructors fully validate their metadata need no further
-        checks. Other APIs override this method with their remaining checks.
-        """
-
     @property
     @abstractmethod
-    def nargs(self) -> int:
+    def algorithm_arg_count(self) -> int:
         """:returns: the number of algorithm-layer arguments."""
 
     @abstractmethod
@@ -169,39 +196,6 @@ class KernelMetadata(ABC):
                 f"but its constructor contains {len(values)} values."
             )
         return values
-
-    @staticmethod
-    def find_symbols(
-            psyir: Node,
-            name: Optional[str] = None,
-    ) -> list[tuple[Container, DataTypeSymbol]]:
-        """Find kernel metadata symbols and their containing modules.
-
-        :param psyir: the PSyIR tree to search.
-        :param name: optional metadata type name to match, ignoring case.
-
-        :returns: matching module and metadata-symbol pairs in traversal order.
-
-        :raises TypeError: if psyir is not a PSyIR node.
-        """
-        if not isinstance(psyir, Node):
-            raise TypeError(
-                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
-            )
-        result = []
-        for container in psyir.walk(Container):
-            if isinstance(container, FileContainer):
-                continue
-            for symbol in container.symbol_table.symbols:
-                # pylint: disable=too-many-boolean-expressions
-                if (isinstance(symbol, DataTypeSymbol) and
-                        isinstance(symbol.datatype, StructureType) and
-                        symbol.datatype.extends and
-                        (symbol.datatype.extends.name.lower() ==
-                         "kernel_type") and
-                        (name is None or symbol.name.lower() == name.lower())):
-                    result.append((container, symbol))
-        return result
 
     @staticmethod
     def _validate_and_get_structure(

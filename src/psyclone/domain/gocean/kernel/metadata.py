@@ -404,7 +404,7 @@ class GOceanKernelMetadata(KernelMetadata):
             ) from err
 
     @property
-    def nargs(self) -> int:
+    def algorithm_arg_count(self) -> int:
         """
         :returns: the number of arguments supplied by the algorithm layer.
         """
@@ -455,7 +455,7 @@ class GOceanKernelMetadata(KernelMetadata):
         :returns: the containing module and metadata symbol.
         :raises ParseError: if discovery fails.
         """
-        candidates = cls.find_symbols(psyir, name=name)
+        candidates = cls._find_symbols(psyir, name=name)
         if not candidates:
             description = f" '{name}'" if name else ""
             raise ParseError(

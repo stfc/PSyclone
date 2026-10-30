@@ -82,7 +82,6 @@ def test_mapping(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
     cls = MetadataToArgumentsRules
     # Check that _initialise is called and _metadata is updated and
     # _info is returned.
@@ -114,7 +113,6 @@ def test_generate_cell_position(monkeypatch):
         OperatorArgMetadata("GH_REAL", "GH_READ", "W1", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _cell_position():
         raise Exception("_cell_position")
@@ -131,7 +129,6 @@ def test_generate_mesh_height(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _mesh_height():
         raise Exception("_mesh_height")
@@ -148,7 +145,6 @@ def test_generate_mesh_ncell2d_no_halos(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_WRITE", "W3"),
         FieldArgMetadata("GH_REAL", "GH_READ", "W3")]
     metadata = LFRicKernelMetadata(operates_on="domain", meta_args=meta_args)
-    metadata.validate()
 
     def _mesh_ncell2d_no_halos():
         raise Exception("_mesh_ncell2d_no_halos")
@@ -167,7 +163,6 @@ def test_generate_mesh_ncell2d(monkeypatch):
         ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _mesh_ncell2d():
         raise Exception("_mesh_ncell2d")
@@ -184,7 +179,6 @@ def test_generate_cell_map(monkeypatch):
         InterGridArgMetadata("GH_REAL", "GH_INC", "W1", "GH_COARSE")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _cell_map():
         raise Exception("_cell_map")
@@ -201,7 +195,6 @@ def test_generate_scalar(monkeypatch):
         ScalarArgMetadata("GH_REAL", "GH_READ")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _scalar(_):
         raise Exception("_scalar")
@@ -217,7 +210,6 @@ def test_generate_field(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _field(_):
         raise Exception("_field")
@@ -234,7 +226,6 @@ def test_generate_field_vector(monkeypatch):
         FieldVectorArgMetadata("GH_REAL", "GH_INC", "W0", "3")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _field_vector(_):
         raise Exception("_field_vector")
@@ -249,7 +240,6 @@ def test_generate_operator(monkeypatch):
     meta_args = [OperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _operator(_):
         raise Exception("_operator")
@@ -267,7 +257,6 @@ def test_generate_cma_operator(monkeypatch):
         ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _cma_operator(_):
         raise Exception("_cma_operator")
@@ -287,7 +276,6 @@ def test_generate_ref_element_properties(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         meta_ref_element=meta_ref_element)
-    metadata.validate()
 
     def _ref_element_properties(_):
         raise Exception("_ref_element_properties")
@@ -306,7 +294,6 @@ def test_generate_mesh_properties(monkeypatch):
     meta_mesh = [MetaMeshArgMetadata("adjacent_face")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args, meta_mesh=meta_mesh)
-    metadata.validate()
 
     def _mesh_properties(_):
         raise Exception("_mesh_properties")
@@ -322,7 +309,6 @@ def test_generate_fs_common(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _fs_common(_):
         raise Exception("_fs_common")
@@ -338,7 +324,6 @@ def test_generate_fs_compulsory_field(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _fs_compulsory_field(_):
         raise Exception("_fs_compulsory_field")
@@ -356,7 +341,6 @@ def test_generate_fs_intergrid(monkeypatch):
         InterGridArgMetadata("GH_REAL", "GH_INC", "W1", "GH_COARSE")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _fs_intergrid(_):
         raise Exception("_fs_intergrid")
@@ -375,7 +359,6 @@ def test_generate_basis(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
-    metadata.validate()
 
     def _basis(_):
         raise Exception("_basis")
@@ -395,7 +378,6 @@ def test_generate_diff_basis(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
-    metadata.validate()
 
     def _diff_basis(_):
         raise Exception("_diff_basis")
@@ -417,7 +399,6 @@ def test_generate_quad_rule(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         meta_funcs=meta_funcs, shapes=shapes)
-    metadata.validate()
 
     def _quad_rule(_):
         raise Exception("_quad_rule")
@@ -435,7 +416,6 @@ def test_generate_field_bcs_kernel(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         procedure_name="enforce_bc_code")
-    metadata.validate()
 
     def _field_bcs_kernel():
         raise Exception("_field_bcs_kernel")
@@ -453,7 +433,6 @@ def test_generate_operator_bcs_kernel(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
         procedure_name="enforce_operator_bc_code")
-    metadata.validate()
 
     def _operator_bcs_kernel():
         raise Exception("_operator_bcs_kernel")
@@ -471,7 +450,6 @@ def test_generate_stencil_cross2d_extent(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="cross2d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil_cross2d_extent(_):
         raise Exception("_stencil_cross2d_extent")
@@ -489,7 +467,6 @@ def test_generate_stencil_cross2d_max_extent(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="cross2d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil_cross2d_max_extent(_):
         raise Exception("_stencil_cross2d_max_extent")
@@ -507,7 +484,6 @@ def test_generate_stencil_extent(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="xory1d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil_extent(_):
         raise Exception("_stencil_extent")
@@ -524,7 +500,6 @@ def test_generate_stencil_xory1d_direction(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="xory1d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil_xory1d_direction(_):
         raise Exception("_stencil_xory1d_direction")
@@ -542,7 +517,6 @@ def test_generate_stencil_cross2d(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="cross2d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil_cross2d(_):
         raise Exception("_stencil_cross2d")
@@ -559,7 +533,6 @@ def test_generate_stencil(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="xory1d")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
 
     def _stencil(_):
         raise Exception("_stencil")
@@ -576,7 +549,6 @@ def test_generate_banded_dofmap(monkeypatch):
         OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
     assert metadata.kernel_type == "cma-assembly"
 
     def _banded_dofmap(_):
@@ -595,7 +567,6 @@ def test_generate_indirection_dofmap(monkeypatch):
         FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
     assert metadata.kernel_type == "cma-apply"
 
     def _indirection_dofmap(_):

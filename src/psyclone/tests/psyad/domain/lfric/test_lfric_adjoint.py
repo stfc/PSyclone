@@ -303,7 +303,6 @@ def get_metadata_args():
         operates_on="cell_column",
         procedure_name="kern_code",
         name="kern_type")
-    metadata.validate()
     # This can be used for any additional arguments as we don't use
     # these in our tests.
     dummy = DataSymbol("dummy", ScalarType.integer_type(),

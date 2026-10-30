@@ -39,7 +39,7 @@ end module demo_mod
 def _create_gocean_metadata(psyir):
     """Create GOcean metadata from the sole declaration in a PSyIR tree."""
     return GOceanKernelMetadata.create_from_psyir(
-        GOceanKernelMetadata.find_symbols(psyir)[0][1])
+        GOceanKernelMetadata.find_symbol(psyir)[1])
 
 
 @pytest.mark.parametrize("container_type", [
@@ -93,7 +93,7 @@ def test_metadata_array_noninteger_extent():
 def test_find_symbols_invalid_input():
     """Metadata discovery requires a PSyIR node."""
     with pytest.raises(TypeError, match="Expected PSyIR Node.*NoneType"):
-        KernelMetadata.find_symbols(None)
+        KernelMetadata._find_symbols(None)
 
 
 def test_kernel_from_psyir(fortran_reader):
@@ -136,7 +136,7 @@ def test_kernel_custom_metadata(fortran_reader):
     class CustomMetadata(KernelMetadata):
         @classmethod
         def find_symbol(cls, psyir, name=None):
-            return cls.find_symbols(psyir, name)[0]
+            return cls._find_symbols(psyir, name)[0]
 
         @classmethod
         def create_from_psyir(cls, psyir, name=None):
@@ -149,7 +149,7 @@ def test_kernel_custom_metadata(fortran_reader):
             return routines[0].name, routines
 
         @property
-        def nargs(self):
+        def algorithm_arg_count(self):
             return 1
 
         def fortran_string(self):

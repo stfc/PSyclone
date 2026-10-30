@@ -394,7 +394,6 @@ class Parser():
                 f"file {self._alg_filename}")
 
         metadata = self._builtin_name_map[kernel_name.lower()].metadata()
-        metadata.validate()
         return BuiltInCall(Kernel(metadata), args)
 
     def create_coded_kernel_call(
@@ -937,7 +936,7 @@ class ParsedCall():
         self._kernel = kernel
         self._args = args
         metadata = self._kernel.metadata
-        if len(self._args) < metadata.nargs:
+        if len(self._args) < metadata.algorithm_arg_count:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
             # in lfric), but we do expect there to be at least the
@@ -946,7 +945,8 @@ class ParsedCall():
             raise ParseError(
                 f"Kernel '{metadata.name}' called from the algorithm layer "
                 f"with an insufficient number of arguments as specified by "
-                f"the metadata. Expected at least '{metadata.nargs}' but "
+                "the metadata. Expected at least "
+                f"'{metadata.algorithm_arg_count}' but "
                 f"found '{len(self._args)}'.")
         self._module_name = None
 

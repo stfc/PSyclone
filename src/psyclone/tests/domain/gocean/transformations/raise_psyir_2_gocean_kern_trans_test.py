@@ -215,5 +215,5 @@ def test_apply_ok(fortran_reader):
     source = f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"
     psyir = fortran_reader.psyir_from_source(source)
     expected = GOceanKernelMetadata.create_from_psyir(
-        GOceanKernelMetadata.find_symbols(psyir)[0][1])
+        GOceanKernelMetadata.find_symbol(psyir)[1])
     assert container.metadata == expected

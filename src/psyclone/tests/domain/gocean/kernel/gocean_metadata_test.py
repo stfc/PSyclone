@@ -59,7 +59,7 @@ def _expression(source):
 def _create_metadata(psyir):
     """Create GOcean metadata from the sole declaration in a PSyIR tree."""
     return GOceanKernelMetadata.create_from_psyir(
-        GOceanKernelMetadata.find_symbols(psyir)[0][1])
+        GOceanKernelMetadata.find_symbol(psyir)[1])
 
 
 def test_metadata_from_psyir(fortran_reader):
@@ -137,7 +137,7 @@ def test_kernel_path():
 
     assert isinstance(ktype, GOceanKernelMetadata)
     assert ktype.name == "compute_cu"
-    assert ktype.nargs == 3
+    assert ktype.algorithm_arg_count == 3
 
 
 def test_stencil_metadata():
@@ -222,7 +222,7 @@ def test_kernel_metadata_common_properties():
     assert isinstance(metadata.meta_args[2], GOceanGridPropertyArgMetadata)
     assert metadata.meta_args[2].name == "go_grid_area_t"
     assert metadata.meta_args[3].datatype == "go_r_scalar"
-    assert metadata.nargs == 3
+    assert metadata.algorithm_arg_count == 3
     lowered = metadata.lower_to_psyir()
     assert lowered.name == "compute_cu"
     assert isinstance(lowered.datatype, StructureType)

@@ -92,7 +92,6 @@ class Kernel:
         container, symbol = metadata_type.find_symbol(psyir, name=name)
         try:
             metadata = metadata_type.create_from_psyir(symbol)
-            metadata.validate()
         except (TypeError, ValueError) as err:
             raise ParseError(
                 f"Invalid kernel metadata in '{symbol.name}': {err}") from err

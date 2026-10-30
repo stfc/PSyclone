@@ -31,7 +31,6 @@ def call_method(method_name, meta_arg, metadata):
     :rtype: :py:class:`psyclone.domain.lfric.ArgIndexToMetadataIndex`
 
     '''
-    metadata.validate()
     cls = ArgIndexToMetadataIndex
     cls._initialise(None)
     cls._metadata = metadata
