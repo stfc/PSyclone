@@ -69,7 +69,8 @@ class KernelMetadata(ABC):
             self,
             container: Container,
     ) -> tuple[str, tuple[Routine, ...]]:
-        """Return the resolved procedure name and tuple of implementations.
+        """ Given a kernel module, resolve which is the procedure name and
+        the implementation(s) that represent the kernel code.
 
         :param container: the module containing the kernel implementation.
 
