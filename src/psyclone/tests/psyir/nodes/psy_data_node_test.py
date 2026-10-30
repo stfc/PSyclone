@@ -14,9 +14,8 @@ import pytest
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
-    CodeBlock, PSyDataNode, Schedule, Return, Routine)
+    CodeBlock, PSyDataNode, Schedule, Statement, Return, Routine)
 from psyclone.parse import ModuleManager
-from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
@@ -556,3 +555,11 @@ def test_psy_data_node_gocean_inside_of_loop(fortran_writer):
                   r"call psy_data_1 % PostEnd.*")
 
     assert re.search(correct_re, code, re.I) is not None
+
+
+def test_psy_data_node_accesses():
+    '''Test that the next/previous_accesses methods of PSyDataNode
+    return empty lists.'''
+    psy_node = PSyDataNode()
+    assert psy_node.next_accesses() == []
+    assert psy_node.previous_accesses() == []

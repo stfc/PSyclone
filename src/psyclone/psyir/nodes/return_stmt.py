@@ -7,6 +7,7 @@
 
 ''' This module contains the Return node implementation.'''
 
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 
 
@@ -20,3 +21,15 @@ class Return(Statement):
     _children_valid_format = "<LeafNode>"
     _text_name = "Return"
     _colour = "yellow"
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: an empty list as there are no next_accesses after a Return.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: the previous_accesses of the return statement's child.
+        '''
+        return []

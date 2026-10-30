@@ -10,6 +10,8 @@
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 
@@ -164,3 +166,66 @@ class IfBlock(Statement):
         if self.else_body:
             var_accesses.update(self.else_body.reference_accesses())
         return var_accesses
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined next_accesses for the children of this IfBlock.
+        '''
+        access_nodes = []
+        for child in self.if_body:
+            access_nodes.append(child)
+        if self.else_body:
+            for child in self.else_body:
+                access_nodes.append(child)
+        next_accesses = self._get_next_accesses(access_nodes)
+        # Find all the next_accesses for the References in the condition.
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any next_accesses
+        # from the loop's variable, start, stop and step.
+        for ref in self.condition.walk(Reference):
+            refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_forward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(next_accesses, results)
+
+        return next_accesses
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined previous_accesses for the children of this
+            IfBlock.
+        '''
+        access_nodes = []
+        for child in self.if_body:
+            access_nodes.append(child)
+        if self.else_body:
+            for child in self.else_body:
+                access_nodes.append(child)
+        prev_accesses = self._get_prev_accesses(access_nodes)
+        # Find all the previous_accesses for the References in the condition.
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any next_accesses
+        # from the loop's variable, start, stop and step.
+        for ref in self.condition.walk(Reference):
+            refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_backward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(prev_accesses, results)
+
+        return prev_accesses

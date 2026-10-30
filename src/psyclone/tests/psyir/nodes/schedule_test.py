@@ -35,7 +35,8 @@ def test_sched_init():
     # A custom symbol table and parent and children nodes can be given as
     # arguments of Schedule.
     symtab = SymbolTable()
-    sched2 = Schedule(parent=sched, children=[Statement(), Statement()],
+    sched2 = Schedule(parent=sched, children=[Statement(),
+                                              Statement()],
                       symbol_table=symtab)
     assert isinstance(sched2, Schedule)
     assert sched2.parent is sched

@@ -9,6 +9,7 @@
 ''' Module containing py.test tests for dependency analysis.'''
 
 import os
+import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
@@ -589,3 +590,13 @@ def test_lfric_stub_boundary_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_op_1: READ" in str(var_accesses)
+
+
+def test_lfrickern_accesses():
+    '''Check that next/previous_accesses methods on Kern classes
+    return an empty list.'''
+    kernel = LFRicKern()
+    with pytest.raises(NotImplementedError):
+        _ = kernel.next_accesses()
+    with pytest.raises(NotImplementedError):
+        _ = kernel.previous_accesses()

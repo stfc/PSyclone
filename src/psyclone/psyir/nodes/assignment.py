@@ -7,7 +7,7 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessMap, AccessType, Signature
+from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
@@ -213,7 +213,7 @@ class Assignment(Statement):
         '''
         return isinstance(self.rhs, Literal)
 
-    def previous_accesses(self) -> dict[Signature, list[Node]]:
+    def previous_accesses(self) -> list[Node]:
         '''
         :returns: the nodes containing the previous accesses of the symbols
                   accessed within this node. It can be multiple nodes for
@@ -229,9 +229,15 @@ class Assignment(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(refs)
-        return chain.find_backward_accesses()
+        accesses = chain.find_backward_accesses()
+        results = []
+        for sig in accesses:
+            for access in accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        return results
 
-    def next_accesses(self) -> dict[Signature, list[Node]]:
+    def next_accesses(self) -> list[Node]:
         '''
         :returns: the nodes containing the next accesses of the symbols
                   accessed within this node. It can be multiple nodes for
@@ -247,4 +253,10 @@ class Assignment(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(refs)
-        return chain.find_forward_accesses()
+        accesses = chain.find_forward_accesses()
+        results = []
+        for sig in accesses:
+            for access in accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        return results
