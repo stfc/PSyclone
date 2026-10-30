@@ -693,8 +693,7 @@ def test_imported_type_target(
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
-    correct = """
-    subroutine test(input)
+    correct = """subroutine test(input)
   use mod, only :
   class(*) :: input
 

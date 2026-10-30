@@ -157,6 +157,7 @@ def test_select_type_output(fortran_reader, fortran_writer, tmpdir):
     class default
       call c()
   end select
+
 end subroutine test"""
     assert correct in result
     assert Compile(tmpdir).string_compiles(result)
@@ -202,6 +203,6 @@ def test_select_type_comments(fortran_writer, tmpdir):
     class default
       call c()
   end select
+
 end subroutine test"""
-    print(result)
     assert correct in result

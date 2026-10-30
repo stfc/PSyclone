@@ -219,7 +219,7 @@ class TypeGuard(Statement):
             symbols or a single, replacement Symbol.
 
         '''
-        if self.comparison_type:
+        if isinstance(self.comparison_type, DataTypeSymbol):
             if isinstance(table_or_symbol, Symbol):
                 if (table_or_symbol.name.lower() ==
                         self.comparison_type.name.lower()):
