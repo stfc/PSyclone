@@ -10,7 +10,7 @@
 import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import IfBlock, Literal, Routine
 from psyclone.psyir.symbols import (
     CommonBlockInterface, DataSymbol, ScalarType)
 from psyclone.tests.utilities import Compile
@@ -71,3 +71,36 @@ def test_fw_common_block_duplicate_positions(fortran_writer):
 
     assert ("Common block 'somegroup' has Symbols with duplicate positions: "
             "[0, 0]." in str(err.value))
+
+
+@pytest.mark.xfail(
+    reason="SymbolTable.merge() cannot currently reuse identical COMMON-block "
+           "symbols in nested scopes.")
+def test_fw_common_block_identical_nested_scopes(fortran_writer, tmp_path):
+    '''Check that identical parameters and COMMON-block variables in nested
+    scopes are emitted only once and produce valid Fortran.
+
+    The Routine is the outer Schedule and the body of the IfBlock provides the
+    nested Schedule.
+    '''
+    routine = Routine.create("test")
+    routine.symbol_table.add(DataSymbol(
+        "a", ScalarType.integer_type(), is_constant=True, initial_value=3))
+    routine.symbol_table.add(DataSymbol(
+        "volume", ScalarType.real_type(),
+        interface=CommonBlockInterface("blk", 0)))
+
+    ifblock = IfBlock.create(
+        Literal("true", ScalarType.boolean_type()), [])
+    inner_table = ifblock.if_body.symbol_table
+    inner_table.add(DataSymbol(
+        "a", ScalarType.integer_type(), is_constant=True, initial_value=3))
+    inner_table.add(DataSymbol(
+        "volume", ScalarType.real_type(),
+        interface=CommonBlockInterface("blk", 0)))
+    routine.addchild(ifblock)
+
+    code = fortran_writer(routine)
+    assert code.count("integer, parameter :: a = 3") == 1
+    assert code.count("common /blk/ volume") == 1
+    assert Compile(tmp_path).string_compiles(code)
