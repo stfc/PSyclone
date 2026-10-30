@@ -5,6 +5,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.kernel import (
     ColumnwiseOperatorArgMetadata, FieldArgMetadata,
@@ -17,6 +18,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.domain.lfric.kernel import metadata as metadata_mod
 from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
@@ -172,6 +174,10 @@ def test_argument_metadata_classes():
         "gh_real", "gh_read", "w1", "GH_FINE", "2", nlayers="nl")
     assert intergrid_vector.fortran_string().endswith(
         "nlayers='nl', mesh_arg=gh_fine)")
+    for length in (None, "bad", "1"):
+        with pytest.raises(ValueError, match="Vector length"):
+            InterGridVectorArgMetadata(
+                "gh_real", "gh_read", "w1", "gh_fine", length)
 
     operator = OperatorArgMetadata(
         "GH_REAL", "GH_READ", "W0", "W1")
@@ -244,6 +250,8 @@ def test_language_metadata_kernel_categories():
 
     assert _kernel_metadata([field], operates_on="domain").kernel_type == (
         "domain")
+    assert _kernel_metadata(
+        [scalar, field], operates_on="domain").kernel_type == "domain"
     with pytest.raises(ParseError, match="only contain scalar or field"):
         _kernel_metadata([
             OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")],
@@ -256,6 +264,11 @@ def test_language_metadata_kernel_categories():
         _kernel_metadata(
             [field], operates_on="domain",
             meta_mesh=[MetaMeshArgMetadata("adjacent_face")])
+    with pytest.raises(
+            ParseError, match="only accept fields on discontinuous"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "w0")],
+            operates_on="domain")
 
     coarse = InterGridArgMetadata(
         "gh_real", "gh_read", "w0", "gh_coarse")
@@ -310,6 +323,110 @@ def test_language_metadata_cma_categories():
         _kernel_metadata([
             cma_write, ScalarArrayArgMetadata(
                 "gh_real", "gh_read", 1)])
+    with pytest.raises(ParseError, match="vector or stencil"):
+        _kernel_metadata([
+            cma_read,
+            FieldVectorArgMetadata("gh_real", "gh_read", "w0", "2")])
+    with pytest.raises(ParseError, match="default NDATA and NLAYERS"):
+        _kernel_metadata([
+            cma_read,
+            FieldArgMetadata("gh_real", "gh_read", "w0", ndata="2")])
+    with pytest.raises(ParseError, match="real-valued fields"):
+        _kernel_metadata([
+            cma_read, FieldArgMetadata("gh_integer", "gh_read", "w0")])
+    with pytest.raises(ParseError, match="only read LMA operators"):
+        _kernel_metadata([
+            cma_write,
+            OperatorArgMetadata("gh_real", "gh_write", "w0", "w1")])
+
+
+def test_language_metadata_access_constraints():
+    """Test invalid field, scalar and whole-kernel access combinations."""
+    with pytest.raises(ParseError, match="must have one of.*accesses"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_readwrite", "w0")])
+    with pytest.raises(ParseError, match="read-only function space 'wchi'"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "wchi")])
+    with pytest.raises(ParseError, match="must not write/update a scalar"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_read", "w0"),
+            ScalarArgMetadata("gh_real", "gh_reduction")])
+    with pytest.raises(ParseError, match="at least one argument.*updated"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_read", "w0")])
+
+
+@pytest.mark.parametrize("case, message", [
+    ("missing-space", "Function space 'w1'.*does not exist"),
+    ("repeated-space", "Function space 'w0'.*repeated"),
+    ("missing-shape", "must also supply gh_shape"),
+    ("unneeded-shape", "specifies gh_shape but does not need"),
+    ("wrong-target-shape", "requires gh_shape=gh_evaluator"),
+    ("missing-target", "targets are not present"),
+])
+def test_language_metadata_evaluator_errors(case, message):
+    """Test inconsistent evaluator metadata combinations."""
+    functions = [MetaFuncsArgMetadata("w0", True)]
+    cases = {
+        "missing-space": {
+            "meta_funcs": [MetaFuncsArgMetadata("w1", True)],
+            "shapes": ["gh_evaluator"]},
+        "repeated-space": {
+            "meta_funcs": functions + [
+                MetaFuncsArgMetadata("w0", False, True)],
+            "shapes": ["gh_evaluator"]},
+        "missing-shape": {"meta_funcs": functions},
+        "unneeded-shape": {"shapes": ["gh_quadrature_xyoz"]},
+        "wrong-target-shape": {
+            "meta_funcs": functions, "shapes": ["gh_quadrature_xyoz"],
+            "evaluator_targets": ["w0"]},
+        "missing-target": {
+            "meta_funcs": functions, "shapes": ["gh_evaluator"],
+            "evaluator_targets": ["w1"]},
+    }
+    with pytest.raises(ParseError, match=message):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "w0")], **cases[case])
+
+
+def test_language_metadata_domain_dof_constraints(monkeypatch):
+    """Test restrictions specific to domain and dof kernels."""
+    with pytest.raises(ParseError, match="only contain scalar and field"):
+        _kernel_metadata([
+            OperatorArgMetadata("gh_real", "gh_write", "w0", "w1")],
+            operates_on="dof")
+    with pytest.raises(ParseError, match="may not request evaluator"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "w0")],
+            operates_on="dof",
+            meta_ref_element=[MetaRefElementArgMetadata(
+                "normals_to_horizontal_faces")])
+    with pytest.raises(ParseError, match="must use one function space"):
+        _kernel_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "w0"),
+            FieldArgMetadata("gh_real", "gh_read", "w1")],
+            operates_on="dof")
+
+    # Built-ins are separately validated and therefore bypass these checks.
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+    monkeypatch.setitem(BUILTIN_MAP, "test_type", object())
+    assert _kernel_metadata([
+        FieldArgMetadata("gh_real", "gh_write", "w0")],
+        operates_on="dof").kernel_type == "general-purpose"
+
+
+def test_language_metadata_intergrid_constant_error(monkeypatch):
+    """Inter-grid validation requires exactly two API mesh types."""
+    arguments = [
+        InterGridArgMetadata(
+            "gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata(
+            "gh_real", "gh_write", "w1", "gh_fine"),
+    ]
+    monkeypatch.setattr(LFRicConstants, "VALID_MESH_TYPES", ["gh_coarse"])
+    with pytest.raises(InternalError, match="exactly two mesh types"):
+        _kernel_metadata(arguments)
 
 
 def test_language_metadata_fortran_output():
@@ -352,6 +469,8 @@ def test_language_metadata_fortran_output():
     ("arg_type(gh_field, gh_real, gh_read, w0, w1, w2, w3, w4)",
      "at most 7"),
     ("arg_type(gh_field+2, gh_real, gh_read, w0)", "multiplication"),
+    ("arg_type(gh_scalar*2, gh_real, gh_read)",
+     "Vector notation is only supported for gh_field"),
     ("arg_type(gh_scalar, gh_real, gh_read, w0)",
      "Scalar metadata must have three"),
     ("arg_type(gh_scalar_array, gh_real, gh_read)",
@@ -362,6 +481,14 @@ def test_language_metadata_fortran_output():
     ("arg_type(gh_field, gh_real, gh_read)", "function space"),
     ("arg_type(gh_field, gh_real, gh_read, w0, other(x1d))",
      "Expected stencil"),
+    ("arg_type(gh_field, gh_real, gh_read, w0, bad=gh_coarse)",
+     "Unexpected named"),
+    ("arg_type(gh_field, gh_real, gh_read, w0, stencil(x1d), w1)",
+     "Unexpected positional"),
+    ("arg_type(gh_field, gh_real, gh_read, w0, stencil(x1d, 1, 2))",
+     "Expected stencil.*extent"),
+    ("arg_type(gh_field, gh_real, gh_read, w0, stencil(x1d, 0))",
+     "Stencil extent must be a positive"),
     ("arg_type(gh_field, gh_real, gh_read, w0, stencil(x1d, 1))",
      "fixed stencil extents"),
     ("arg_type(gh_field, gh_real, gh_write, w0, stencil(x1d))",
@@ -446,6 +573,42 @@ def test_optional_metadata_requires_constructor(
             LFRicKernelMetadata, fortran_reader.psyir_from_source(
                 f"module test_mod\n{source}\ncontains\n"
                 "subroutine test_code()\nend subroutine\nend module"))
+
+
+@pytest.mark.parametrize("component, message", [
+    ("integer :: unexpected = 1",
+     "Unexpected LFRic metadata component"),
+    ("type(reference_element_data_type), dimension(1) :: &\n"
+     "meta_reference_element = (/ mesh_data_type(adjacent_face) /)",
+     "meta_reference_element entries must use"),
+    ("type(reference_element_data_type), dimension(2) :: &\n"
+     "meta_reference_element = (/ &\n"
+     "reference_element_data_type(normals_to_horizontal_faces), &\n"
+     "reference_element_data_type(normals_to_horizontal_faces) /)",
+     "meta_reference_element must not contain duplicates"),
+    ("type(mesh_data_type), dimension(1) :: meta_mesh = (/ &\n"
+     "reference_element_data_type(normals_to_horizontal_faces) /)",
+     "meta_mesh entries must use"),
+    ("type(mesh_data_type), dimension(2) :: meta_mesh = (/ &\n"
+     "mesh_data_type(adjacent_face), mesh_data_type(adjacent_face) /)",
+     "meta_mesh must not contain duplicates"),
+])
+def test_declaration_component_errors(component, message):
+    """Test invalid optional components in language-level metadata."""
+    source = f"""
+module bad_mod
+  type, extends(kernel_type) :: bad_type
+    type(arg_type), dimension(1) :: meta_args = (/ &
+      arg_type(gh_field, gh_real, gh_write, w0) /)
+    {component}
+    integer :: operates_on = cell_column
+  end type bad_type
+end module bad_mod
+"""
+    root = FortranReader().psyir_from_source(source)
+    symbol = root.walk(Container)[1].symbol_table.lookup("bad_type")
+    with pytest.raises(ParseError, match=message):
+        LFRicKernelMetadata.create_from_psyir(symbol)
 
 
 def test_declaration_errors():
