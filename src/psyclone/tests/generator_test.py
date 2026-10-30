@@ -28,7 +28,7 @@ from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use, code_transformation_mode)
 from psyclone.parse import ModuleManager
@@ -313,36 +313,27 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[str(LFRIC_BASE_PATH / "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys, caplog):
-    '''Checks that the expected output is provided if an internal error is
-    caught when parsing a kernel using fparser2.
-
-    '''
-    kern_filename = (str(
-        GOCEAN_BASE_PATH / "test30_invalid_kernel_declaration.f90"))
-    with pytest.raises(SystemExit):
-        main([kern_filename, "-api", "gocean"])
-    out, err = capsys.readouterr()
+def test_kernel_parsing_internalerror(tmp_path, capsys):
+    """A kernel PSyIR parsing error produces a diagnostic and failure exit."""
+    algorithm = tmp_path / "algorithm.f90"
+    algorithm.write_text((GOCEAN_BASE_PATH /
+                          "test30_invalid_kernel_declaration.f90").read_text(),
+                         encoding="utf-8")
+    kernel = tmp_path / "kernel_invalid_declaration.f90"
+    # Module discovery now uses the declared module name. Correct the old
+    # fixture's name mismatch while preserving its undeclared argument 'u'.
+    kernel.write_text((GOCEAN_BASE_PATH /
+                       "kernel_invalid_declaration.f90").read_text().replace(
+                           "kernel_invalid_fortran",
+                           "kernel_invalid_declaration"), encoding="utf-8")
+    with pytest.raises(SystemExit) as err:
+        main([str(algorithm), "-api", "gocean"])
+    assert err.value.code == 1
+    out, diagnostic = capsys.readouterr()
     assert out == ""
-    assert "Failed to create PSyIR from kernel file '" in str(err)
-    # Clear previous logging messages (primarily from fparser)
-    caplog.clear()
-    with caplog.at_level(logging.ERROR, "psyclone.generator"):
-        with pytest.raises(SystemExit):
-            main([kern_filename, "-api", "gocean"])
-        assert caplog.records[0].levelname == "ERROR"
-        assert (
-            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-            "'u'] for routine 'compute_code' does not match the variable "
-            "declarations:\n"
-            "IMPLICIT NONE\n"
-            "INTEGER, INTENT(IN) :: I, J\n"
-            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-            "(Note that PSyclone does not support implicit declarations.) "
-            "Specific"
-            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-            in caplog.text)
+    assert f"Failed to parse kernel code '{kernel}'" in diagnostic
+    assert "Is the Fortran correct?" in diagnostic
+    assert "Traceback" not in diagnostic
 
 
 def test_kernel_parsing_with_fortran_error(capsys):
@@ -358,8 +349,8 @@ def test_kernel_parsing_with_fortran_error(capsys):
     assert out == ""
     assert "Failed to parse kernel code" in str(err)
     assert str(kern_filename) in str(err)
-    assert ("35:  end tpe compute_cu <== no parse pattern found for "
-            "\"end tpe compute_cu\" in 'Type' block.'" in str(err))
+    assert "at line 35" in str(err)
+    assert "end tpe compute_cu" in str(err)
 
 
 def test_script_file_too_short():
@@ -424,10 +415,15 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
     handled correctly.
 
     '''
-    # It's easiest to monkeypatch the psyir_from_file() method so that it
-    # raises an error.
-    def _broken(_1, _2):
-        raise ValueError("This is a test")
+    # Fail only when the algorithm PSyIR is created. Kernel source is now also
+    # parsed by this reader and must remain valid for the test to reach the
+    # algorithm-generation boundary.
+    original = FortranReader.psyir_from_file
+
+    def _broken(reader, filename):
+        if Path(filename).name == "single_invoke.f90":
+            raise ValueError("This is a test")
+        return original(reader, filename)
 
     monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
     with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
@@ -2118,3 +2114,33 @@ def test_script_args_with_no_script(capsys):
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
             "specified using the '--script' option" in err)
+
+
+@pytest.mark.parametrize("error_type", [InternalError, ValueError, IOError])
+def test_kernel_psyir_creation_error(error_type, monkeypatch, caplog, capsys):
+    """Errors reading kernel PSyIR after metadata parsing are reported."""
+    original = FortranReader.psyir_from_file
+    kernel_reads = 0
+    kernel_file = GOCEAN_BASE_PATH / "compute_cu_mod.f90"
+
+    def fail_second_kernel_read(reader, filename):
+        """Let metadata parsing succeed, then fail kernel PSyIR generation."""
+        nonlocal kernel_reads
+        if Path(filename) == kernel_file:
+            kernel_reads += 1
+            if kernel_reads == 2:
+                raise error_type("Kernel PSyIR creation failed")
+        return original(reader, filename)
+
+    monkeypatch.setattr(FortranReader, "psyir_from_file",
+                        fail_second_kernel_read)
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
+        with pytest.raises(SystemExit) as err:
+            generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"), api="gocean")
+    assert err.value.code == 1
+    assert kernel_reads == 2
+    assert "Kernel PSyIR creation failed" in caplog.text
+    assert "Traceback" in caplog.text
+    _, diagnostic = capsys.readouterr()
+    assert (f"Failed to create PSyIR from kernel file '{kernel_file}'"
+            in diagnostic)

@@ -13,12 +13,11 @@ classes.
 '''
 import pytest
 
-from psyclone.domain.gocean.kernel import GOceanContainer
+from psyclone.domain.gocean.kernel import (
+    GOceanKernelContainer, GOceanKernelMetadata)
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import find_symbol
-from psyclone.psyir.nodes import FileContainer, Container, Routine
-from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol
+from psyclone.psyir.nodes import FileContainer, Container
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
@@ -40,33 +39,6 @@ PROGRAM = (
     f"  subroutine compute_cu_code()\n"
     f"  end subroutine compute_cu_code\n"
     f"end module dummy\n")
-
-
-# find_symbol function
-
-def test_find_symbol(fortran_reader):
-    '''Test that the PSyIR tree walk to find the metadata symbol works if
-    multiple symbol tables need to be searched before finding the
-    correct one.
-
-    '''
-    my_program = (f"module dummy\n"
-                  f"contains\n"
-                  f"subroutine dummy1()\n"
-                  f"end subroutine\n"
-                  f"  subroutine dummy2()\n"
-                  f"{METADATA}"
-                  f"  end subroutine\n"
-                  f"end module\n")
-    kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    symbol, node = find_symbol(kernel_psyir, "compute_cu")
-    assert isinstance(symbol, DataTypeSymbol)
-    assert symbol.name == "compute_cu"
-    assert isinstance(node, Routine)
-    assert node.name == "dummy2"
-    symbol, node = find_symbol(kernel_psyir, "not_here")
-    assert symbol is None
-    assert node is None
 
 
 def test_kerntrans_init():
@@ -105,12 +77,8 @@ def test_validate_nosymbol(fortran_reader):
             "supplied PSyIR." in str(info.value))
 
 
-def test_validate_container1(fortran_reader):
-    '''Test that the validate method raises the expected exceptions if the
-    metadata symbol does not reside within a Container node or resides
-    within a FileContainer node.
-
-    '''
+def test_validate_metadata_in_routine(fortran_reader):
+    '''Test that kernel metadata must be declared at module scope.'''
     code = (
         f"subroutine test\n"
         f"{METADATA}\n"
@@ -119,30 +87,9 @@ def test_validate_container1(fortran_reader):
     kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
-    assert ("The Container in which the metadata symbol resides is a "
-            "FileContainer, but should be a generic Container."
+    assert ("The metadata name (compute_cu) provided to the transformation "
+            "does not correspond to a symbol in the supplied PSyIR."
             in str(info.value))
-
-
-def test_validate_keyerror(fortran_reader):
-    '''Test that the PSyIR tree walk to find the metadata symbol works if
-    multiple symbol tables need to be searched before finding the
-    correct one.
-
-    '''
-    my_program = (f"module dummy\n"
-                  f"contains\n"
-                  f"  subroutine dummy1()\n"
-                  f"  end subroutine\n"
-                  f"  subroutine dummy2()\n"
-                  f"{METADATA}"
-                  f"  end subroutine\n"
-                  f"  subroutine compute_cu_code()\n"
-                  f"  end subroutine\n"
-                  f"end module\n")
-    kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
-    kern_trans.validate(kernel_psyir)
 
 
 def test_validate_iterates_over(fortran_reader):
@@ -159,8 +106,8 @@ def test_validate_iterates_over(fortran_reader):
     err_txt = str(info.value)
     assert ("Failed to create metadata for kernel 'compute_cu' from PSyIR"
             in err_txt)
-    assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "compute_cu" in err_txt)
+    assert ("Missing GOcean metadata component(s): ['iterates_over']"
+            in err_txt)
 
 
 def test_validate_container2(fortran_reader):
@@ -254,7 +201,7 @@ def test_apply_ok(fortran_reader):
     kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     container = kernel_psyir.children[0]
     assert isinstance(container, Container)
-    assert not isinstance(container, GOceanContainer)
+    assert not isinstance(container, GOceanKernelContainer)
     # The symbol should exist
     _ = container.symbol_table.lookup("compute_cu")
     kern_trans.apply(kernel_psyir)
@@ -262,7 +209,11 @@ def test_apply_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("compute_cu")
-    # The container should now be a GOceanContainer
-    assert isinstance(container, GOceanContainer)
+    # The container should now be a GOceanKernelContainer
+    assert isinstance(container, GOceanKernelContainer)
     # and should contain the metadata
-    assert container.metadata.fortran_string() == METADATA
+    source = f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"
+    psyir = fortran_reader.psyir_from_source(source)
+    expected = GOceanKernelMetadata.create_from_psyir(
+        GOceanKernelMetadata.find_symbol(psyir)[1])
+    assert container.metadata == expected

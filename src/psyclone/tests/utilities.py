@@ -7,6 +7,8 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
+from __future__ import annotations
+
 from contextlib import contextmanager
 import difflib
 import os
@@ -14,12 +16,11 @@ from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
-from typing import Optional, Tuple, Union
+from typing import Optional, TYPE_CHECKING, Tuple, Union
 
 import pytest
 
-from fparser import api as fpapi
-from fparser.one.block_statements import BeginSource
+from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
@@ -30,6 +31,11 @@ from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
 
 # The various file suffixes we recognise as being Fortran
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+
+
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
@@ -612,21 +618,24 @@ def get_examples_path(relative_path: str):
         relative_path)
 
 
-def get_ast(api: str, filename: str) -> BeginSource:
-    '''Returns the fparser1 parse tree for a filename that is stored in the
-    test files for the specified API.
+def create_lfric_metadata(
+        psyir: Node,
+        name: Optional[str] = None,
+) -> LFRicKernelMetadata:
+    """Create and validate LFRic metadata from PSyIR.
 
-    :param api: the API to use, which determines the directory \
-        where files are stored.
-    :param filename: the file name to parse.
+    :param psyir: PSyIR containing an LFRic metadata declaration.
+    :param name: optional name of the metadata type to select.
 
-    :returns: the parse tree for the specified Fortran source file.
+    :returns: validated LFRic kernel metadata.
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKernelMetadata`
+    """
+    # Keep this test helper dependency local so that importing the general
+    # test utilities does not initialise an API-specific domain package.
+    from psyclone.domain.lfric import LFRicKernelMetadata
 
-    '''
-    Config.get().api = api
-    ast = fpapi.parse(os.path.join(get_base_path(api), filename),
-                      ignore_comments=False)
-    return ast
+    return Kernel.create_from_psyir(
+        LFRicKernelMetadata, psyir, name=name).metadata
 
 
 def check_links(parent: Node, children: list[Node]) -> None:

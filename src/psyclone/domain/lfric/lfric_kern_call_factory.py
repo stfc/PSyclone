@@ -10,8 +10,17 @@
 
 '''
 
+from __future__ import annotations
+
 # Imports
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
+
+
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.parse.algorithm import KernelCall
+    from psyclone.psyir.nodes import Schedule
 
 
 class LFRicKernCallFactory():
@@ -22,24 +31,27 @@ class LFRicKernCallFactory():
     '''
     # pylint: disable=too-few-public-methods
     @staticmethod
-    def create(call, parent=None):
-        '''
-        Create the objects needed for a call to the kernel
+    def create(
+            call: KernelCall,
+            parent: Optional[Schedule] = None) -> LFRicLoop:
+        """Create the objects needed for a call to the kernel
         described in the call object.
 
-        :param call: information on the kernel call as obtained from the \
-                     Algorithm layer.
+        :param call: information on the kernel call as obtained from the
+            Algorithm layer.
         :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: the parent of this kernel call in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        '''
-        if call.ktype.iterates_over == "domain":
+        :returns: the loop containing the kernel call, including a null loop
+            for a domain kernel.
+        """
+        if call.kernel.metadata.iterates_over == "domain":
             # Kernel operates on whole domain so there is no loop.
             # We still need a loop object though as that is where the logic
             # for handling halo exchanges is currently implemented.
             loop_type = "null"
-        elif call.ktype.iterates_over == "dof":
+        elif call.kernel.metadata.iterates_over == "dof":
             # Loop over dofs within a field.
             loop_type = "dof"
         else:

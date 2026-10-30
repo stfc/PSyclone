@@ -11,13 +11,9 @@ of the LFRic API.
 '''
 
 import pytest
-import fparser
-
-from fparser import api as fpapi
-
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKernMetadata
-from psyclone.lfric import RefElementMetaData
+from psyclone.domain.common.kernel import Kernel
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
@@ -44,7 +40,7 @@ module testkern_refelem_mod
      procedure, nopass :: code => testkern_refelem_code
   end type testkern_refelem_type
 contains
-  subroutine testkern_refelem_code(a, b)
+  subroutine testkern_refelem_code()
   end subroutine testkern_refelem_code
 end module testkern_refelem_mod
 '''
@@ -58,89 +54,37 @@ def setup():
     Config.get().api = "lfric"
 
 
-def test_mdata_parse():
-    ''' Check that we get the correct list of reference-element properties. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = REF_ELEM_MDATA
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    assert dkm.reference_element.properties == \
-        [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
-         RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
-         RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES]
+def test_mdata_parse(fortran_reader):
+    """Preserve the requested reference-element properties and their order."""
+    metadata = Kernel.create_from_psyir(
+        LFRicKernelMetadata,
+        fortran_reader.psyir_from_source(REF_ELEM_MDATA)).metadata
+    assert [item.reference_element for item in metadata.meta_ref_element] == [
+        "outward_normals_to_faces", "normals_to_horizontal_faces",
+        "normals_to_vertical_faces"]
 
 
-def test_mdata_invalid_property():
-    ''' Check that we raise the expected error if an unrecognised property
-    is requested. '''
-    code = REF_ELEM_MDATA.replace("normals_to_vertical_faces",
-                                  "not_a_property")
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("property: 'not_a_property'. Supported values are: "
-            "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
-            in str(err.value))
-
-
-def test_mdata_wrong_arg_count():
-    ''' Check that we raise the expected error if the wrong dimension value
-    is specified for the meta_reference_element array. '''
-    code = REF_ELEM_MDATA.replace("element_data_type), dimension(3)",
-                                  "element_data_type), dimension(4)")
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("'meta_reference_element' metadata, the number of items in" in
-            str(err.value))
-
-
-def test_mdata_wrong_name():
-    ''' Check that we raise the expected error if the array holding properties
-    of the reference_element is given the wrong name. '''
-    code = REF_ELEM_MDATA.replace("meta_reference_element =",
-                                  "meta_ref_elem =")
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("No variable named 'meta_reference_element' found"
-            in str(err.value))
-
-
-def test_mdata_wrong_type_var():
-    ''' Check that we raise the expected error if the array holding properties
-    of the reference element contains an item of the wrong type. '''
-    code = REF_ELEM_MDATA.replace(
-        "reference_element_data_type(outward_normals_to",
-        "ref_element_data_type(outward_normals_to")
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("'meta_reference_element' metadata must consist of an array of "
-            "structure constructors, all of type 'reference_element_data_type'"
-            " but found: ['ref_element_data_type'," in str(err.value))
-
-
-def test_mdata_duplicate_var():
-    ''' Check that we raise the expected error if the array holding properties
-    of the reference element contains a duplicate item. '''
-    code = REF_ELEM_MDATA.replace(
-        "reference_element_data_type(normals_to_horizontal_faces)",
-        "reference_element_data_type(normals_to_vertical_faces)")
-
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_refelem_type"
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("Duplicate reference-element property found: "
-            "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
-
-# Tests for correctness of LFRicReferenceElement constructor
+@pytest.mark.parametrize("old, new, message", [
+    ("normals_to_vertical_faces", "not_a_property",
+     "reference-element property"),
+    ("element_data_type), dimension(3)", "element_data_type), dimension(4)",
+     "extent 4.*contains 3 values"),
+    ("meta_reference_element =", "meta_ref_elem =",
+     "Unexpected LFRic metadata component"),
+    ("reference_element_data_type(outward_normals_to",
+     "ref_element_data_type(outward_normals_to",
+     "must use the reference_element_data_type constructor"),
+    ("reference_element_data_type(normals_to_horizontal_faces)",
+     "reference_element_data_type(normals_to_vertical_faces)",
+     "must not contain duplicates"),
+], ids=["invalid-property", "extent", "component-name", "constructor",
+        "duplicate"])
+def test_mdata_invalid(old, new, message, fortran_reader):
+    """Reject invalid reference-element declarations through the PSyIR API."""
+    with pytest.raises(ParseError, match=message):
+        Kernel.create_from_psyir(
+            LFRicKernelMetadata,
+            fortran_reader.psyir_from_source(REF_ELEM_MDATA.replace(old, new)))
 
 
 def test_refelem_arglist_err():
@@ -153,7 +97,7 @@ def test_refelem_arglist_err():
     kernels = sched.walk(Kern)
     kernel = kernels[0]
     # Break the list of ref-element properties required by the Kernel
-    kernel.reference_element.properties.append("Not a property")
+    kernel._reference_element = kernel.reference_element + ("Not a property",)
     with pytest.raises(InternalError) as err:
         kernel.arguments.psyir_expressions()
     assert ("Unsupported reference-element property ('Not a property') found "

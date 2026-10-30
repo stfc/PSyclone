@@ -10,7 +10,7 @@ implementations.
 '''
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import Signature
 from psyclone.line_length import FortLineLength
@@ -25,7 +25,9 @@ from psyclone.psyir.symbols import (
     ScalarType, ContainerSymbol, DataTypeSymbol, ImportInterface,
     NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
     Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
-from psyclone.psyir.tools import ReadWriteInfo
+
+if TYPE_CHECKING:
+    from psyclone.psyir.tools import ReadWriteInfo
 
 
 class DriverCreator:
@@ -231,7 +233,7 @@ class DriverCreator:
             program: Routine,
             psy_data: DataSymbol,
             original_symtab: SymbolTable,
-            read_write_info: ReadWriteInfo,
+            read_write_info: "ReadWriteInfo",
             postfix: str,
             vars_to_ignore: list[tuple[str, Signature]],
             ) -> list[tuple[Symbol, Symbol]]:
@@ -513,7 +515,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def create(self,
                nodes: list[Node],
-               read_write_info: ReadWriteInfo,
+               read_write_info: "ReadWriteInfo",
                prefix: str,
                postfix: str,
                region_name: tuple[str, str],
@@ -613,7 +615,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def get_driver_as_string(self,
                              nodes: list[Node],
-                             read_write_info: ReadWriteInfo,
+                             read_write_info: "ReadWriteInfo",
                              prefix: str,
                              postfix: str,
                              region_name: tuple[str, str],
@@ -682,7 +684,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def write_driver(self,
                      nodes: list[Node],
-                     read_write_info: ReadWriteInfo,
+                     read_write_info: "ReadWriteInfo",
                      prefix: str,
                      postfix: str,
                      region_name: tuple[str, str],

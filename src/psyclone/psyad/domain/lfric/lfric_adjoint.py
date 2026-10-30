@@ -11,7 +11,10 @@ adjoint code.
 
 '''
 
+from __future__ import annotations
+
 import logging
+from dataclasses import replace
 
 from psyclone.domain.lfric import ArgIndexToMetadataIndex, LFRicConstants
 from psyclone.domain.lfric.kernel import (
@@ -30,6 +33,14 @@ from psyclone.psyir.symbols.symbol import (
 
 
 # pylint: disable=too-many-locals
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.psyir.symbols import DataSymbol
+
+
 def generate_lfric_adjoint(
     tl_psyir: Node,
     active_variables: list[str]
@@ -126,26 +137,46 @@ def generate_lfric_adjoint(
     metadata = ad_container.metadata
 
     # Change the type and procedure names
-    metadata.name = create_adjoint_name(metadata.name)
+    metadata = replace(
+        metadata, name=create_adjoint_name(metadata.name))
     if metadata.procedure_name:
-        metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
+        metadata = replace(
+            metadata,
+            procedure_name=create_adjoint_name(metadata.procedure_name))
     else:
         # Issue #3546. We are not yet able to to raise multi-precision
         # metadata to LFRic-specific metadata, so return without
         # making any further modifications.
+        # pylint: disable=protected-access
+        ad_container._metadata = metadata
+        # pylint: enable=protected-access
         return ad_psyir
 
-    # Change the meta_args access metadata
+    # Accumulate all access changes before constructing new kernel metadata.
+    # Individual changes can temporarily violate a whole-kernel constraint
+    # even though the complete set of changes is valid.
+    meta_args = metadata.meta_args
     for var_name in active_variables:
-        access = _update_access_metadata(var_name, arg_symbols, metadata)
+        access, meta_args = _update_access_metadata(
+            var_name, arg_symbols, metadata, meta_args)
         if access:
             # Add in any new access symbols.
             _check_or_add_access_symbol(ad_container, access)
+    metadata = replace(metadata, meta_args=meta_args)
+    # LFRic metadata is immutable, so publish the accumulated replacement.
+    # pylint: disable=protected-access
+    ad_container._metadata = metadata
+    # pylint: enable=protected-access
     return ad_psyir
 
 
 # pylint: disable=too-many-branches
-def _update_access_metadata(var_name, arg_symbols, metadata):
+def _update_access_metadata(
+        var_name: str,
+        arg_symbols: list[DataSymbol],
+        metadata: LFRicKernelMetadata,
+        meta_args: Optional[tuple[KernelArgumentMetadata, ...]] = None,
+) -> tuple[Optional[str], tuple[KernelArgumentMetadata, ...]]:
     '''If the access metadata for the variable var_name is incorrect then
     update it.
 
@@ -157,10 +188,11 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     :param metadata: the LFRic metadata.
     :type metadata:
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+    :param meta_args: argument metadata containing any preceding updates, or
+        ``None`` to use the arguments from ``metadata``.
 
-    :returns: the access metadata or None if the active variable is
-        not passed by argument.
-    :rtype: Optional[str]
+    :returns: the access metadata (or None if the active variable is not
+        passed by argument) and the argument metadata containing any update.
 
     :raises GenerationError: if the argument position does not match
         the metadata.
@@ -168,6 +200,8 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     :raises InternalError: if an unexpected access type is found.
 
     '''
+    arguments = metadata.meta_args if meta_args is None else meta_args
+
     # Determine the order of the kernel arguments from the
     # metadata. This is needed to find the metadata associated with
     # the specified active variable.
@@ -181,7 +215,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
             break
     else:
         # No, the active variable is not passed by argument.
-        return None
+        return None, arguments
 
     arg_index = arg_symbols.index(found_symbol)
     try:
@@ -197,7 +231,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
             f"The most likely reason for this is that the kernel subroutine "
             f"argument list does not conform to the LFRic rules - perhaps "
             f"it is a PSyKAl-lite kernel?") from exc
-    meta_arg = metadata.meta_args[meta_arg_index]
+    meta_arg = arguments[meta_arg_index]
 
     # Determine the intent of this variable from its declaration
     # and update the metadata appropriately.
@@ -207,10 +241,13 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     if var_access == ArgumentInterface.Access.READWRITE:
         # pylint: disable=unidiomatic-typecheck
         if type(meta_arg) is ScalarArgMetadata:
-            # TODO #2333 - in LFRic only Builtin kernels are currently allowed
-            # to write to a scalar argument (since this implies a reduction).
-            # We therefore need to flag this case.
-            access = "gh_reduction"
+            raise GenerationError(
+                f"PSyAD cannot generate valid LFRic metadata for active "
+                f"scalar argument '{found_symbol.name}' because its adjoint "
+                f"has intent inout and therefore requires a scalar "
+                f"reduction. LFRic only permits built-in kernels to "
+                f"write/update scalar arguments (issue #2333)."
+            )
         elif type(meta_arg) in [
                 OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
             access = "gh_readwrite"
@@ -233,8 +270,13 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
         raise InternalError(
             f"Found unexpected access '{var_access}' for "
             f"'{found_symbol.name}'.")
-    meta_arg.access = access
-    return access
+    replacement = replace(meta_arg, access=access)
+    arguments = (
+        arguments[:meta_arg_index]
+        + (replacement,)
+        + arguments[meta_arg_index + 1:]
+    )
+    return access, arguments
 
 
 def _check_or_add_access_symbol(container, access):

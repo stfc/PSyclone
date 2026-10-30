@@ -116,7 +116,11 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`
 
         '''
-        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
+        # Distinct arguments can have equal metadata, so find this entry
+        # by identity rather than using value-based dataclass equality.
+        meta_arg_index = next(
+            idx for idx, arg in enumerate(cls._metadata.meta_args)
+            if arg is meta_arg)
         cls._info[cls._index] = meta_arg_index
         cls._index += 1
 

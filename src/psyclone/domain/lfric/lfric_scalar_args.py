@@ -11,6 +11,8 @@ declarations of scalar arguments to the kernel found in either
 an Invoke or a Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import OrderedDict, Counter
 
@@ -112,7 +114,7 @@ class LFRicScalarArgs(LFRicCollection):
         # Create declarations
         self._create_declarations()
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
@@ -130,16 +132,16 @@ class LFRicScalarArgs(LFRicCollection):
         # Filter scalar arguments by intent and data type
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_args[intent]:
-                if arg.descriptor.data_type == "gh_real":
+                if arg.metadata_datatype == "gh_real":
                     self._real_scalars[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_integer":
+                elif arg.metadata_datatype == "gh_integer":
                     self._integer_scalars[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_logical":
+                elif arg.metadata_datatype == "gh_logical":
                     self._logical_scalars[intent].append(arg)
                 else:
                     raise InternalError(
                         f"Found an unsupported data type "
-                        f"'{arg.descriptor.data_type}' for the scalar "
+                        f"'{arg.metadata_datatype}' for the scalar "
                         f"argument '{arg.declaration_name}'. Supported types "
                         f"are {const.VALID_SCALAR_DATA_TYPES}.")
 

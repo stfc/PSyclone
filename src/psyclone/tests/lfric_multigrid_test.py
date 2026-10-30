@@ -12,9 +12,8 @@ import os
 import pytest
 import fparser
 
-from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.lfric import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -25,6 +24,7 @@ from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
                                       LFRicColourTrans,
                                       LFRicOMPParallelLoopTrans,
@@ -68,61 +68,54 @@ def test_check_intergrid():
     check_intergrid(tnode)
 
 
-def test_invalid_mesh_type():
+def test_invalid_mesh_type(fortran_reader):
     ''' Check that we raise an error if an unrecognised name is supplied
     for the mesh associated with a field argument '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_RUBBISH", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("mesh_arg must be one of ['gh_coarse', "
-            "'gh_fine'] but got gh_rubbish" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Expected mesh_arg to be one of" in str(excinfo.value)
+    assert "'gh_rubbish'" in str(excinfo.value)
 
 
-def test_invalid_mesh_specifier():
+def test_invalid_mesh_specifier(fortran_reader):
     ''' Check that we raise an error if "mesh_arg" is misspelt '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("mesh_arg=GH_COARSE",
                                   "mesh_ar=GH_COARSE", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("Unexpected named arg_type metadata argument(s): ['mesh_ar']" in
             str(excinfo.value))
 
 
-def test_all_args_same_mesh_error():
+def test_all_args_same_mesh_error(fortran_reader):
     ''' Check that we reject a kernel if all arguments are specified
     as being on the same mesh (coarse or fine). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Both on fine mesh
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_FINE", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    const = LFRicConstants()
-    assert (f"Inter-grid kernels in the LFRic API must have at least "
-            f"one field argument on each of the mesh types "
-            f"({const.VALID_MESH_TYPES}). However, "
-            f"kernel restrict_kernel_type has arguments only on ['gh_fine']"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Inter-grid kernels must have arguments on both mesh types" in str(
+        excinfo.value)
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"Inter-grid kernels in the LFRic API must have at least "
-            f"one field argument on each of the mesh types "
-            f"({const.VALID_MESH_TYPES}). However, kernel "
-            f"restrict_kernel_type has arguments only on ['gh_coarse']"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Inter-grid kernels must have arguments on both mesh types" in str(
+        excinfo.value)
 
 
-def test_all_fields_have_mesh():
+def test_all_fields_have_mesh(fortran_reader):
     ''' Check that we reject an inter-grid kernel if any of its field
     arguments are missing a mesh specifier '''
     # Add a field argument that is missing a mesh_arg specifier
@@ -133,35 +126,30 @@ def test_all_fields_have_mesh():
         "mesh_arg=GH_FINE  ), &\n"
         "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2) &\n", 1)
     code = code.replace("(2)", "(3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the LFRic API must specify which mesh "
-            "each field argument is on but kernel restrict_kernel_type has "
-            "at least one field argument for which 'mesh_arg' is missing." in
-            str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Inter-grid kernels may only contain inter-grid fields" in str(
+        excinfo.value)
 
 
-def test_args_same_space_error():
+def test_args_same_space_error(fortran_reader):
     ''' Check that we reject a kernel if arguments on different meshes
     are specified as being on the same function space '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("ANY_SPACE", "ANY_DISCONTINUOUS_SPACE")
     code = code.replace("_2", "_1")
     code = code.replace("GH_INC", "GH_READWRITE")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("inter-grid kernels must be on different function spaces if "
-            "they are on different meshes. However kernel "
-            "restrict_kernel_type has a field on function space(s)"
-            " ['any_discontinuous_space_1'] on each of the mesh types"
-            " ['gh_coarse', 'gh_fine']." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("Inter-grid fields on different meshes must use different "
+            "function spaces" in str(excinfo.value))
 
 
-def test_only_field_args():
+def test_only_field_args(fortran_reader):
     ''' Check that we reject an inter-grid kernel if it has any arguments
     that are not fields '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -174,35 +162,34 @@ def test_only_field_args():
         "       arg_type(GH_SCALAR, GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
 
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the LFRic API are only permitted to "
-            "have field arguments but kernel restrict_kernel_type also has "
-            "arguments of type ['gh_scalar']" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Inter-grid kernels may only contain inter-grid fields" in str(
+        excinfo.value)
 
 
-def test_field_vector():
+def test_field_vector(fortran_reader):
     ''' Check that we accept an inter-grid kernel with field-vector
     arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change both of the arguments to be vectors
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 2)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "restrict_kernel_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    for arg in dkm.arg_descriptors:
-        assert arg.vector_size == 2
+    dkm = create_lfric_metadata(psyir, name=name)
+    for arg in dkm.meta_args:
+        assert arg.vector_length == "2"
     # Change only one of the arguments to be a vector
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*3,", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name=name)
-    assert dkm.arg_descriptors[0].vector_size == 3
-    assert dkm.arg_descriptors[1].vector_size == 1
+    psyir = fortran_reader.psyir_from_source(code)
+    dkm = create_lfric_metadata(psyir, name=name)
+    assert dkm.meta_args[0].vector_length == "3"
+    assert not hasattr(dkm.meta_args[1], "vector_length")
 
 
-def test_two_grid_types(monkeypatch):
+def test_two_grid_types(monkeypatch, fortran_reader):
     ''' Check that PSyclone raises an error if the number of grid types
     supported for inter-grid kernels is not two. '''
     # Change LFRicConstants.VALID_MESH_TYPES so that it contains
@@ -211,14 +198,13 @@ def test_two_grid_types(monkeypatch):
         target=LFRicConstants, name="VALID_MESH_TYPES",
         value=["gh_coarse", "gh_fine", "gh_medium"])
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(RESTRICT_MDATA)
     name = "restrict_kernel_type"
     with pytest.raises(InternalError) as err:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("The implementation of inter-grid support in the LFRic "
-            "API assumes there are exactly two mesh types but "
-            "LFRicConstants.VALID_MESH_TYPES contains 3: "
-            "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Inter-grid support requires exactly two mesh types" in str(
+        err.value)
+    assert "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value)
 
 
 def test_lfricintergrid():

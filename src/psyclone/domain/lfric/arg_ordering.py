@@ -9,6 +9,8 @@
 kernel calls.
 '''
 
+from __future__ import annotations
+
 import abc
 from typing import Optional, Union
 
@@ -322,9 +324,10 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self,
-                 var_accesses: Optional[VariablesAccessMap] = None
-                 ) -> None:
+    def generate(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -397,9 +400,9 @@ class ArgOrdering:
                     self.field_vector(arg, var_accesses=var_accesses)
                 else:
                     self.field(arg, var_accesses=var_accesses)
-                if arg.descriptor.stencil:
-                    if not arg.descriptor.stencil['extent']:
-                        if arg.descriptor.stencil['type'] == "cross2d":
+                if arg.metadata_stencil:
+                    if not arg.metadata_stencil['extent']:
+                        if arg.metadata_stencil['type'] == "cross2d":
                             # stencil extent is not provided in the
                             # metadata so must be passed from the Algorithm
                             # layer.
@@ -416,13 +419,13 @@ class ArgOrdering:
                             # layer.
                             self.stencil_unknown_extent(
                                 arg, var_accesses=var_accesses)
-                    if arg.descriptor.stencil['type'] == "xory1d":
+                    if arg.metadata_stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
                         self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
-                    if arg.descriptor.stencil['type'] == "cross2d":
+                    if arg.metadata_stencil['type'] == "cross2d":
                         self.stencil_2d(arg, var_accesses=var_accesses)
                     else:
                         self.stencil(arg, var_accesses=var_accesses)
@@ -944,7 +947,10 @@ class ArgOrdering:
         self.append_array_reference(map_name, [":"], tag=tag)
         self.append(map_name, var_accesses)
 
-    def ref_element_properties(self, var_accesses=None):
+    def ref_element_properties(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         '''Add kernel arguments relating to properties of the reference
         element. If supplied it also stores this access in var_accesses.
 
@@ -954,7 +960,7 @@ class ArgOrdering:
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        if self._kern.reference_element.properties:
+        if self._kern.reference_element:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import LFRicReferenceElement

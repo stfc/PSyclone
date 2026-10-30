@@ -11,13 +11,10 @@
 import os
 import pytest
 
-from fparser import api as fpapi
-
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (
-    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop,
-    LFRicInvokeSchedule)
+    LFRicConstants, LFRicKern, LFRicLoop, LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
@@ -26,7 +23,7 @@ from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
 BASE_PATH = os.path.join(
@@ -724,7 +721,7 @@ def test_lfricloop_halo_read_access_error2(monkeypatch):
 
 
 @pytest.mark.usefixtures("lfric_config")
-def test_null_loop():
+def test_null_loop(fortran_reader):
     ''' Check that we can create a 'null'-type loop and that the validation
     check in the 'load()' method behaves as expected.
 
@@ -734,10 +731,10 @@ def test_null_loop():
     assert loop.node_str(colour=False) == "Loop[type='null']"
 
     # Create a kernel by parsing some metadata
-    ast = fpapi.parse('''
+    source = '''
 module testkern_mod
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), meta_args(2) =                         &
+     type(arg_type), dimension(2) :: meta_args =            &
           (/ arg_type(gh_scalar, gh_real, gh_read),         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3) &
            /)
@@ -747,10 +744,13 @@ module testkern_mod
   end type testkern_type
 contains
   subroutine testkern_code(a, b, c, d)
+    real, intent(inout) :: a, b, c, d
   end subroutine testkern_code
 end module testkern_mod
-''', ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_type")
+'''
+    psyir = fortran_reader.psyir_from_source(source)
+    dkm = create_lfric_metadata(
+        psyir, name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:

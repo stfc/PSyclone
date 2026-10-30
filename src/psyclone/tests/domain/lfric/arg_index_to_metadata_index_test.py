@@ -31,7 +31,6 @@ def call_method(method_name, meta_arg, metadata):
     :rtype: :py:class:`psyclone.domain.lfric.ArgIndexToMetadataIndex`
 
     '''
-    metadata.validate()
     cls = ArgIndexToMetadataIndex
     cls._initialise(None)
     cls._metadata = metadata
@@ -109,8 +108,9 @@ def test_operator():
 def test_cma_operator():
     '''Test the _cma_operator method.'''
     meta_arg = ColumnwiseOperatorArgMetadata("GH_REAL", "GH_WRITE", "W0", "W1")
+    read_arg = ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=[meta_arg])
+        operates_on="cell_column", meta_args=[meta_arg, read_arg])
     cls = call_method("_cma_operator", meta_arg, metadata)
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object

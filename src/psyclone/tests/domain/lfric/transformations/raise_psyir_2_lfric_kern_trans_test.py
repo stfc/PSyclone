@@ -16,10 +16,8 @@ import pytest
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import find_symbol
-from psyclone.psyir.nodes import FileContainer, Container, Routine
-from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol
+from psyclone.psyir.nodes import FileContainer, Container
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 
 METADATA = (
@@ -68,33 +66,6 @@ PROGRAM_MULTI = (
     f"end module dummy\n")
 
 
-# find_symbol function
-
-def test_find_symbol(fortran_reader):
-    '''Test that the PSyIR tree walk to find the metadata symbol works if
-    multiple symbol tables need to be searched before finding the
-    correct one.
-
-    '''
-    my_program = (f"module dummy\n"
-                  f"contains\n"
-                  f"subroutine dummy1()\n"
-                  f"end subroutine\n"
-                  f"  subroutine dummy2()\n"
-                  f"{METADATA}"
-                  f"  end subroutine\n"
-                  f"end module\n")
-    kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    symbol, node = find_symbol(kernel_psyir, "testkern_type")
-    assert isinstance(symbol, DataTypeSymbol)
-    assert symbol.name == "testkern_type"
-    assert isinstance(node, Routine)
-    assert node.name == "dummy2"
-    symbol, node = find_symbol(kernel_psyir, "not_here")
-    assert symbol is None
-    assert node is None
-
-
 def test_kerntrans_init():
     '''Test that an instance of RaisePSyIR2LFRicKernTrans can be
     successfully created.
@@ -119,12 +90,8 @@ def test_validate_nosymbol(fortran_reader):
             "supplied PSyIR." in str(info.value))
 
 
-def test_validate_container1(fortran_reader):
-    '''Test that the validate method raises the expected exceptions if the
-    metadata symbol does not reside within a Container node or resides
-    within a FileContainer node.
-
-    '''
+def test_validate_metadata_in_routine(fortran_reader):
+    '''Test that kernel metadata must be declared at module scope.'''
     code = (
         f"subroutine test\n"
         f"{METADATA}\n"
@@ -133,28 +100,9 @@ def test_validate_container1(fortran_reader):
     kern_trans = RaisePSyIR2LFRicKernTrans()
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
-    assert ("The Container in which the metadata symbol resides is a "
-            "FileContainer, but should be a generic Container."
+    assert ("The metadata name 'testkern_type' provided to the transformation "
+            "does not correspond to a symbol in the supplied PSyIR."
             in str(info.value))
-
-
-def test_validate_keyerror(fortran_reader):
-    '''Test that the PSyIR tree walk to find the metadata symbol works if
-    multiple symbol tables need to be searched before finding the
-    correct one.
-
-    '''
-    my_program = (f"module dummy\n"
-                  f"contains\n"
-                  f"subroutine dummy1()\n"
-                  f"end subroutine\n"
-                  f"  subroutine dummy2()\n"
-                  f"{METADATA}"
-                  f"  end subroutine\n"
-                  f"end module\n")
-    kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    kern_trans = RaisePSyIR2LFRicKernTrans()
-    kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
 
 
 def test_validate_container2(fortran_reader):
@@ -293,15 +241,13 @@ def test_apply_ok(fortran_reader):
     # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
-    expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
-        "  CONTAINS\n"
-        "    PROCEDURE, NOPASS :: testkern_code\n"
-        "END TYPE testkern_type\n")
-    assert container.metadata.fortran_string() == expected
+    metadata = container.metadata
+    assert metadata.name == "testkern_type"
+    assert metadata.procedure_name == "testkern_code"
+    assert metadata.operates_on == "cell_column"
+    assert len(metadata.meta_args) == 1
+    assert metadata.meta_args[0].fortran_string() == (
+        "arg_type(gh_field, gh_real, gh_inc, w1)")
 
 
 def test_apply_multi_ok(fortran_reader):
@@ -325,10 +271,10 @@ def test_apply_multi_ok(fortran_reader):
     # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
-    expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
-        "END TYPE testkern_type\n")
-    assert container.metadata.fortran_string() == expected
+    metadata = container.metadata
+    assert metadata.name == "testkern_type"
+    assert metadata.procedure_name is None
+    assert metadata.operates_on == "cell_column"
+    assert len(metadata.meta_args) == 1
+    assert metadata.meta_args[0].fortran_string() == (
+        "arg_type(gh_field, gh_real, gh_inc, w1)")

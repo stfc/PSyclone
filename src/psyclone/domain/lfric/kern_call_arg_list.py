@@ -879,8 +879,10 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
-    def mesh_properties(self,
-                        var_accesses: Optional[VariablesAccessMap] = None):
+    def mesh_properties(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         '''Provide the kernel arguments required for the mesh properties
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
@@ -889,7 +891,7 @@ class KernCallArgList(ArgOrdering):
             the information about variable accesses.
 
         '''
-        if self._kern.mesh.properties:
+        if self._kern.mesh:
             # Avoid circular import:
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import LFRicMeshProperties

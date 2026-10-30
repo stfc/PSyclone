@@ -8,13 +8,15 @@
 ''' Performs py.test tests on the psyGen module '''
 
 
+from dataclasses import replace
+from types import SimpleNamespace
 import os
 import logging
 import warnings
 
 import pytest
 
-from fparser import api as fpapi
+from fparser.api import parse as parse_fortran
 from fparser.two import Fortran2003
 
 from psyclone import transformations
@@ -23,7 +25,9 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
-                                   LFRicKern, LFRicKernMetadata)
+                                   LFRicKern, LFRicKernelMetadata)
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -43,7 +47,7 @@ from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
 from psyclone.utils import colored
@@ -630,7 +634,7 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                             &
+     type(arg_type), dimension(3) :: meta_args =                &
           (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
              arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_real, gh_inc,       w1)      &
@@ -716,13 +720,13 @@ def test_kern_get_callees():
     assert isinstance(kern_schedules[0], KernelSchedule)
 
 
-def test_codedkern_node_str():
+def test_codedkern_node_str(fortran_reader):
     '''Tests the node_str method in the CodedKern class. The simplest way
     to do this is via the lfric subclass.
 
     '''
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
+    metadata = create_lfric_metadata(psyir)
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
@@ -788,14 +792,14 @@ def test_kern_coloured_text():
     assert colored("BuiltIn", bkern._colour) in ret_str
 
 
-def test_kern_children_validation():
+def test_kern_children_validation(fortran_reader):
     '''Test that children added to Kern are validated. A Kern node does not
     accept any children.
 
     '''
     # We use a subclass (CodedKern->LFRicKern) to test this functionality.
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
+    metadata = create_lfric_metadata(psyir)
     kern = LFRicKern()
     kern.load_meta(metadata)
 
@@ -805,15 +809,15 @@ def test_kern_children_validation():
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
-def test_codedkern_get_callees(monkeypatch):
+def test_codedkern_get_callees(monkeypatch, fortran_reader):
     '''
     Check that CodedKern.get_callees() raises a NotImplementedError
     (as it must be implemented by sub-classes). Also check that
     get_interface_symbol() returns None.
 
     '''
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
+    metadata = create_lfric_metadata(psyir)
     kern = LFRicKern()
     kern.load_meta(metadata)
     monkeypatch.setattr(kern, "__class__", CodedKern)
@@ -863,7 +867,7 @@ def test_arguments_abstract():
             in str(err.value))
 
 
-def test_incremented_arg():
+def test_incremented_arg(fortran_reader):
     ''' Check that we raise the expected exception when
     CodedKern.incremented_arg() is called for a kernel that does not have
     an argument that is incremented '''
@@ -873,11 +877,16 @@ def test_incremented_arg():
     # If we change the metadata then we trip the check in the parser.
     # Therefore, we change the object produced by parsing the metadata
     # instead
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
-    for descriptor in metadata.arg_descriptors:
-        if descriptor.access == AccessType.INC:
-            descriptor._access = AccessType.READ
+    psyir = fortran_reader.psyir_from_source(FAKE_KERNEL_METADATA)
+    metadata = create_lfric_metadata(psyir)
+    metadata = replace(
+        metadata,
+        meta_args=tuple(
+            replace(descriptor, access="gh_read")
+            if descriptor.access == "gh_inc" else descriptor
+            for descriptor in metadata.meta_args
+        ),
+    )
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
@@ -1060,9 +1069,16 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
     attempts to perform two reductions.
 
     '''
-    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "multi_reduction_builtins_mod.f90"))
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_read", "w0"),
+                   ScalarArgMetadata("gh_real", "gh_reduction"),
+                   ScalarArgMetadata("gh_real", "gh_reduction")),
+        name="x_innerproduct_y",
+        procedure_name="x_innerproduct_y_code")
+    monkeypatch.setattr(
+        lfric_builtins.LFRicXInnerproductYKern,
+        "metadata", staticmethod(lambda: metadata))
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
         api="lfric")
@@ -2102,3 +2118,25 @@ def test_walk(fortran_reader):
 
     binary_op_list = psyir.walk(BinaryOperation, Loop)
     assert not binary_op_list
+
+
+def test_kern_ast_legacy_source(fortran_writer):
+    """Legacy fparser1 kernel source still yields a cached fparser2 AST."""
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean", idx=0)
+    kern = invoke.schedule.coded_kernels()[0]
+    source = fortran_writer(kern._module_code)
+    kern._module_code = parse_fortran(source, analyze=False)
+    ast = kern.ast
+    assert isinstance(ast, Fortran2003.Program)
+    assert kern.name.lower() in str(ast).lower()
+    assert kern.ast is ast
+
+
+def test_kernel_argument_legacy_metadata_index(monkeypatch):
+    """An explicit index takes precedence over a legacy descriptor's index."""
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
+    argument = invoke.schedule.coded_kernels()[0].arguments.args[0]
+    monkeypatch.setattr(argument, "_arg", SimpleNamespace(metadata_index=7))
+    assert argument.metadata_index == 0
+    monkeypatch.setattr(argument, "_metadata_index", None)
+    assert argument.metadata_index == 7

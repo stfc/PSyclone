@@ -7,17 +7,15 @@
 
 ''' This module implements the PSyclone LFRic API by 1) specialising the
     required base classes in parser.py (KernelType) and
-    adding a new class (LFRicFuncDescriptor) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
 
 from __future__ import annotations
-import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, TYPE_CHECKING, Union
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -25,12 +23,10 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicArgDescriptor, LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
+    LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.parse.kernel import getkerneldescriptors
-from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
                              KernelArgument, HaloExchange)
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -52,6 +48,12 @@ from psyclone.psyir.symbols import (
 #
 
 # ---------- Functions ------------------------------------------------------ #
+
+if TYPE_CHECKING:
+    from psyclone.core import VariablesAccessMap
+    from psyclone.domain.lfric import LFRicInvoke
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.parse.algorithm import ParsedCall
 
 
 def qr_basis_alloc_args(table: SymbolTable,
@@ -117,87 +119,11 @@ def qr_basis_alloc_args(table: SymbolTable,
 # ---------- Classes -------------------------------------------------------- #
 
 
-class LFRicFuncDescriptor():
-    ''' The LFRic API includes a function-space descriptor as
-    well as an argument descriptor which is not supported by the base
-    classes. This class captures the information specified in a
-    function-space descriptor. '''
-
-    def __init__(self, func_type):
-        self._func_type = func_type
-        if func_type.name != 'func_type':
-            raise ParseError(
-                f"In the lfric API each meta_func entry must be of type "
-                f"'func_type' but found '{func_type.name}'")
-        if len(func_type.args) < 2:
-            raise ParseError(
-                f"In the lfric API each meta_func entry must have at "
-                f"least 2 args, but found {len(func_type.args)}")
-        self._operator_names = []
-        const = LFRicConstants()
-        for idx, arg in enumerate(func_type.args):
-            if idx == 0:  # first func_type arg
-                if arg.name not in const.VALID_FUNCTION_SPACE_NAMES:
-                    raise ParseError(
-                        f"In the LFRic API the 1st argument of a "
-                        f"meta_func entry should be a valid function space "
-                        f"name (one of {const.VALID_FUNCTION_SPACE_NAMES}), "
-                        f"but found '{arg.name}' in '{func_type}'")
-                self._function_space_name = arg.name
-            else:  # subsequent func_type args
-                if arg.name not in const.VALID_METAFUNC_NAMES:
-                    raise ParseError(
-                        f"In the lfric API, the 2nd argument and all "
-                        f"subsequent arguments of a meta_func entry should "
-                        f"be one of {const.VALID_METAFUNC_NAMES}, but found "
-                        f"'{arg.name}' in '{func_type}'")
-                if arg.name in self._operator_names:
-                    raise ParseError(
-                        f"In the lfric API, it is an error to specify an "
-                        f"operator name more than once in a meta_func entry, "
-                        f"but '{arg.name}' is replicated in '{func_type}'")
-                self._operator_names.append(arg.name)
-        self._name = func_type.name
-
-    @property
-    def function_space_name(self):
-        ''' Returns the name of the descriptors function space '''
-        return self._function_space_name
-
-    @property
-    def operator_names(self):
-        ''' Returns a list of operators that are associated with this
-        descriptors function space '''
-        return self._operator_names
-
-    def __repr__(self):
-        return f"LFRicFuncDescriptor({self._func_type})"
-
-    def __str__(self):
-        res = "LFRicFuncDescriptor object" + os.linesep
-        res += f"  name='{self._name}'" + os.linesep
-        res += f"  nargs={len(self._operator_names)+1}" + os.linesep
-        res += f"  function_space_name[{0}] = '{self._function_space_name}'" \
-               + os.linesep
-        for idx, arg in enumerate(self._operator_names):
-            res += f"  operator_name[{idx+1}] = '{arg}'" + \
-                   os.linesep
-        return res
-
-
 class RefElementMetaData():
-    '''
-    Class responsible for parsing reference-element metadata and storing
-    the properties that a kernel requires.
+    '''Namespace for the reference-element property vocabulary.
 
-    :param str kernel_name: name of the Kernel that the metadata is for.
-    :param type_declns: list of fparser1 parse tree nodes representing type \
-                        declaration statements
-    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
-
-    :raises ParseError: if an unrecognised reference-element property is found.
-    :raises ParseError: if a duplicate reference-element property is found.
-
+    Parsing and validation are performed by the immutable PSyIR metadata
+    implementation in :mod:`psyclone.domain.lfric.kernel.metadata`.
     '''
     # pylint: disable=too-few-public-methods
     class Property(Enum):
@@ -214,49 +140,6 @@ class RefElementMetaData():
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 5
         OUTWARD_NORMALS_TO_FACES = 6
 
-    def __init__(self, kernel_name, type_declns):
-        # The list of properties requested in the metadata (if any)
-        self.properties = []
-
-        re_properties = []
-        # Search the supplied list of type declarations for the one
-        # describing the reference-element properties required by the kernel.
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "reference_element_data_type":
-                    # getkerneldescriptors raises a ParseError if the named
-                    # element cannot be found.
-                    re_properties = getkerneldescriptors(
-                        kernel_name, line, var_name="meta_reference_element",
-                        var_type="reference_element_data_type")
-                    break
-            if re_properties:
-                # Optimisation - stop searching if we've found a type
-                # declaration for the reference-element data
-                break
-        try:
-            # The metadata entry is a declaration of a Fortran array of type
-            # reference_element_data_type. The initialisation of each member
-            # of this array is done as a Fortran structure constructor, the
-            # argument to which gives a property of the reference element.
-            for re_prop in re_properties:
-                for arg in re_prop.args:
-                    self.properties.append(
-                        self.Property[str(arg).upper()])
-        except KeyError as err:
-            # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing.
-            sorted_names = sorted([prop.name for prop in self.Property])
-            raise ParseError(
-                f"Unsupported reference-element property: '{arg}'. Supported "
-                f"values are: {sorted_names}") from err
-
-        # Check for duplicate properties
-        for prop in self.properties:
-            if self.properties.count(prop) > 1:
-                raise ParseError(f"Duplicate reference-element property "
-                                 f"found: '{prop}'.")
-
 
 class MeshProperty(Enum):
     '''
@@ -270,70 +153,6 @@ class MeshProperty(Enum):
     NCELL_2D = 2
     NCELL_2D_NO_HALOS = 3
 
-
-class MeshPropertiesMetaData():
-    '''
-    Parses any mesh-property kernel metadata and stores the properties that
-    a kernel requires.
-
-    :param str kernel_name: name of the kernel that the metadata is for.
-    :param type_declns: list of fparser1 parse tree nodes representing type \
-                        declaration statements.
-    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
-
-    :raises ParseError: if an unrecognised mesh property is found.
-    :raises ParseError: if a duplicate mesh property is found.
-
-    '''
-    # pylint: disable=too-few-public-methods
-    # The properties that may be specified in kernel metadata are a subset
-    # of the MeshProperty enumeration values.
-    supported_properties = [MeshProperty.ADJACENT_FACE]
-
-    def __init__(self, kernel_name, type_declns):
-        # The list of mesh properties requested in the metadata.
-        self.properties = []
-
-        mesh_props = []
-        # Search the supplied list of type declarations for the one
-        # describing the reference-element properties required by the kernel.
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "mesh_data_type":
-                    # getkerneldescriptors raises a ParseError if the named
-                    # element cannot be found.
-                    mesh_props = getkerneldescriptors(
-                        kernel_name, line, var_name="meta_mesh",
-                        var_type="mesh_data_type")
-                    break
-            if mesh_props:
-                # Optimisation - stop searching if we've found a type
-                # declaration for the mesh data
-                break
-        try:
-            # The metadata entry is a declaration of a Fortran array of type
-            # mesh_data_type. The initialisation of each member
-            # of this array is done as a Fortran structure constructor, the
-            # argument to which gives a mesh property.
-            for prop in mesh_props:
-                for arg in prop.args:
-                    mesh_prop = MeshProperty[str(arg).upper()]
-                    if mesh_prop not in self.supported_properties:
-                        raise KeyError()
-                    self.properties.append(mesh_prop)
-        except KeyError as err:
-            # We found a mesh property that we don't recognise or that
-            # is not supported.
-            supported_mesh_prop = [pr.name for pr in self.supported_properties]
-            raise ParseError(f"Unsupported mesh property in metadata: "
-                             f"'{arg}'. Supported values are: "
-                             f"{supported_mesh_prop}") from err
-
-        # Check for duplicate properties
-        for prop in self.properties:
-            if self.properties.count(prop) > 1:
-                raise ParseError(f"Duplicate mesh property "
-                                 f"found: '{prop}'.")
 
 # --------------------------------------------------------------------------- #
 # ========== Second section : PSy specialisations =========================== #
@@ -356,7 +175,7 @@ class LFRicMeshProperties(LFRicCollection):
 
     '''
 
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]) -> None:
         super().__init__(node)
 
         # The (ordered) list of mesh properties required by this invoke or
@@ -365,7 +184,7 @@ class LFRicMeshProperties(LFRicCollection):
 
         for call in self.kernel_calls:
             if call.mesh:
-                self._properties += [prop for prop in call.mesh.properties
+                self._properties += [prop for prop in call.mesh
                                      if prop not in self._properties]
             # Kernels that operate on the 'domain' need the number of columns,
             # excluding those in the halo.
@@ -400,8 +219,12 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-    def kern_args(self, stub=False, var_accesses=None,
-                  kern_call_arg_list=None):
+    def kern_args(
+            self,
+            stub: bool = False,
+            var_accesses: Optional[VariablesAccessMap] = None,
+            kern_call_arg_list: Optional[KernCallArgList] = None,
+    ) -> list[str]:
         # pylint: disable=too-many-locals, too-many-branches
         '''
         Provides the list of kernel arguments associated with the mesh
@@ -441,10 +264,10 @@ class LFRicMeshProperties(LFRicCollection):
                 # faces of the reference element?
                 has_nfaces = (
                     RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
-                    in self._kernel.reference_element.properties or
+                    in self._kernel.reference_element or
                     RefElementMetaData.Property.
                     OUTWARD_NORMALS_TO_HORIZONTAL_FACES
-                    in self._kernel.reference_element.properties)
+                    in self._kernel.reference_element)
                 if not has_nfaces:
                     if kern_call_arg_list:
                         sym = kern_call_arg_list.\
@@ -736,7 +559,7 @@ class LFRicReferenceElement(LFRicCollection):
     '''
 
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]) -> None:
         # pylint: disable=too-many-branches, too-many-statements
         super().__init__(node)
 
@@ -749,8 +572,8 @@ class LFRicReferenceElement(LFRicCollection):
 
         for call in self.kernel_calls:
             if call.reference_element:
-                self._properties.extend(call.reference_element.properties)
-            if call.mesh and call.mesh.properties:
+                self._properties.extend(call.reference_element)
+            if call.mesh:
                 # If a kernel requires a property of the mesh then it will
                 # also require the number of horizontal faces of the
                 # reference element.
@@ -1887,8 +1710,7 @@ class LFRicCMAOperators(LFRicCollection):
 
 
 class LFRicMeshes():
-    '''
-    Holds all mesh-related information (including colour maps if
+    """Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
     one mesh object required (when calling kernels with operates_on==domain,
     colouring, doing distributed memory or querying the reference element).
@@ -1900,15 +1722,21 @@ class LFRicMeshes():
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
-    :param invoke: the Invoke for which to extract information on all \
-                   required inter-grid operations.
+    :param invoke: the Invoke for which to extract information on all
+        required inter-grid operations.
     :type invoke: :py:class:`psyclone.domain.lfric.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
-    :type unique_psy_vars: list of \
-                      :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
-    '''
+    :type unique_psy_vars: list of
+        :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
 
-    def __init__(self, invoke, unique_psy_vars):
+    :raises GenerationError: if an invoke mixes inter-grid and other kernels.
+    """
+
+    def __init__(
+            self,
+            invoke: LFRicInvoke,
+            unique_psy_vars: list[LFRicKernelArgument],
+    ) -> None:
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -1937,7 +1765,7 @@ class LFRicMeshes():
         has_intergrid = False
         for call in self._invoke.schedule.coded_kernels():
 
-            if (call.reference_element.properties or call.mesh.properties or
+            if (call.reference_element or call.mesh or
                     call.iterates_over == "domain" or call.cma_operation):
                 _name_set.add("mesh")
 
@@ -4918,7 +4746,7 @@ class HaloReadAccess(HaloDepth):
         '''
         return self._stencil_type
 
-    def _compute_from_field(self, field: LFRicKernelArgument):
+    def _compute_from_field(self, field: LFRicKernelArgument) -> None:
         '''Internal method to compute which parts of a field's halo are read
         in a certain kernel and loop. The information computed is the
         depth of access and the access pattern. The depth of access
@@ -4995,7 +4823,7 @@ class HaloReadAccess(HaloDepth):
             # Loop is coloured but does not access the halo.
             pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
-            if field.descriptor.stencil:
+            if field.metadata_stencil:
                 # no need to worry about annexed dofs (if they exist)
                 # as the stencil will cover these (this is currently
                 # guaranteed as halo exchanges only exchange full
@@ -5036,18 +4864,18 @@ class HaloReadAccess(HaloDepth):
             # is what is done when performing redundant computation
             # with no stencil.
             self._stencil_type = "region"
-        if field.descriptor.stencil:
+        if field.metadata_stencil:
             # field has a stencil access
             if self._max_depth:
                 raise GenerationError(
                     "redundant computation to max depth with a stencil is "
                     "invalid")
-            self._stencil_type = field.descriptor.stencil['type']
+            self._stencil_type = field.metadata_stencil['type']
             if self._var_depth:
                 # halo exchange does not support mixed accesses to the halo
                 # so we simply set the stencil type as 'region'.
                 self._stencil_type = "region"
-            stencil_depth = field.descriptor.stencil['extent']
+            stencil_depth = field.metadata_stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
                 st_depth = Literal(str(stencil_depth),
@@ -5103,22 +4931,32 @@ class FSDescriptor():
         self._descriptor = descriptor
 
     @property
-    def requires_basis(self):
-        ''' Returns True if a basis function is associated with this
-        function space, otherwise it returns False. '''
-        return "gh_basis" in self._descriptor.operator_names
+    def requires_basis(self) -> bool:
+        """Returns True if a basis function is associated with this
+        function space, otherwise it returns False.
+
+        :returns: whether the function space requires basis functions.
+        """
+        return self._descriptor.basis_function
 
     @property
-    def requires_diff_basis(self):
-        ''' Returns True if a differential basis function is
+    def requires_diff_basis(self) -> bool:
+        """Returns True if a differential basis function is
         associated with this function space, otherwise it returns
-        False. '''
-        return "gh_diff_basis" in self._descriptor.operator_names
+        False.
+
+        :returns: whether the function space requires differential basis
+            functions.
+        """
+        return self._descriptor.diff_basis_function
 
     @property
-    def fs_name(self):
-        ''' Returns the raw metadata value of this function space. '''
-        return self._descriptor.function_space_name
+    def fs_name(self) -> str:
+        """Returns the raw metadata value of this function space.
+
+        :returns: the function-space name specified in the metadata.
+        """
+        return self._descriptor.function_space
 
 
 class FSDescriptors():
@@ -5133,7 +4971,8 @@ class FSDescriptors():
     :param descriptors: list of objects describing the basis/diff-basis \
                         functions required by a kernel, as obtained from \
                         metadata.
-    :type descriptors: list of :py:class:`psyclone.LFRicFuncDescriptor`.
+    :type descriptors: list of
+        :py:class:`psyclone.domain.lfric.kernel.MetaFuncsArgMetadata`.
 
     '''
 
@@ -5174,7 +5013,7 @@ class FSDescriptors():
         return self._descriptors
 
 
-def check_args(call, parent_call):
+def check_args(call: ParsedCall, parent_call: Kern) -> None:
     '''
     Checks that the kernel arguments provided via the invoke call are
     consistent with the information expected, as specified by the
@@ -5186,32 +5025,34 @@ def check_args(call, parent_call):
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises: GenerationError if the kernel arguments in the Algorithm layer
+    :raises GenerationError: if the kernel arguments in the Algorithm layer
              do not match up with the kernel metadata.
     '''
     # stencil arguments
     stencil_arg_count = 0
-    for arg_descriptor in call.ktype.arg_descriptors:
-        if arg_descriptor.stencil:
-            if not arg_descriptor.stencil['extent']:
+    metadata = call.kernel.metadata
+    for argument in metadata.meta_args:
+        stencil = getattr(argument, "stencil", None)
+        if stencil:
+            if not getattr(argument, "stencil_extent", None):
                 # an extent argument must be provided
                 stencil_arg_count += 1
-            if arg_descriptor.stencil['type'] == 'xory1d':
+            if stencil == 'xory1d':
                 # a direction argument must be provided
                 stencil_arg_count += 1
 
     const = LFRicConstants()
     # Quadrature arguments - will have as many as there are distinct
     # quadrature shapes specified in the metadata.
-    qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
+    qr_arg_count = len(set(metadata.eval_shapes).intersection(
         set(const.VALID_QUADRATURE_SHAPES)))
 
     # If a kernel operates on halo columns then it takes an extra, halo-depth
     # argument from the Algorithm layer.
     halo_depth_count = 0
-    if "halo" in call.ktype.iterates_over:
+    if "halo" in metadata.iterates_over:
         halo_depth_count = 1
-    expected_arg_count = (len(call.ktype.arg_descriptors) +
+    expected_arg_count = (len(metadata.meta_args) +
                           stencil_arg_count + qr_arg_count + halo_depth_count)
 
     if expected_arg_count != len(call.args):
@@ -5222,9 +5063,9 @@ def check_args(call, parent_call):
                 msg = f"from invoke '{invoke.name}' "
         raise GenerationError(
             f"error: expected '{expected_arg_count}' arguments for the call "
-            f"to kernel '{call.ktype.name}' {msg}in the algorithm layer but "
+            f"to kernel '{metadata.name}' {msg}in the algorithm layer but "
             f"found '{len(call.args)}'. Expected "
-            f"'{len(call.ktype.arg_descriptors)}' standard arguments, "
+            f"'{len(metadata.meta_args)}' standard arguments, "
             f"'{stencil_arg_count}' stencil arguments, '{qr_arg_count}' "
             f"qr_arguments and '{halo_depth_count}' halo-depth arguments.")
 
@@ -5267,7 +5108,7 @@ class LFRicKernelArguments(Arguments):
     def __init__(self,
                  call: KernelCall,
                  parent_call: LFRicKern,
-                 check: bool = True):
+                 check: bool = True) -> None:
         # pylint: disable=too-many-branches
         super().__init__(parent_call)
 
@@ -5279,23 +5120,23 @@ class LFRicKernelArguments(Arguments):
         # appropriate.
         self._args: list[LFRicKernelArgument] = []
         idx = 0
-        for arg in call.ktype.arg_descriptors:
-            lfric_argument = LFRicKernelArgument(self, arg, call.args[idx],
-                                                 parent_call, check)
+        for metadata_index, arg in enumerate(call.kernel.metadata.meta_args):
+            lfric_argument = LFRicKernelArgument(
+                self, arg, call.args[idx], parent_call, metadata_index, check)
             idx += 1
-            if lfric_argument.descriptor.stencil:
-                if lfric_argument.descriptor.stencil['extent']:
+            if lfric_argument.metadata_stencil:
+                if lfric_argument.metadata_stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line: stencil.extent =
-                    # lfric_argument.descriptor.stencil['extent']
+                    # lfric_argument.metadata_stencil['extent']
                 # An extent argument has been added.
                 stencil_extent_arg = call.args[idx]
                 idx += 1
-                if lfric_argument.descriptor.stencil['type'] == 'xory1d':
+                if lfric_argument.metadata_stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil = LFRicArgStencil(
-                        name=lfric_argument.descriptor.stencil['type'],
+                        name=lfric_argument.metadata_stencil['type'],
                         extent_arg=stencil_extent_arg,
                         direction_arg=call.args[idx]
                         )
@@ -5304,7 +5145,7 @@ class LFRicKernelArguments(Arguments):
                     # Create a stencil object and store a reference to it in
                     # our new LFRicKernelArgument object.
                     stencil = LFRicArgStencil(
-                        name=lfric_argument.descriptor.stencil['type'],
+                        name=lfric_argument.metadata_stencil['type'],
                         extent_arg=stencil_extent_arg
                         )
                 lfric_argument.stencil = stencil
@@ -5326,7 +5167,7 @@ class LFRicKernelArguments(Arguments):
             symtab = SymbolTable()
         const = LFRicConstants()
         for arg in self._args:
-            if not arg.descriptor.stencil:
+            if not arg.metadata_stencil:
                 continue
             if not arg.stencil.extent_arg.is_literal():
                 if arg.stencil.extent_arg.varname:
@@ -5339,7 +5180,7 @@ class LFRicKernelArguments(Arguments):
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                     )
                     arg.stencil.extent_arg.varname = symbol.name
-            if arg.descriptor.stencil['type'] == 'xory1d':
+            if arg.metadata_stencil['type'] == 'xory1d':
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
                    arg.stencil.direction_arg.varname not in \
@@ -5581,8 +5422,7 @@ class LFRicKernelArguments(Arguments):
 
 
 class LFRicKernelArgument(KernelArgument):
-    '''
-    This class provides information about individual LFRic kernel call
+    """This class provides information about individual LFRic kernel call
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
@@ -5599,31 +5439,45 @@ class LFRicKernelArgument(KernelArgument):
     :raises InternalError: for an unsupported metadata in the argument
                            descriptor data type.
 
-    '''
+    :param metadata_index: the argument position in the kernel metadata.
+    """
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self,
                  kernel_args: LFRicKernelArguments,
-                 arg_meta_data: LFRicArgDescriptor,
+                 arg_meta_data: KernelArgumentMetadata,
                  arg_info: Arg,
                  call: LFRicKern,
-                 check: bool = True):
+                 metadata_index: int,
+                 check: Optional[bool] = True) -> None:
         # Keep a reference to LFRicKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
         self._kernel_args = kernel_args
-        self._vector_size = arg_meta_data.vector_size
+        self._vector_size = int(getattr(arg_meta_data, "vector_length", 1))
         # The number of dimensions (for a ScalarArray)
-        self._array_ndims = arg_meta_data.array_ndims
-        self._argument_type = arg_meta_data.argument_type
+        self._array_ndims = getattr(arg_meta_data, "array_ndims", 1)
+        if arg_meta_data.form == "gh_scalar":
+            self._array_ndims = 0
+            self._vector_size = 0
+        elif arg_meta_data.form == "gh_scalar_array":
+            self._vector_size = 0
+        self._argument_type = arg_meta_data.form
+        self._metadata_datatype = arg_meta_data.datatype
+        stencil_type = getattr(arg_meta_data, "stencil", None)
+        self._metadata_stencil = (
+            {"type": stencil_type,
+             "extent": getattr(arg_meta_data, "stencil_extent", None)}
+            if stencil_type else None)
         self._stencil = None
-        if arg_meta_data.mesh:
-            self._mesh = arg_meta_data.mesh.lower()
+        mesh = getattr(arg_meta_data, "mesh_arg", None)
+        if mesh:
+            self._mesh = mesh.lower()
         else:
             self._mesh = None
         # The number of vertical layers (for a field/operator)
-        self._nlayers: Optional[str] = arg_meta_data.nlayers
+        self._nlayers: Optional[str] = getattr(arg_meta_data, "nlayers", "")
         # The number of data values associated with each DoF of a field
-        self._ndata: Optional[str] = arg_meta_data.ndata
+        self._ndata: Optional[str] = getattr(arg_meta_data, "ndata", "1")
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -5642,10 +5496,11 @@ class LFRicKernelArgument(KernelArgument):
                                 self._kernel_args, self._nlayers,
                                 self._ndata)
         else:
-            if arg_meta_data.function_space:
-                fs1 = FunctionSpace(arg_meta_data.function_space,
-                                    self._kernel_args, self._nlayers,
-                                    self._ndata)
+            function_space = getattr(arg_meta_data, "function_space", None)
+            if function_space:
+                fs1 = FunctionSpace(
+                    function_space, self._kernel_args, self._nlayers,
+                    self._ndata)
         self._function_spaces = [fs1, fs2]
 
         # Set the argument's intrinsic type from its descriptor's
@@ -5654,11 +5509,11 @@ class LFRicKernelArgument(KernelArgument):
         try:
             const = LFRicConstants()
             self._intrinsic_type = const.MAPPING_DATA_TYPES[
-                arg_meta_data.data_type]
+                arg_meta_data.datatype]
         except KeyError as err:
             raise InternalError(
                 f"LFRicKernelArgument.__init__(): Found unsupported data "
-                f"type '{arg_meta_data.data_type}' in the kernel argument "
+                f"type '{arg_meta_data.datatype}' in the kernel argument "
                 f"descriptor '{arg_meta_data}'.") from err
 
         # Addressing issue #1618 will allow us to perform static checks
@@ -5666,7 +5521,9 @@ class LFRicKernelArgument(KernelArgument):
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
-        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
+        KernelArgument.__init__(
+            self, arg_meta_data, arg_info, call,
+            metadata_index=metadata_index)
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
@@ -5746,7 +5603,7 @@ class LFRicKernelArgument(KernelArgument):
         return StructureReference.create(
             symbol, [self.ref_name(function_space)])
 
-    def ref_name(self, function_space=None):
+    def ref_name(self, function_space: Optional[FunctionSpace] = None) -> str:
         '''
         Returns the name used to dereference this type of argument (depends
         on whether it is a field or operator and, if the latter, whether it
@@ -5791,17 +5648,17 @@ class LFRicKernelArgument(KernelArgument):
         if self.is_field:
             return "vspace"
         if self.is_operator:
-            if function_space.orig_name == self.descriptor.function_space_from:
+            if function_space.orig_name == self.function_space_from.orig_name:
                 return "fs_from"
-            if function_space.orig_name == self.descriptor.function_space_to:
+            if function_space.orig_name == self.function_space_to.orig_name:
                 return "fs_to"
             raise GenerationError(
                 f"LFRicKernelArgument.ref_name(fs): Function space "
                 f"'{function_space.orig_name}' is one of the 'gh_operator' "
                 f"function spaces '{self.function_spaces}' but is not being "
                 f"returned by either function_space_from "
-                f"'{self.descriptor.function_space_from}' or "
-                f"function_space_to '{self.descriptor.function_space_to}'.")
+                f"'{self.function_space_from.orig_name}' or "
+                f"function_space_to '{self.function_space_to.orig_name}'.")
         raise GenerationError(
             f"LFRicKernelArgument.ref_name(fs): Found unsupported argument "
             f"type '{self._argument_type}'.")
@@ -6098,13 +5955,14 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_OPERATOR_NAMES
 
     @property
-    def descriptor(self):
-        '''
-        :returns: a descriptor object which contains Kernel metadata \
-                  about this argument.
-        :rtype: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
-        '''
-        return self._arg
+    def metadata_stencil(self) -> Optional[dict[str, Union[str, int]]]:
+        """:returns: stencil information from the typed metadata record."""
+        return self._metadata_stencil
+
+    @property
+    def metadata_datatype(self) -> str:
+        """:returns: the API datatype from the typed metadata record."""
+        return self._metadata_datatype
 
     @property
     def argument_type(self):
@@ -6533,7 +6391,6 @@ class LFRicACCEnterDataDirective(ACCEnterDataDirective):
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
 __all__ = [
-    'LFRicFuncDescriptor',
     'LFRicFunctionSpaces',
     'LFRicProxies',
     'LFRicLMAOperators',

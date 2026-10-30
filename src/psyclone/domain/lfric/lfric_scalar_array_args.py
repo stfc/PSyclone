@@ -11,6 +11,8 @@ declarations of ScalarArray arguments to the kernel found in either
 an Invoke or a Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import Counter
 from typing import Union
@@ -110,7 +112,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # Create declarations
         self._create_declarations()
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Create and add declarations for all ScalarArray arguments in
         a Kernel stub.
@@ -129,11 +131,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
             if arg.is_scalar_array:
                 # Check whether the ScalarArrays are of a supported data
                 # type
-                if (arg.descriptor.data_type not in
+                if (arg.metadata_datatype not in
                         const.VALID_SCALAR_DATA_TYPES):
                     raise InternalError(
                         f"Found an unsupported data type "
-                        f"'{arg.descriptor.data_type}' for the "
+                        f"'{arg.metadata_datatype}' for the "
                         f"ScalarArray argument '{arg.declaration_name}'"
                         f". Supported types are "
                         f"{const.VALID_SCALAR_DATA_TYPES}.")

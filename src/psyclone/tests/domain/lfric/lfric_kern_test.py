@@ -9,27 +9,26 @@
 pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
+from dataclasses import replace
+from types import SimpleNamespace
 import os
 import pytest
-
-from fparser import api as fpapi
 
 import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop)
+                                   LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
     ScalarType)
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import create_lfric_metadata, get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
@@ -40,7 +39,7 @@ TEST_API = "lfric"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                              &
+     type(arg_type), dimension(6) :: meta_args =                 &
           (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
              arg_type(gh_field,    gh_real,    gh_inc, w1),      &
              arg_type(gh_field,    gh_real,    gh_read, w2),     &
@@ -60,29 +59,36 @@ module testkern_qr
   end type testkern_qr_type
 contains
   subroutine testkern_qr_code(a, b, c, d)
+    real, intent(inout) :: a, b, c, d
   end subroutine testkern_qr_code
 end module testkern_qr
 '''
 
 
-def test_scalar_kernel_load_meta_err():
+def test_scalar_kernel_load_meta_err(fortran_reader):
     ''' Check that the LFRicKern.load_meta() method raises the expected
     internal error if it encounters an unrecognised data type for
     a scalar descriptor.
 
     '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    kernel = LFRicKern()
+    psyir = fortran_reader.psyir_from_source(CODE)
+    metadata = create_lfric_metadata(psyir, name=name)
     # Get a scalar argument descriptor and set an invalid data type
-    scalar_arg = metadata.arg_descriptors[5]
-    scalar_arg._data_type = "gh_triple"
-    with pytest.raises(InternalError) as err:
-        kernel.load_meta(metadata)
+    with pytest.raises(ValueError) as err:
+        replace(metadata.meta_args[5], datatype="gh_triple")
     const = LFRicConstants()
-    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} data types for "
-            f"a scalar argument but found 'gh_triple'." in str(err.value))
+    assert (f"Expected scalar datatype descriptor to be one of "
+            f"{const.VALID_SCALAR_DATA_TYPES}" in str(err.value))
+
+
+@pytest.mark.parametrize("form", ["gh_scalar", "gh_scalar_array"])
+def test_load_meta_invalid_scalar_record(form):
+    """Loading kernel metadata independently checks scalar data types."""
+    metadata = SimpleNamespace(meta_args=(
+        SimpleNamespace(form=form, datatype="gh_triple"),))
+    with pytest.raises(InternalError, match="scalar argument.*gh_triple"):
+        LFRicKern().load_meta(metadata)
 
 
 def test_kern_getter_errors():
@@ -136,9 +142,8 @@ def test_kern_get_callees(monkeypatch):
     # Check the internal error for the case where we fail to get any
     # implementation for the kernel.
     kernel._schedules = None
-    # Monkeypatch the frontend so that it just returns an empty Container.
-    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
-                        lambda _1, _2: Container("dummy_mod"))
+    # Replace the retained source PSyIR with an empty Container.
+    kernel._module_code = Container("dummy_mod")
     with pytest.raises(InternalError) as err:
         kernel.get_callees()
     assert ("Failed to find any routines for Kernel 'matrix_vector_code'"

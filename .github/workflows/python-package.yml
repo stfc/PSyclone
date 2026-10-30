@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.15']
+        python-version: ['3.10', '3.15']
     steps:
       - uses: actions/checkout@v7
         with:
@@ -136,12 +136,12 @@ jobs:
           # ( make -C tutorial/notebooks notebook )
           ( make -C tutorial/training test )
       - name: Test with pytest
-        if: ${{ !(matrix.python-version == '3.9') }}
+        if: ${{ !(matrix.python-version == '3.10') }}
         run: |
           locale
           pytest -n auto --doctest-modules --cov=psyclone --cov-report=xml src/psyclone
       - name: Test with pytest and C Locale
-        if: ${{ matrix.python-version == '3.9' }}
+        if: ${{ matrix.python-version == '3.10' }}
         run: |
           locale
           pytest -n auto --doctest-modules --cov=psyclone --cov-report=xml src/psyclone

@@ -18,12 +18,13 @@ from psyclone.errors import InternalError
 
 # pylint: disable=too-few-public-methods
 class LFRicConstants():
-    '''This class stores all LFRic constants. Note that some constants
+    """This class stores all LFRic constants. Note that some constants
     depend on values in the config file, so this class can only be
     used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
 
-    '''
+    :raises InternalError: if the configuration has not been loaded.
+    """
     HAS_BEEN_INITIALISED = False
 
     #: Dictionary allowing us to look-up the name of the Fortran modules
@@ -48,7 +49,7 @@ class LFRicConstants():
         LFRicConstants.VALID_EVALUATOR_SHAPES = \
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
-        # ---------- LFRicArgDescriptor class constants  ----------------------
+        # ---------- Kernel argument metadata constants -----------------------
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
