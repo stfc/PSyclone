@@ -77,22 +77,16 @@ class FunctionSpace():
         return self._orig_name
 
     @property
-    def mangled_name(self) -> str:
+    def tag_name(self) -> str:
         '''
-        Constructs the mangled version of a function-space name given a list
-        of kernel arguments if the argument's function space is any_*_space
-        (if the argument's function space is one of the valid LFRic function
-        spaces then the mangled name is the original name, set in the class
-        initialisation). The mangled name is the short name of the function
-        space combined with the argument's name, number of vertical layers
-        and number of data points per dof.
+        Given a list of kernel arguments, constructs a unique name for this
+        function-space. If this function space is one of the valid LFRic
+        function spaces then the name is the original name, set in the class
+        initialisation. If it is 'any space' then the name is the short name
+        of the function space combined with the argument's name, number of
+        vertical layers and number of data points per dof.
 
-        TODO #868 - name collisions can occur, e.g. if two function
-        spaces have the same base name (e.g. 'w2') and one has nlayers='a_b',
-        ndata='c' while the other has nlayers='a', ndata='b_c', then both
-        mangled names become 'w2_a_b_c'.
-
-        :returns: mangled name of this function space.
+        :returns: unique tag name for this function space.
 
         :raises FieldNotFoundError: if no kernel argument was found on
                                     the specified function space.
@@ -127,18 +121,18 @@ class FunctionSpace():
 
         # To avoid naming collisions, we always include both nlayers and ndata
         # in the result, even if they are empty (in which case we get a double
-        # underscore).
+        # colon).
         parts = [base_name, self._nlayers, self._ndata]
         return ":".join(parts)
 
     @property
     def short_mangled_name(self) -> str:
         '''
-        :returns: a short form of the mangled name. This is *not* guaranteed
+        :returns: a short, mangled name. This is *not* guaranteed
             to be unique but is useful when constructing meaningful variable
             names.
         '''
-        return self._shorten_name(self.mangled_name)
+        return self._shorten_name(self.tag_name)
 
     @staticmethod
     def _shorten_name(name: str) -> str:
@@ -201,7 +195,7 @@ class FunctionSpace():
         :returns: a unique tag for the dofmap associated with this
                   FunctionSpace.
         '''
-        return f"map:{self.mangled_name}"
+        return f"map:{self.tag_name}"
 
     @property
     def map_name(self) -> str:
@@ -217,7 +211,7 @@ class FunctionSpace():
         :returns: a unique tag for a column-banded dofmap for this
                   FunctionSpace.
         '''
-        return "cbanded_map:" + self.mangled_name
+        return "cbanded_map:" + self.tag_name
 
     @property
     def cbanded_map_name(self) -> str:
@@ -233,7 +227,7 @@ class FunctionSpace():
         :returns: a unique tag for a CMA indirection dofmap for this
                   FunctionSpace.
         '''
-        return "cma_indirection_map:" + self.mangled_name
+        return "cma_indirection_map:" + self.tag_name
 
     @property
     def cma_indirection_map_name(self) -> str:
@@ -248,7 +242,7 @@ class FunctionSpace():
         '''
         :returns: a unique tag for the ndf symbol for this FunctionSpace.
         '''
-        return "ndf:" + self.mangled_name
+        return "ndf:" + self.tag_name
 
     @property
     def ndf_name(self) -> str:
@@ -262,7 +256,7 @@ class FunctionSpace():
         '''
         :returns: a unique tag for the undf symbol for this FunctionSpace.
         '''
-        return "undf:" + self.mangled_name
+        return "undf:" + self.tag_name
 
     @property
     def undf_name(self) -> str:
@@ -289,13 +283,13 @@ class FunctionSpace():
         :returns: name for the Fortran array holding the basis function
 
         '''
-        tag = f"basis:{self.mangled_name}"
+        tag = f"basis:{self.tag_name}"
         name = f"basis_{self.short_mangled_name}"
         if qr_var:
             tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
-            tag += "_on_" + on_space.mangled_name
+            tag += "_on_" + on_space.tag_name
             name += "_on_" + on_space.short_mangled_name
         return name, tag
 
@@ -318,13 +312,13 @@ class FunctionSpace():
                   function
 
         '''
-        tag = f"diff_basis:{self.mangled_name}"
+        tag = f"diff_basis:{self.tag_name}"
         name = f"diff_basis_{self.short_mangled_name}"
         if qr_var:
             tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
-            tag += f"_on_{on_space.mangled_name}"
+            tag += f"_on_{on_space.tag_name}"
             name += f"_on_{on_space.short_mangled_name}"
         return name, tag
 
@@ -367,12 +361,12 @@ class FunctionSpace():
                   contains a field that exists on this space or None.
 
         '''
-        if self.mangled_name in arguments.unique_fs_names:
+        if self.tag_name in arguments.unique_fs_names:
             for arg in arguments.args:
                 # First, test that argument is a field as some argument
                 # objects won't have function spaces, e.g. scalars
                 if arg.is_field and \
-                   arg.function_space.mangled_name == self.mangled_name:
+                   arg.function_space.tag_name == self.tag_name:
                     return arg
         return None
 
@@ -388,7 +382,7 @@ class FunctionSpace():
                   contains a field that exists on this space or None.
 
         '''
-        if self.mangled_name in arguments.unique_fs_names:
+        if self.tag_name in arguments.unique_fs_names:
             for arg in arguments.args:
                 # First, test that arg is a CMA op as some argument objects
                 # won't have function spaces, e.g. scalars

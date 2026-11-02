@@ -2164,8 +2164,8 @@ def test_unrecognised_fspace_error():
         _ = FunctionSpace("w1", first_kernel.arguments, nlayers=1)
 
 
-def test_mangle_no_space_error():
-    ''' Tests that an error is raised in FunctionSpace.mangled_name when
+def test_tag_name_no_space_error():
+    ''' Tests that an error is raised in FunctionSpace.tag_name when
     none of the provided kernel arguments are on the specified space.
 
     '''
@@ -2176,7 +2176,7 @@ def test_mangle_no_space_error():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     with pytest.raises(FieldNotFoundError) as excinfo:
-        _ = FunctionSpace("any_space_7", first_kernel.arguments).mangled_name
+        _ = FunctionSpace("any_space_7", first_kernel.arguments).tag_name
     assert ("No kernel argument found for function space 'any_space_7'"
             in str(excinfo.value))
 
@@ -2195,7 +2195,7 @@ def test_mangle_function_space():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_space_2"
     fspace = FunctionSpace(fs_name, first_kernel.arguments)
-    mangled_name = fspace.mangled_name
+    mangled_name = fspace.tag_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
     assert mangled_name == "as2_f2::1"
@@ -2210,7 +2210,7 @@ def test_mangle_function_space():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_discontinuous_space_1"
     fspace = FunctionSpace(fs_name, first_kernel.arguments)
-    mangled_name = fspace.mangled_name
+    mangled_name = fspace.tag_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
     assert mangled_name == "ads1_f1::1"
@@ -2230,24 +2230,24 @@ def test_no_mangle_specified_function_space():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "w2"
-    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
+    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).tag_name
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
     # When nlayers is specified (and ndata defaults to 1)
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="twod")
-    assert fspace.mangled_name == "w2:twod:1"
+    assert fspace.tag_name == "w2:twod:1"
     assert fspace.short_name == "w2"
     # Explicitly set ndata = 1
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="twod", ndata="1")
-    assert fspace.mangled_name == "w2:twod:1"
+    assert fspace.tag_name == "w2:twod:1"
     assert fspace.short_name == "w2"
     # With both nlayers and ndata
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="3", ndata="physics")
-    assert fspace.mangled_name == "w2:3:physics"
+    assert fspace.tag_name == "w2:3:physics"
     assert fspace.short_name == "w2"
     assert fspace.short_mangled_name == "w2_3_physics"
 

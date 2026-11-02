@@ -138,9 +138,7 @@ class LFRicFields(LFRicCollection):
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
-                    text = (fld.name + "_" +
-                            fld.function_space.mangled_name +
-                            "_v" + str(idx))
+                    text = f"{fld.name}_{fld.function_space.tag_name}_v{idx}"
                     name = freader.create_valid_name(text)
                     arg = self.symtab.find_or_create(
                         name, tag=text, symbol_type=DataSymbol,
@@ -148,7 +146,7 @@ class LFRicFields(LFRicCollection):
                     arg.interface = ArgumentInterface(intent)
                     self.symtab.append_argument(arg)
             else:
-                text = fld.name + "_" + fld.function_space.mangled_name
+                text = f"{fld.name}_{fld.function_space.tag_name}"
                 name = freader.create_valid_name(text)
                 arg = self.symtab.find_or_create(
                     name, symbol_type=DataSymbol, datatype=datatype)

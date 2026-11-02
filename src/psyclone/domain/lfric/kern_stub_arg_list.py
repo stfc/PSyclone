@@ -187,9 +187,7 @@ class KernStubArgList(ArgOrdering):
         # 1 to the vector size which is what we
         # require in our Fortran code
         for idx in range(1, argvect.vector_size+1):
-            text = (argvect.name + "_" +
-                    argvect.function_space.mangled_name +
-                    "_v" + str(idx))
+            text = f"{argvect.name}_{argvect.function_space.tag_name}_v{idx}"
             self.append(FortranReader().create_valid_name(text), var_accesses)
 
     def field(self,
@@ -203,7 +201,7 @@ class KernStubArgList(ArgOrdering):
             the information about variable accesses.
 
         '''
-        text = arg.name + "_" + arg.function_space.mangled_name
+        text = f"{arg.name}_{arg.function_space.tag_name}"
         self.append(FortranReader().create_valid_name(text),
                     var_accesses, mode=arg.access)
 

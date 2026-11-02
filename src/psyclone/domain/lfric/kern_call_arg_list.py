@@ -536,7 +536,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         # TODO #1915, this duplicates code in
         # LFRicStencils.max_branch_length_name
-        unique_tag = LFRicStencils.stencil_unique_str(arg, "length")
+        unique_tag = LFRicStencils.unique_tag(arg, "length")
         root_name = arg.name + "_max_branch_length"
 
         sym = self.append_integer_reference(root_name, tag=unique_tag)

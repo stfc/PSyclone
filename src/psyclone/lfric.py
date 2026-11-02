@@ -1199,7 +1199,7 @@ class LFRicFunctionSpaces(LFRicCollection):
             # will need ndf and undf. If we don't then we only need undf
             # (for the upper bound of the loop over dofs) if we're not
             # doing DM.
-            mangled_name = function_space.mangled_name
+            mangled_name = function_space.tag_name
 
             # Find argument proxy name used to dereference the argument
             arg = self._invoke.arg_for_funcspace(function_space)
@@ -3177,7 +3177,7 @@ class LFRicBasisFunctions(LFRicCollection):
         for (fspace, arg) in self._eval_targets.values():
             # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
-            nodes_name = f"nodes_{fspace.mangled_name}"
+            nodes_name = f"nodes_{fspace.tag_name}"
             kind = api_config.default_kind["real"]
             LFRicTypes.add_precision_symbol(self.symtab, kind)
             try:
@@ -3212,7 +3212,7 @@ class LFRicBasisFunctions(LFRicCollection):
         init_cursor = cursor
         var_dim_list = []
         for basis_fn in self._basis_fns:
-            mangled_name = basis_fn["fspace"].mangled_name
+            mangled_name = basis_fn["fspace"].tag_name
             short_name = basis_fn["fspace"].short_name
             # Get the extent of the first dimension of the basis array.
             if basis_fn['type'] == "basis":
@@ -3308,7 +3308,7 @@ class LFRicBasisFunctions(LFRicCollection):
             if basis_fn['type'] == "basis":
                 if self._invoke:
                     sym = self.symtab.find_or_create_tag(
-                        f"dim:{basis_fn['fspace'].mangled_name}",
+                        f"dim:{basis_fn['fspace'].tag_name}",
                         root_name=f"dim_{basis_fn['fspace'].short_name}",
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -3323,7 +3323,7 @@ class LFRicBasisFunctions(LFRicCollection):
             elif basis_fn['type'] == "diff-basis":
                 if self._invoke:
                     sym = self.symtab.lookup_with_tag(
-                        f"diff_dim:{basis_fn['fspace'].mangled_name}")
+                        f"diff_dim:{basis_fn['fspace'].tag_name}")
                     first_dim = sym.name
                 elif self._kernel:
                     first_dim = self.diff_basis_first_dim_value(
@@ -3615,7 +3615,7 @@ class LFRicBasisFunctions(LFRicCollection):
         first = True
         for basis_fn in self._basis_fns:
 
-            mangled_name = basis_fn['fspace'].mangled_name
+            mangled_name = basis_fn['fspace'].tag_name
 
             # Currently there are only two possible types of basis function
             # and we store the corresponding strings to use in basis_name,
@@ -3713,7 +3713,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     rhs.addchild(Reference(df_symbol))
                     rhs.addchild(ArrayReference.create(
                             self.symtab.lookup_with_tag(
-                                f"nodes_{space.mangled_name}"),
+                                f"nodes_{space.tag_name}"),
                             [":", Reference(nodal_loop_symbol)]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
@@ -5369,8 +5369,8 @@ class LFRicKernelArguments(Arguments):
                 # args don't have one and fields only have one (only
                 # operators have two).
                 if (fspace and
-                        fspace.mangled_name not in self._unique_fs_names):
-                    self._unique_fs_names.append(fspace.mangled_name)
+                        fspace.tag_name not in self._unique_fs_names):
+                    self._unique_fs_names.append(fspace.tag_name)
                     self._unique_fss.append(fspace)
 
     def get_arg_on_space_name(self, func_space_name):
@@ -5415,13 +5415,13 @@ class LFRicKernelArguments(Arguments):
         for arg in self._args:
             for function_space in arg.function_spaces:
                 if function_space:
-                    if func_space.mangled_name == function_space.mangled_name:
+                    if func_space.tag_name == function_space.tag_name:
                         return arg
 
         raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space: "
                                  f"there is no field or operator with function"
                                  f" space {func_space.orig_name} (mangled name"
-                                 f" = '{func_space.mangled_name}')")
+                                 f" = '{func_space.tag_name}')")
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
