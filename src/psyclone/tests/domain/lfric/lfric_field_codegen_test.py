@@ -1209,15 +1209,15 @@ def test_field_nlayers(tmp_path):
     ndf_w2 = f2_proxy%vspace%get_ndf()
     undf_w2 = f2_proxy%vspace%get_undf()
 
-    ! Initialise number of DoFs for w2_shallow_1
+    ! Initialise number of DoFs for w2:shallow:1
     ndf_w2_shallow_1 = f3_proxy%vspace%get_ndf()
     undf_w2_shallow_1 = f3_proxy%vspace%get_undf()
 
-    ! Initialise number of DoFs for w2__precip
+    ! Initialise number of DoFs for w2::precip
     ndf_w2__precip = f5_proxy%vspace%get_ndf()
     undf_w2__precip = f5_proxy%vspace%get_undf()
 
-    ! Initialise number of DoFs for w2_shallow_precip
+    ! Initialise number of DoFs for w2:shallow:precip
     ndf_w2_shallow_precip = f6_proxy%vspace%get_ndf()
     undf_w2_shallow_precip = f6_proxy%vspace%get_undf()
 '''
@@ -1269,11 +1269,11 @@ def test_field_nlayers_anydspace(tmp_path):
     # (ANY_DISCONTINUOUS_SPACE_2) but as the penultimate argument to the third
     # (ANY_DISCONTINUOUS_SPACE_1).
     assert '''\
-    ! Initialise number of DoFs for ads2_df8__precip
+    ! Initialise number of DoFs for ads2_df8::precip
     ndf_ads2_df8__precip = df8_proxy%vspace%get_ndf()
     undf_ads2_df8__precip = df8_proxy%vspace%get_undf()
 
-    ! Initialise number of DoFs for ads1_df8_shallow_1
+    ! Initialise number of DoFs for ads1_df8:shallow:1
     ndf_ads1_df8_shallow_1 = df8_proxy%vspace%get_ndf()
     undf_ads1_df8_shallow_1 = df8_proxy%vspace%get_undf()''' in output
 
