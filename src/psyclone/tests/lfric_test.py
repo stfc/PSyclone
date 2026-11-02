@@ -2198,7 +2198,7 @@ def test_mangle_function_space():
     mangled_name = fspace.mangled_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
-    assert mangled_name == "as2_f2__1"
+    assert mangled_name == "as2_f2::1"
     assert short_name == "as2"
     assert short_mangled == "as2_f2__1"
     # Test any_discontinuous_space
@@ -2213,7 +2213,7 @@ def test_mangle_function_space():
     mangled_name = fspace.mangled_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
-    assert mangled_name == "ads1_f1__1"
+    assert mangled_name == "ads1_f1::1"
     assert short_name == "ads1"
     assert short_mangled == "ads1_f1__1"
 
@@ -2237,17 +2237,17 @@ def test_no_mangle_specified_function_space():
     # When nlayers is specified (and ndata defaults to 1)
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="twod")
-    assert fspace.mangled_name == "w2_twod_1"
+    assert fspace.mangled_name == "w2:twod:1"
     assert fspace.short_name == "w2"
     # Explicitly set ndata = 1
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="twod", ndata="1")
-    assert fspace.mangled_name == "w2_twod_1"
+    assert fspace.mangled_name == "w2:twod:1"
     assert fspace.short_name == "w2"
     # With both nlayers and ndata
     fspace = FunctionSpace(fs_name, first_kernel.arguments,
                            nlayers="3", ndata="physics")
-    assert fspace.mangled_name == "w2_3_physics"
+    assert fspace.mangled_name == "w2:3:physics"
     assert fspace.short_name == "w2"
     assert fspace.short_mangled_name == "w2_3_physics"
 

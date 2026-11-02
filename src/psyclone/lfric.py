@@ -3183,7 +3183,8 @@ class LFRicBasisFunctions(LFRicCollection):
             try:
                 symbol = self.symtab.lookup_with_tag(nodes_name)
             except KeyError:
-                name = self.symtab.next_available_name(nodes_name)
+                var_name = FortranReader.create_valid_name(nodes_name)
+                name = self.symtab.next_available_name(var_name)
                 symbol = self.symtab.find_or_create_tag(
                     nodes_name,
                     root_name=name,
@@ -3711,7 +3712,8 @@ class LFRicBasisFunctions(LFRicCollection):
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
                     rhs.addchild(Reference(df_symbol))
                     rhs.addchild(ArrayReference.create(
-                            self.symtab.lookup(f"nodes_{space.mangled_name}"),
+                            self.symtab.lookup_with_tag(
+                                f"nodes_{space.mangled_name}"),
                             [":", Reference(nodal_loop_symbol)]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
