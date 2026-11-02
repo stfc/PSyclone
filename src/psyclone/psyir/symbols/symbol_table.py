@@ -491,7 +491,11 @@ class SymbolTable():
             return symbol
         except KeyError:
             if not root_name:
-                root_name = tag
+                # We are free to choose a name and so we make sure that it is
+                # a valid Fortran name (a tag can contain anything).
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.frontend.fortran import FortranReader
+                root_name = FortranReader().create_valid_name(tag)
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
     def next_available_name(self, root_name=None, shadowing=False,
