@@ -1012,73 +1012,33 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "m3, m4, f5, f6, m5, m6, m7)\n"
     )
     assert output in generated_code
-    expected = (
-        """
-    type(integer_field_type), intent(in) :: i1
-    type(integer_field_type), intent(in) :: i2
-    type(integer_field_type), intent(in) :: n1
-    type(integer_field_type), intent(in) :: n2
-    type(integer_field_type), intent(in) :: i3
-    type(integer_field_type), intent(in) :: i4
-    type(integer_field_type), intent(in) :: n3
-    type(integer_field_type), intent(in) :: n4
-    type(integer_field_type), intent(in) :: i5
-    type(integer_field_type), intent(in) :: i6
-    type(integer_field_type), intent(in) :: n5
-    type(integer_field_type), intent(in) :: n6
-    type(integer_field_type), intent(in) :: i7
-    type(integer_field_type), intent(in) :: i8
-    type(integer_field_type), intent(in) :: n7
-    type(field_type), intent(in) :: f1
-    type(field_type), intent(in) :: f2
-    type(field_type), intent(in) :: m1
-    type(field_type), intent(in) :: m2
-    type(field_type), intent(in) :: f3
-    type(field_type), intent(in) :: f4
-    type(field_type), intent(in) :: m3
-    type(field_type), intent(in) :: m4
-    type(field_type), intent(in) :: f5
-    type(field_type), intent(in) :: f6
-    type(field_type), intent(in) :: m5
-    type(field_type), intent(in) :: m6
-    type(field_type), intent(in) :: m7
-    """)
-    for line in expected.split("\n"):
-        assert line in generated_code, line
 
-    expected = (
-        """
-    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f5_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f6_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m5_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m6_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m7_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i7_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: i8_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: n7_data => null()
-""")
-    for line in expected.split("\n"):
-        assert line in generated_code, line
+    # Integer field declarations.
+    ifield_decls = []
+    idata_decls = []
+    for fname in ["i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8",
+                  "n1", "n2", "n3", "n4", "n5", "n6", "n7"]:
+        ifield_decls.append(
+            f"    type(integer_field_type), intent(in) :: {fname}")
+        idata_decls.append(
+            f"    integer(kind=i_def), pointer, dimension(:) :: "
+            f"{fname}_data => null()")
+
+    assert "\n".join(ifield_decls) in generated_code
+    assert "\n".join(idata_decls) in generated_code
+
+    # Real field declarations.
+    rfield_decls = []
+    rdata_decls = []
+    for fname in ["f1", "f2", "f3", "f4", "f5", "f6", "m1", "m2",
+                  "m3", "m4", "m5", "m6", "m7"]:
+        rfield_decls.append(
+            f"    type(field_type), intent(in) :: {fname}")
+        rdata_decls.append(
+            f"    real(kind=r_def), pointer, dimension(:) :: {fname}_data "
+            f"=> null()")
+    assert "\n".join(rfield_decls) in generated_code
+    assert "\n".join(rdata_decls) in generated_code
 
     # Number of layers and the mesh are determined from the first integer
     # field. Maps for function spaces are determined from the first kernel
