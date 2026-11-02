@@ -408,7 +408,9 @@ class DefinitionUseChain:
                             ):
                                 # The loop variable is always written to.
                                 sig = self._reference_signatures[i]
-                                self._reaches[sig].append(cfn)
+                                self._reaches[sig].append(
+                                    cfn.variable_reference
+                                )
                                 # This reference is killed by this access.
                                 self._references.pop(i)
                                 self._reference_signatures.pop(i)
@@ -825,8 +827,8 @@ class DefinitionUseChain:
                     basic_blocks.append(current_block)
                     control_flow_nodes.append(None)
                     current_block = []
-                # The start/stop/step expr are non-conditional (but also
-                # read only).
+                # The start/stop/step expr are non-conditional (but
+                # also read only).
                 control_flow_nodes.append(None)
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
@@ -1428,7 +1430,9 @@ class DefinitionUseChain:
                             ):
                                 # The loop variable is always written
                                 sig = self._reference_signatures[i]
-                                self._reaches[sig].append(cfn)
+                                self._reaches[sig].append(
+                                    cfn.variable_reference
+                                )
                                 # This reference is killed by this access.
                                 self._references.pop(i)
                                 self._reference_signatures.pop(i)

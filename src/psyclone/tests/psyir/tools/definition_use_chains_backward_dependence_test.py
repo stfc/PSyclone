@@ -312,7 +312,7 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     # We should have 1 reaches
     # It should be the loop
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(Loop)[0]
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
 
 
 def test_definition_use_chain_find_backward_accesses_while_loop_example(
