@@ -42,7 +42,7 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: makefiles_with_preprocessing
+  LFRIC_APPS_HASH: 04e8cff009836a6c3542c3d312bbd40ec3653520
   PYTHON_VERSION: "3.15"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
