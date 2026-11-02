@@ -129,7 +129,7 @@ class FunctionSpace():
         # in the result, even if they are empty (in which case we get a double
         # underscore).
         parts = [base_name, self._nlayers, self._ndata]
-        return "_".join(parts)
+        return ":".join(parts)
 
     @property
     def short_mangled_name(self) -> str:
@@ -153,10 +153,12 @@ class FunctionSpace():
         :returns: a shortened form of the name.
 
         '''
-        if len(name) < FunctionSpace.MAX_NAME_LEN:
-            return name
+        from psyclone.psyir.frontend.fortran import FortranReader
+        valid_name = FortranReader().create_valid_name(name)
+        if len(valid_name) < FunctionSpace.MAX_NAME_LEN:
+            return valid_name
         new_parts = []
-        for part in name.split("_"):
+        for part in valid_name.split("_"):
             if not part:
                 # Skip double underscores.
                 continue

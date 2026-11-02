@@ -59,6 +59,40 @@ end subroutine my_sub
 '''
 
 
+def test_validate_name():
+    '''
+    Test that validate_name() raises the correct errors for strings
+    that are not valid Fortran names.
+
+    '''
+    freader = FortranReader()
+
+    with pytest.raises(TypeError, match="A name should be a string"):
+        freader.validate_name(11)
+
+    freader.validate_name("a_test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        freader.validate_name("1a_test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        freader.validate_name("a test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        freader.validate_name("at,est")
+
+
+def test_create_valid_name():
+    '''
+    Test create_valid_name() creates valid Fortran names.
+
+    '''
+    freader = FortranReader()
+    assert freader.create_valid_name("a_test") == "a_test"
+    assert freader.create_valid_name("a test") == "atest"
+    assert freader.create_valid_name("1 2 a:test,") == "atest"
+
+
 # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
 # treesitter.
 @min_version_3_10

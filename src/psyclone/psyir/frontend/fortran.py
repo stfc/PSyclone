@@ -91,6 +91,23 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
+    @staticmethod
+    def create_valid_name(name: str) -> str:
+        '''
+        '''
+        if not name:
+            return "psy"
+        # A Fortran name must begin with an alphabet character.
+        for idx, char in enumerate(name):
+            if char.isalpha():
+                break
+        else:
+            return "psy"
+
+        pattern = re.compile(r"[^a-zA-Z0-9_]", re.M)
+        result = re.sub(pattern, "_", name[idx:])
+        return result
+
     def psyir_from_source(self, source_code: str) -> Node:
         ''' Generate the PSyIR tree for the given Fortran source code.
 
