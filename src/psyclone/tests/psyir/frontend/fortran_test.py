@@ -88,9 +88,17 @@ def test_create_valid_name():
 
     '''
     freader = FortranReader()
+    with pytest.raises(TypeError, match=("name must be a str but argument "
+                                         "is of type 'int'")):
+        freader.create_valid_name(1)
+
     assert freader.create_valid_name("a_test") == "a_test"
-    assert freader.create_valid_name("a test") == "atest"
-    assert freader.create_valid_name("1 2 a:test,") == "atest"
+    assert freader.create_valid_name("_a test") == "a_test"
+    assert freader.create_valid_name("1 2 a:test,") == "a_test_"
+    assert freader.create_valid_name("A") == "A"
+    # When it's impossible to use the supplied text
+    assert freader.create_valid_name("") == "psy"
+    assert freader.create_valid_name("22") == "psy"
 
 
 # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by

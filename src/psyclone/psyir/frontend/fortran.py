@@ -94,9 +94,16 @@ class FortranReader():
     @staticmethod
     def create_valid_name(name: str) -> str:
         '''
+        Given an initial string, uses it to create a valid Fortran
+        variable name. If that is not possible then just "psy" is
+        returned.
+
         '''
-        if not name:
-            return "psy"
+        if not isinstance(name, str):
+            raise TypeError(
+                f"Supplied name must be a str but argument is of type "
+                f"'{type(name).__name__}'")
+
         # A Fortran name must begin with an alphabet character.
         for idx, char in enumerate(name):
             if char.isalpha():
@@ -104,8 +111,10 @@ class FortranReader():
         else:
             return "psy"
 
-        pattern = re.compile(r"[^a-zA-Z0-9_]", re.M)
+        # Replace any non-alphanumeric character with an underscore.
+        pattern = re.compile(r"[^a-zA-Z0-9]")
         result = re.sub(pattern, "_", name[idx:])
+
         return result
 
     def psyir_from_source(self, source_code: str) -> Node:
