@@ -103,13 +103,13 @@ def trans(psyir: FileContainer) -> None:
 
     fuse = LoopFuseTrans()
 
-    fuse.apply(lat_loops[0], lat_loops[1])
-    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    fuse.apply((lat_loops[0], lat_loops[1]))
+    fuse.apply((lat_loops[0].loop_body[0], lat_loops[0].loop_body[1]))
     # Remove fused loop from list of loops previously collected
     del lat_loops[1]
 
-    fuse.apply(lat_loops[0], lat_loops[1])
-    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    fuse.apply((lat_loops[0], lat_loops[1]))
+    fuse.apply((lat_loops[0].loop_body[0], lat_loops[0].loop_body[1]))
     # Remove fused loop from list of loops previously collected
     del lat_loops[1]
 

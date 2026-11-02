@@ -20,8 +20,6 @@ DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
 PSYDATA_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
-F90FLAGS += -I$(DL_TIMER_INCLUDE)
-
 PSYDATA_LIB_NAME = dl_timer_psy
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -43,7 +41,7 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(DL_TIMER_INCLUDE) -c $<
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*

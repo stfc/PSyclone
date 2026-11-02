@@ -16,7 +16,7 @@ from psyclone.domain.common.transformations import (
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.transformations import (
-    LFRicRedundantComputationTrans)
+    LFRicRedundantComputationTrans, LFRicLoopFuseTrans)
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
@@ -32,9 +32,14 @@ from psyclone.psyir.transformations import ACCLoopTrans
 # Names of any invoke that we won't add any GPU offloading
 INVOKE_EXCLUSIONS = []
 
-# We won't attempt to inline calls to routines with names that contain
-# these strings (because they're not computationally important).
-INLINE_EXCLUSIONS = ["abort", "logging"]
+# We won't attempt to inline calls to routines or kernels with these names
+# because they're not computationally important or cause runtime errors.
+INLINE_EXCLUSIONS = [
+    "abort", "logging",
+    # TODO #3611: The problem could be the L/UBOUND offloaded intrinsics.
+    "sample_eos_operators_code_inlined_",
+    "apply_mixed_wp_operator_code_inlined_",
+]
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
@@ -78,6 +83,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    fusetrans = LFRicLoopFuseTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
@@ -172,6 +178,8 @@ def trans(psyir):
                     print(f"Annotation successful for kernel "
                           f"'{kern.name}'")
                     try:
+                        if kern.name in INLINE_EXCLUSIONS:
+                            continue
                         if OFFLOAD_DIRECTIVES.startswith("acc"):
                             # TODO #423: PSyclone doesn't support the OpenACC
                             # private clause yet, which we need for the inlined
@@ -191,6 +199,26 @@ def trans(psyir):
                     print(f"Annotation failed for kernel '{kern.name}' "
                           f"due to:\n{err.value}")
 
+        # Try to fuse all of the loops.
+        loops = subroutine.loops()
+        num_loops = len(loops)
+        current_index = 0
+        # Keep trying to fuse loops wherever possible
+        while current_index < num_loops-1:
+            try:
+                fusetrans.apply((loops[current_index],
+                                 loops[current_index+1]))
+                kernel_names = [k.name.lower() for k in
+                                loops[current_index].kernels()]
+                # If fusion is successful then we have 1 less remaining
+                # loop and continue at the same index to keep trying to
+                # fuse.
+                num_loops = num_loops - 1
+                print(f"Fusion successful: {kernel_names}, "
+                      f"{psyir.name}:{subroutine.name}")
+            except TransformationError:
+                # If fusion fails we move to the next loop.
+                current_index = current_index + 1
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]

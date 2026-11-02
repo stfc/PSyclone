@@ -160,7 +160,7 @@ def test_value_range_check_lfric():
     # after the kernel:
     expected = [
         'CALL value_range_check_psy_data % PreStart("multi_invoke_psy", '
-        '"invoke_0-r0", 20, 2)',
+        '"invoke_0-r0", 21, 3)',
         'CALL value_range_check_psy_data % PreDeclareVariable("a", a)',
         'CALL value_range_check_psy_data % ProvideVariable("m1_data", '
         'm1_data)',

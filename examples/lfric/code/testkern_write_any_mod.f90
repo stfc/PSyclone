@@ -10,10 +10,10 @@
 ! first access to such an entity is a write.
 module testkern_write_any_mod
 
-  use constants_mod
+  use constants_mod, only: i_def, r_def
   use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
+  use fs_continuity_mod, only: w2
+  use kernel_mod, only: kernel_type
 
   implicit none
 

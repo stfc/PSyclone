@@ -27,23 +27,21 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_constructor():
-    ''' Check that we can construct a PSyDataNode and that any options are
-    picked up correctly. '''
+    ''' Check that PSyDataNode construction picks up keyword arguments
+    correctly. '''
     psy_node = PSyDataNode()
     assert psy_node._prefix == ""
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
-    assert psy_node.options == {}
-    psy_node = PSyDataNode(options={"prefix": "profile"})
-    assert psy_node.options == {"prefix": "profile"}
+    psy_node = PSyDataNode(prefix="profile")
     assert psy_node._prefix == "profile_"
     assert psy_node.fortran_module == "profile_psy_data_mod"
     assert psy_node.type_name == "profile_PSyDataType"
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
-    psy_node = PSyDataNode(options={"region_name": ("a_routine", "reg1")})
+    psy_node = PSyDataNode(region_name=("a_routine", "reg1"))
     assert psy_node._var_name == ""
     assert psy_node._module_name == "a_routine"
     assert psy_node._region_name == "reg1"
@@ -51,13 +49,13 @@ def test_psy_data_node_constructor():
 
     # Test incorrect rename type
     with pytest.raises(InternalError) as error:
-        PSyDataNode(options={"region_name": 1})
+        PSyDataNode(region_name=1)
     assert ("The name must be a tuple containing two non-empty strings." in
             str(error.value))
 
     # Invalid prefix
     with pytest.raises(InternalError) as err:
-        PSyDataNode(options={"prefix": "not-a-valid-prefix"})
+        PSyDataNode(prefix="not-a-valid-prefix")
     assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
             "expected" in str(err.value))
 
@@ -68,11 +66,11 @@ def test_psy_data_node_equality():
     options2 = {"prefix": "extract", "region_name": ("a_routine", "ref1")}
     options3 = {"prefix": "profile", "region_name": ("a_routine1", "ref1")}
     options4 = {"prefix": "profile", "region_name": ("a_routine", "ref2")}
-    psy_node1 = PSyDataNode(options=options1)
-    psy_node1_1 = PSyDataNode(options=options1)
-    psy_node2 = PSyDataNode(options=options2)
-    psy_node3 = PSyDataNode(options=options3)
-    psy_node4 = PSyDataNode(options=options4)
+    psy_node1 = PSyDataNode(**options1)
+    psy_node1_1 = PSyDataNode(**options1)
+    psy_node2 = PSyDataNode(**options2)
+    psy_node3 = PSyDataNode(**options3)
+    psy_node4 = PSyDataNode(**options4)
     assert psy_node1 == psy_node1_1
     assert psy_node1 != psy_node2
     assert psy_node1 != psy_node3
@@ -388,9 +386,9 @@ def test_psy_data_node_lower_to_language_level():
         'CALL psy_data % PostEnd'
 
 
-def test_psy_data_node_lower_to_language_level_with_options():
+def test_psy_data_node_lower_to_language_level_with_kwargs():
     '''Check that the  generic PSyDataNode is lowered as expected when it
-    is provided with an options dictionary. '''
+    is provided with keyword arguments. '''
 
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
@@ -402,8 +400,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")]})
+    data_node.lower_to_language_level(
+        pre_var_list=[("", "a")], post_var_list=[("", "b")])
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
@@ -429,10 +427,9 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")],
-                                               "pre_var_postfix": "_pre",
-                                               "post_var_postfix": "_post"})
+    data_node.lower_to_language_level(
+        pre_var_list=[("", "a")], post_var_list=[("", "b")],
+        pre_var_postfix="_pre", post_var_postfix="_post")
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'

@@ -10,15 +10,19 @@
    a region of code."
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.psyGen import BuiltIn, Kern
-from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
-                                  Reference, Schedule, OMPParallelDirective,
-                                  ACCParallelDirective)
+from psyclone.psyir.nodes import (
+    Literal, Loop, Node, ReadOnlyVerifyNode, Directive, Reference, Schedule,
+    OMPParallelDirective, ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReadOnlyVerifyTrans(PSyDataTrans):
     '''This transformation inserts a ReadOnlyVerifyNode or a node derived
     from ReadOnlyVerifyNode into the PSyIR of a schedule. At code creation
@@ -44,15 +48,15 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to read-only-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -89,7 +93,18 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this read-only verification transformation.
+
+        :param nodes: nodes to enclose in the verification region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
 
 
 # ============================================================================

@@ -8,7 +8,7 @@
 ''' This module contains the Routine node implementation.'''
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -21,8 +21,12 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, DefaultModuleInterface,
-    RoutineSymbol, SymbolError, UnresolvedInterface)
+    RoutineSymbol, SymbolError, TypedSymbol, UnresolvedInterface,
+    UnsupportedType)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+if TYPE_CHECKING:
+    from psyclone.psyGen import CodedKern
+    from psyclone.psyir.nodes.call import Call
 
 
 class Routine(Schedule, CommentableMixin):
@@ -172,7 +176,8 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
-    def check_outer_scope_accesses(self, call,
+    def check_outer_scope_accesses(self,
+                                   call: Union["CodedKern", "Call"],
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
                                    ignore_non_data_accesses: bool = False):
@@ -182,7 +187,6 @@ class Routine(Schedule, CommentableMixin):
 
         :param call: the node representing the call to the routine that is to
             be inlined.
-        :type call: Union[CodedKern, Call]
         :param kern_or_call: text appropriate to whether we have a PSyKAl
             Kernel or a generic routine.
         :param permit_unresolved: whether or not the presence of unresolved
@@ -192,8 +196,11 @@ class Routine(Schedule, CommentableMixin):
 
         :raises SymbolError: if there is an access to an unresolved
             symbol and `permit_unresolved` is False.
+        :raises SymbolError: if there is a symbol of UnsupportedType that
+            does not have partial datatype information.
         :raises SymbolError: if there is an access to a symbol that is
-            declared in the parent scope of this routine.
+            declared in the parent scope of this routine and is not already
+            in scope at the call site.
 
         '''
         # TODO #2424 - this suffers from the limitation that
@@ -225,7 +232,33 @@ class Routine(Schedule, CommentableMixin):
                     f"{[sym.name for sym in routine_wildcards]}. It may be"
                     f" resolved by adding these to RESOLVE_IMPORTS in the "
                     f"transformation script.")
+
+            if (isinstance(symbol, TypedSymbol) and
+                    isinstance(symbol.datatype, UnsupportedType) and
+                    not symbol.datatype.partial_datatype):
+                # Without a partial_datatype the earlier call to
+                # reference_accesses won't have been able to examine this type.
+                raise SymbolError(
+                    f"{kern_or_call} '{name}' contains accesses to "
+                    f"'{symbol.name}' which is of {symbol.datatype}. Without "
+                    f"more type information it is not possible to identify "
+                    f"its dependencies.")
+
             if not symbol.is_import and symbol.name not in table:
+                # This Symbol is local to the Container.
+                if isinstance(symbol, RoutineSymbol) and (
+                        vam[sig].is_called() and
+                        not vam[sig].has_data_access()):
+                    # Calls to local Routines can be OK so we don't flag
+                    # them here. Note the check for `not has_data_accesses`
+                    # protects us from RoutineSymbols also being e.g. passed
+                    # as an argument to a Call.
+                    continue
+
+                # Unless this Symbol happens to be the same instance as the one
+                # at the call site (e.g. this Routine is in the same Container
+                # as the call site), then this Routine accesses a symbol from
+                # its outer scope.
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:

@@ -61,7 +61,7 @@ EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 F90FLAGS += -I$(EXTRACT_DIR)
 
 transform: extract_process main_psy.f90 main_alg.f90
-	
+
 compile: transform $(EXEC)
 
 run: compile
@@ -96,12 +96,6 @@ driver-main-update:	driver-main-update.o
 driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o
 	$(F90) $(F90FLAGS)  driver-main-init.o $$(nf-config --flibs) -o driver-main-init
-
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main.x90 main_psy.f90 main_alg.f90

@@ -182,6 +182,7 @@ class ChunkLoopTrans(LoopTrans):
         '''
 
         self.validate(node, options, chunksize=chunksize, **kwargs)
+        # TODO #2668: Deprecate options dictionary
         if options:
             chunksize = options.get("chunksize", 32)
         # Create (or find) the symbols we need for the chunking transformation

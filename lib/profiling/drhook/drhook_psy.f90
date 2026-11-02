@@ -67,12 +67,14 @@ contains
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
+!$omp critical
     if (lhook .and. .not. this%initialised) then
       ! DrHook only supports a single name, so we store the concatenated
       ! strings to reduce runtime overhead
       this%name = module_name//":"//region_name
       this%initialised = .true.
     endif
+!$omp end critical
     if (lhook) call dr_hook(this%name, 0, this%zhook_handle)
 
   end subroutine PreStart

@@ -142,6 +142,7 @@ class OMPTaskwaitTrans(Transformation):
                                 f"\nto\n"
                                 f"{forward_dep.debug_string().rstrip(chr(10))}"
                         ))
+        super().validate(node, options=options, **kwargs)
 
     @staticmethod
     def get_forward_dependence(taskloop, root):

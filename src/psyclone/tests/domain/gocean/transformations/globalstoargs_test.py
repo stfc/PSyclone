@@ -62,21 +62,30 @@ def test_kernelimportsstoargumentstrans_requires_module_inline():
             in str(err.value))
 
 
-def test_kernelimportstoargumentstrans_no_wildcard_import():
+def test_kernelimportstoargumentstrans_no_wildcard_import(monkeypatch):
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
-    psy, invoke_info = get_invoke(
-        "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
-    kernel = invoke_info.schedule.coded_kernels()[0]
+    from psyclone.psyir.nodes import Routine
 
-    # Kernel has to be module-inlined first.
-    KernelModuleInlineTrans().apply(kernel)
+    # We have to monkeypatch the Routine.check_outer_scope_accesses()
+    with monkeypatch.context() as monkey:
+        monkey.setattr(
+            Routine, "check_outer_scope_accesses",
+            lambda _1, _2, _3, permit_unresolved=True,
+            ignore_non_data_accesses=False: None)
+
+        _, invoke_info = get_invoke(
+            "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
+        kernel = invoke_info.schedule.coded_kernels()[0]
+
+        # Kernel has to be module-inlined first.
+        KernelModuleInlineTrans().apply(kernel)
 
     trans = KernelImportsToArguments()
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert ("'kernel_with_use_code_inlined_' contains accesses to 'rdt' which "
-            "is unresolved" in str(err.value))
+    assert ("'kernel_with_use_code_inlined_' contains accesses to 'rdt' "
+            "which is unresolved" in str(err.value))
 
 
 def test_kernelimportstoargumentstrans(fortran_writer):

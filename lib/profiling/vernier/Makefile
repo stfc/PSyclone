@@ -17,8 +17,6 @@ VERNIER_ROOT ?= ./../../../../Vernier
 VERNIER_MODULES ?= $(VERNIER_ROOT)/local/include
 # -----------------------------------------------------------------------------
 
-F90FLAGS += -I$(VERNIER_MODULES)
-
 PSYDATA_LIB_NAME = vernier_psy
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -32,7 +30,7 @@ $(PSYDATA_LIB): $(OBJS)
 	ar rs $(PSYDATA_LIB) $(OBJS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(VERNIER_MODULES) -c $<
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB)

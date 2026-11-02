@@ -9,19 +9,19 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 
 from typing import Dict, List, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import LazyString, InternalError
-from psyclone.psyGen import Kern, Transformation
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Assignment, BinaryOperation,
     Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
     Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
     StructureMember, StructureReference, OMPDeclareTargetDirective,
-    ACCRoutineDirective, OMPPrivateClause)
+    ACCRoutineDirective, OMPPrivateClause, Directive)
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
 )
@@ -252,28 +252,42 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # other Symbols are updated. Note, we don't have to worry about
         # initialisation expressions here as they imply that a variable is
         # static. We don't support inlining routines with static variables.
-        for sym in table.automatic_datasymbols:
+        for sym in routine_table.automatic_datasymbols:
             if not isinstance(sym.datatype, ArrayType):
                 continue
+            convert_to_allocatable = False
             new_shape = []
             for dim in sym.datatype.shape:
-                if isinstance(dim, ArrayType.Extent):
-                    new_shape.append(dim)
-                else:
-                    lower = self._replace_formal_args_in_expr(
-                        dim.lower, node, formal_args,
-                        routine_node=routine,
-                        allow_no_args_check_if_only_one_callee=(
-                            allow_no_args_check_if_only_one_callee),
-                    )
-                    upper = self._replace_formal_args_in_expr(
-                        dim.upper, node, formal_args,
-                        routine_node=routine,
-                        allow_no_args_check_if_only_one_callee=(
-                            allow_no_args_check_if_only_one_callee),
-                    )
-                    new_shape.append(ArrayType.ArrayBounds(lower, upper))
-            sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
+                if not isinstance(dim, ArrayType.ArrayBounds):
+                    raise InternalError(
+                        f"Found invalid symbol '{sym}', an automatic array "
+                        f"must have defined array bounds.")
+                lower = self._replace_formal_args_in_expr(
+                    dim.lower, node, formal_args,
+                    routine_node=routine,
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
+                )
+                upper = self._replace_formal_args_in_expr(
+                    dim.upper, node, formal_args,
+                    routine_node=routine,
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
+                )
+                sym_in_shape = lower.get_all_accessed_symbols().union(
+                                   upper.get_all_accessed_symbols())
+                for symbol in sym_in_shape:
+                    # Unless we can prove it is constant, the shape can
+                    # change in each call to match the runtime value
+                    if (not isinstance(symbol, DataSymbol)
+                            or not symbol.is_constant):
+                        convert_to_allocatable = True
+                new_shape.append(ArrayType.ArrayBounds(lower, upper))
+            if convert_to_allocatable:
+                self._create_allocatable_array(node, sym, new_shape)
+            else:
+                sym.datatype = ArrayType(sym.datatype.elemental_type,
+                                         new_shape)
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
@@ -300,6 +314,76 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+    @staticmethod
+    def _create_allocatable_array(node: Call, symbol: DataSymbol,
+                                  shape: List) -> None:
+        """Convert an automatic array to an allocatable array and add the
+        required allocation and deallocation around the call site.
+
+        The allocation is hoisted out of enclosing loops where the array's
+        shape is invariant and out of any enclosing region directives.
+
+        :param node: the call site being inlined.
+        :param symbol: the automatic-array symbol to make allocatable.
+        :param shape: the rewritten shape of the automatic array.
+
+        """
+        cursor = node
+
+        # Get all symbols in the new array shape
+        shape_symbols = set()
+        for dim in shape:
+            shape_symbols.update(dim.get_all_accessed_symbols())
+
+        # Try to hoist the allocations out of loops/directives
+        while True:
+            loop = cursor.ancestor(Loop)
+            if not loop:
+                break
+
+            # Check if anywhere in this loop the array shape symbols change
+            writes_to_a_shape_symbol = False
+            for ref in loop.walk(Reference):
+                if ref.symbol in shape_symbols:
+                    if ref.is_write:
+                        writes_to_a_shape_symbol = True
+                        break
+
+            # TODO #3124: We need a special case for LFRicLoops because they
+            # still miss their argument references. Here we use domain
+            # knowledge to guarantee that their automatic array shape don't
+            # change (these are sized by fields' ndfs, undfs which are runtime
+            # constant).
+            if (isinstance(loop, LFRicLoop) or
+                    not writes_to_a_shape_symbol):
+                # Examine next parent loop
+                cursor = loop
+            else:
+                break
+        # If it is inside a RegionDirective->Schedule->cursor, hoist it
+        while isinstance(cursor.parent.parent, Directive):
+            cursor = cursor.parent.parent
+
+        # Update the shape to DEFERRED to make the symbol allocatable
+        symbol.datatype = ArrayType(
+            symbol.datatype.elemental_type,
+            [ArrayType.Extent.DEFERRED for _ in shape])
+        parent = cursor.parent
+        # Add allocate and deallocate calls arround the cursor
+        parent.addchild(
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(
+                    symbol, [dim.upper.copy() for dim in shape])]),
+            cursor.position
+        )
+        parent.addchild(
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.DEALLOCATE,
+                [Reference(symbol)]),
+            cursor.position + 1
+        )
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
@@ -386,7 +470,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             # Ensure any expressions in the condition are simplified.
             try:
                 sym_maths.expand(condition)
-            except VisitorError:
+            except Exception:   # pylint: disable=broad-except
                 continue
 
             # Make sure we only handle a Boolean Literal as a condition
@@ -1123,53 +1207,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 routine_arg=routine_arg,
                 allow_unknown=allow_no_args_check_if_only_one_callee
             )
-
-        # Check for dependencies within the SymbolTable of the target
-        # routine. If any of these are used to dimension a local
-        # (automatic) array, are passed by argument and are written
-        # to before the call then we can't perform inlining.
-        for asym in routine.symbol_table.automatic_datasymbols:
-            dependent_symbols = asym.get_all_accessed_symbols()
-            for sym in dependent_symbols:
-                if sym not in routine_table.argument_list:
-                    # This dependency is not an argument to the routine.
-                    continue
-                actual_arg = node.arguments[
-                    routine_table.argument_list.index(sym)]
-                if not isinstance(actual_arg, Reference):
-                    # The corresponding actual argument is not a Reference
-                    # so cannot be modified prior to the call.
-                    continue
-                # What form does the dependence take?
-                for prev in actual_arg.previous_accesses():
-                    if prev is node or prev.parent is node:
-                        # Skip the Call itself and any other arguments to
-                        # the call.
-                        continue
-                    exprn = prev.ancestor(Statement, include_self=True)
-                    stmt = exprn.debug_string().strip()
-                    if isinstance(prev, (Kern, Loop)):
-                        raise TransformationError(
-                            f"Cannot inline routine '{routine.name}' "
-                            f"because one or more of its declarations "
-                            f"depends on '{sym.name}' which is passed by "
-                            f"argument and may be written to before the "
-                            f"call ('{stmt}').")
-                    if isinstance(prev, Reference):
-                        if prev.is_write:
-                            raise TransformationError(
-                                f"Cannot inline routine '{routine.name}' "
-                                f"because one or more of its declarations "
-                                f"depends on '{sym.name}' which is passed "
-                                f"by argument and is assigned to before "
-                                f"the call ('{stmt}').")
-                        continue
-
-                    raise InternalError(
-                        f"Unexpected node type ({type(prev).__name__}) "
-                        f"returned from Reference.previous_accesses(). "
-                        f"Expected a Call, CodeBlock, Kern, Loop or "
-                        f"Reference.")
 
         return (routine, arg_match_list)
 

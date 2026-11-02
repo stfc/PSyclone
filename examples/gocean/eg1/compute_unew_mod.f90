@@ -6,7 +6,7 @@
 ! -----------------------------------------------------------------------------
 
 module compute_unew_mod
-  USE kind_params_mod
+  USE kind_params_mod, only: go_wp
   USE kernel_mod
   use argument_mod
   use grid_mod

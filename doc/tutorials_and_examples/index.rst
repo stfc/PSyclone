@@ -11,7 +11,7 @@ Tutorials and Examples
 ======================
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
     :caption: Tutorials and Examples
 
     tutorials

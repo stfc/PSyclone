@@ -7,8 +7,11 @@
 
 ''' This module contains the PSyLoop node implementation.'''
 
+from typing import Union
+
 from psyclone.core import AccessType
 from psyclone.psyir.nodes import Routine, Loop
+from psyclone.psyGen import Kern
 
 
 class PSyLoop(Loop):
@@ -193,20 +196,18 @@ class PSyLoop(Loop):
         self._iteration_space = it_space
 
     @property
-    def kernel(self):
+    def kernel(self) -> Union[Kern, None]:
         '''
         :returns: the kernel object associated with this PSyLoop (if any).
-        :rtype: Optional[:py:class:`psyclone.psyGen.Kern`]
         '''
         return self._kern
 
     @kernel.setter
-    def kernel(self, kern):
+    def kernel(self, kern: Kern) -> None:
         '''
         Setter for kernel object associated with this PSyLoop.
 
         :param kern: a kernel object.
-        :type kern: :py:class:`psyclone.psyGen.Kern`
         '''
         self._kern = kern
 

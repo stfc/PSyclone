@@ -27,6 +27,7 @@ import psyclone.expression as expr
 from psyclone.errors import InternalError
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.parse.utils import check_api, check_line_length, ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 
 
 def get_kernel_filepath(module_name, kernel_paths, alg_filename):
@@ -135,7 +136,7 @@ def get_kernel_parse_tree(filepath: str):
     except Exception as err:
         raise ParseError(
             f"Failed to parse kernel code '{filepath}'. Is the Fortran "
-            f"correct?") from err
+            f"correct?\nError:\n'{err}'.") from err
     return parse_tree
 
 
@@ -381,6 +382,7 @@ def get_char_value(metadata: expr.NamedArg,
         a named argument for the specified keyword.
     :raises ParseError: if the value associated with the keyword is
         not provided as a string.
+    :raises ParseError: if the value is not a number or valid Fortran name.
 
     '''
     if (not isinstance(metadata, expr.NamedArg) or
@@ -392,8 +394,18 @@ def get_char_value(metadata: expr.NamedArg,
         raise ParseError(
             f"The value of {keyword} must be specified as a quoted string "
             f"but got {metadata}")
+    result = metadata.value.lower()
 
-    return metadata.value.lower()
+    if not result.isnumeric():
+        try:
+            FortranReader.validate_name(result)
+        except (ValueError, TypeError) as err:
+            raise ParseError(
+                f"A string value assigned to '{keyword}' must be a valid "
+                f"Fortran name but '{result}' is not."
+            ) from err
+
+    return result
 
 
 class Descriptor():
@@ -708,8 +720,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     :raises ParseError: if 'var_name' is not found in the metadata.
     :raises ParseError: if 'var_name' is not an array.
     :raises ParseError: if 'var_name' is not a 1D array.
-    :raises ParseError: if the structure constructor uses '[...]' \
-                        as only '(/.../)' is supported.
     :raises ParseError: if the argument metadata is invalid and cannot \
                         be parsed.
     :raises ParseError: if the dimensions specified do not tally with \
@@ -734,11 +744,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         raise ParseError(
             f"In kernel metadata '{name}': '{var_name}' variable must be a 1 "
             f"dimensional array.")
-    if descs.init.find("[") != -1 and descs.init.find("]") != -1:
-        # there is a bug in fparser1
-        raise ParseError(
-            f"Parser does not currently support '[...]' initialisation for "
-            f"'{var_name}', please use '(/.../)' instead.")
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
     except ParseException as err:

@@ -248,6 +248,8 @@ class ReplaceInductionVariablesTrans(Transformation):
             Loop.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         self.validate_options(**kwargs)
         if not isinstance(node, Loop):
             raise TransformationError(

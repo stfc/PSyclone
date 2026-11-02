@@ -62,10 +62,12 @@ contains
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
+!$omp critical
     if (.not. this%initialised) then
       call TAU_PROFILE_TIMER(this%profiler, module_name//":"//region_name)
       this%initialised = .true.
     endif
+!$omp end critical
     call TAU_PROFILE_START(this%profiler)
 
   end subroutine PreStart

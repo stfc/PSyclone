@@ -276,6 +276,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 f"argument should be a PSyIR Routine, but found "
                 f"'{type(node).__name__}'."
             )
+        super().validate(node, options=options, **kwargs)
 
 
 __all__ = ["ReplaceReferenceByLiteralTrans"]

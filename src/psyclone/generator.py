@@ -407,7 +407,7 @@ def generate(filename: str,
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
-                invoke, options={"kernels": kernels[id(invoke)]})
+                invoke, kernels=kernels[id(invoke)])
         if api in LFRIC_API_NAMES:
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin

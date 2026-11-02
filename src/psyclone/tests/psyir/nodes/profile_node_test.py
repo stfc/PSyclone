@@ -43,7 +43,7 @@ def test_profile_node_create():
                           "End Schedule\n"
                           "ProfileEnd")
     pnode2 = ProfileNode.create([], symbol_table=sched.symbol_table,
-                                options={"region_name": ("my_mod", "first")})
+                                region_name=("my_mod", "first"))
     assert pnode2._module_name == "my_mod"
     assert pnode2._region_name == "first"
     # Check that the symbol table contains the appropriate symbols:
@@ -75,7 +75,7 @@ def test_profile_node_invalid_name(value):
     '''
     with pytest.raises(InternalError) as excinfo:
         _ = ProfileNode.create([], SymbolTable(),
-                               options={"region_name": value})
+                               region_name=value)
     assert ("Error in PSyDataNode. The name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
 
