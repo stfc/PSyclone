@@ -147,7 +147,6 @@ np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     integer(kind=i_def), intent(in) :: ndf_w2trace
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
     integer(kind=i_def), intent(in) :: np_z_qr_xyoz
@@ -208,9 +207,6 @@ field_4_stencil_size, field_4_stencil_dofmap, ndf_w2broken, undf_w2broken, \
 map_w2broken, ndf_w1, undf_w1, map_w1, ndf_w0, undf_w0, map_w0, ndf_w2v, \
 undf_w2v, map_w2v)
     use constants_mod
-    integer(kind=i_def), dimension(undf_w1), intent(in) :: field_2_w1
-    integer(kind=i_def), dimension(undf_w0), intent(in) :: field_3_w0
-    integer(kind=i_def), dimension(undf_w2v), intent(in) :: field_4_w2v
     integer(kind=i_def), intent(in) :: field_2_stencil_size
     integer(kind=i_def), intent(in) :: field_3_direction
     integer(kind=i_def), intent(in) :: field_3_stencil_size

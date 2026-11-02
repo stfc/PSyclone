@@ -632,8 +632,38 @@ def test_int_field_fs(tmp_path):
 
     generated_code = str(psy.gen)
 
-    assert (
-        """module single_invoke_fs_int_field_psy
+    # Shorten the test by generating some of the expected output.
+    fld_names = ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "m1", "m2",
+                 "m3", "m4", "m5", "m6", "m7"]
+    declarations = []
+    data_ptrs = []
+    proxies = []
+    for fld in fld_names:
+        declarations.append(
+            f"    type(integer_field_type), intent(in) :: {fld}")
+        data_ptrs.append(
+            f"    integer(kind=i_def), pointer, dimension(:) :: {fld}_data "
+            f"=> null()")
+        proxies.append(f"    type(integer_field_proxy_type) :: {fld}_proxy")
+    decln_text = "\n".join(declarations)
+    ptrs_text = "\n".join(data_ptrs)
+    proxies_text = "\n".join(proxies)
+
+    ndfs = []
+    undfs = []
+    maps = []
+    for space in ["ads1_m7__1", "any_w2", "as1_f8__1", "w0", "w1", "w2",
+                  "w2broken", "w2h", "w2htrace", "w2trace",
+                  "w2v", "w2vtrace", "w3", "wchi", "wtheta"]:
+        ndfs.append(f"    integer(kind=i_def) :: ndf_{space}")
+        undfs.append(f"    integer(kind=i_def) :: undf_{space}")
+        maps.append(f"    integer(kind=i_def), pointer :: map_{space}(:,:) "
+                    f"=> null()")
+    ndf_text = "\n".join(ndfs)
+    undf_text = "\n".join(undfs)
+    maps_text = "\n".join(maps)
+
+    expected = f"""module single_invoke_fs_int_field_psy
   use integer_field_mod, only : integer_field_proxy_type, integer_field_type
   use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
   use constants_mod, only : i_def
@@ -644,75 +674,20 @@ def test_int_field_fs(tmp_path):
   subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
 m4, f5, f6, m5, m6, f7, f8, m7)
     use mesh_mod, only : mesh_type
-{decln_text}
     integer(kind=i_def) :: cell
-    type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: max_halo_depth_mesh
-{ptrs_text}
-    integer(kind=i_def) :: nlayers_f1
-    integer(kind=i_def) :: ndf_w1
-    integer(kind=i_def) :: undf_w1
-    integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: undf_w2
-    integer(kind=i_def) :: ndf_w0
-    integer(kind=i_def) :: undf_w0
-    integer(kind=i_def) :: ndf_w3
-    integer(kind=i_def) :: undf_w3
-    integer(kind=i_def) :: ndf_wtheta
-    integer(kind=i_def) :: undf_wtheta
-    integer(kind=i_def) :: ndf_w2h
-    integer(kind=i_def) :: undf_w2h
-    integer(kind=i_def) :: ndf_w2v
-    integer(kind=i_def) :: undf_w2v
-    integer(kind=i_def) :: ndf_w2broken
-    integer(kind=i_def) :: undf_w2broken
-    integer(kind=i_def) :: ndf_w2trace
-    integer(kind=i_def) :: undf_w2trace
-    integer(kind=i_def) :: ndf_w2htrace
-    integer(kind=i_def) :: undf_w2htrace
-    integer(kind=i_def) :: ndf_w2vtrace
-    integer(kind=i_def) :: undf_w2vtrace
-    integer(kind=i_def) :: ndf_wchi
-    integer(kind=i_def) :: undf_wchi
-    integer(kind=i_def) :: ndf_any_w2
-    integer(kind=i_def) :: undf_any_w2
-    integer(kind=i_def) :: ndf_as1_f8__1
-    integer(kind=i_def) :: undf_as1_f8__1
-    integer(kind=i_def) :: ndf_ads1_m7__1
-    integer(kind=i_def) :: undf_ads1_m7__1
-    integer(kind=i_def), pointer :: map_ads1_m7__1(:,:) => null()
-    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_as1_f8__1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
-    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
-    type(integer_field_proxy_type) :: f1_proxy
-    type(integer_field_proxy_type) :: f2_proxy
-    type(integer_field_proxy_type) :: m1_proxy
-    type(integer_field_proxy_type) :: m2_proxy
-    type(integer_field_proxy_type) :: f3_proxy
-    type(integer_field_proxy_type) :: f4_proxy
-    type(integer_field_proxy_type) :: m3_proxy
-    type(integer_field_proxy_type) :: m4_proxy
-    type(integer_field_proxy_type) :: f5_proxy
-    type(integer_field_proxy_type) :: f6_proxy
-    type(integer_field_proxy_type) :: m5_proxy
-    type(integer_field_proxy_type) :: m6_proxy
-    type(integer_field_proxy_type) :: f7_proxy
-    type(integer_field_proxy_type) :: f8_proxy
-    type(integer_field_proxy_type) :: m7_proxy
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
-""" in generated_code
+    integer(kind=i_def) :: max_halo_depth_mesh
+{ndf_text}
+    integer(kind=i_def) :: nlayers_f1
+{undf_text}
+{maps_text}
+{ptrs_text}
+{proxies_text}
+{decln_text}
+    type(mesh_type), pointer :: mesh => null()
+"""
+    assert expected in generated_code
     output = (
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
