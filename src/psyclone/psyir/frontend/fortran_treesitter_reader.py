@@ -410,6 +410,7 @@ class FortranTreeSitterReader():
             try:
                 handler = self._get_handler(tsnode)
                 result = handler(tsnode)
+                # If one succeed, finish the ongoing CodeBlock first
                 flush_codeblock()
                 if result is not None:
                     children.append(result)
@@ -423,8 +424,7 @@ class FortranTreeSitterReader():
                         symbol_type=symbols.DataSymbol,
                         datatype=symbols.UnsupportedFortranType(to_str(tsnode))
                     )
-                    # TODO #3083: We need to hardcode the type_text until we
-                    # remove the Fparser2 logic from that class
+                    # TODO #3083: We need to hardcode the type_text
                     symbol.datatype._type_text = to_str(tsnode)
                 else:
                     # Only statement lists may combine separate source nodes.
