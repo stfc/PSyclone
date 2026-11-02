@@ -658,9 +658,8 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     reaches = chains.find_forward_accesses()[i_sig]
     # We should have 1 reaches
     assert len(reaches) == 1
-    # TODO #3486: Currently it is the whole loop, but now the loop variable
-    # is in the tree, so it should point to it
-    assert reaches[0] is routine.walk(Loop)[0]
+    # The result is the loop variable
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
 
 
 def test_definition_use_chain_find_forward_accesses_while_loop_example(
