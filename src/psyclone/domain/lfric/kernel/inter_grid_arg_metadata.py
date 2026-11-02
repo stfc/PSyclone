@@ -47,10 +47,10 @@ class InterGridArgMetadata(FieldArgMetadata):
                  function_space: str,
                  mesh_arg: str,
                  stencil: Optional[str] = None,
-                 nlevels: Optional[str] = None,
+                 nlayers: Optional[str] = None,
                  ndata: Optional[str] = "1"):
         super().__init__(datatype, access, function_space, stencil=stencil,
-                         nlevels=nlevels, ndata=ndata)
+                         nlayers=nlayers, ndata=ndata)
         self.mesh_arg = mesh_arg
 
     @classmethod
@@ -67,22 +67,22 @@ class InterGridArgMetadata(FieldArgMetadata):
             for this argument.
 
         :returns: a tuple containing the datatype, access, function
-            space, mesh, stencil, nlevels and ndata metadata.
+            space, mesh, stencil, nlayers and ndata metadata.
 
         '''
         datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
         function_space = cls.get_arg(fparser2_tree,
                                      cls.function_space_arg_index)
 
-        cls._validate_named_args(fparser2_tree, ["mesh_arg", "nlevels",
+        cls._validate_named_args(fparser2_tree, ["mesh_arg", "nlayers",
                                                  "ndata"])
         stencil = cls.get_stencil(fparser2_tree)
 
         mesh_arg = cls.get_named_arg(fparser2_tree, "mesh_arg")
-        nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
+        nlayers = cls.get_named_arg(fparser2_tree, "nlayers")
         ndata = cls.get_named_arg(fparser2_tree, "ndata")
 
-        return (datatype, access, function_space, mesh_arg, stencil, nlevels,
+        return (datatype, access, function_space, mesh_arg, stencil, nlayers,
                 ndata)
 
     def fortran_string(self) -> str:
