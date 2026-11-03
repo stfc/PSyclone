@@ -1219,7 +1219,7 @@ class LFRicFunctionSpaces(LFRicCollection):
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
-                    sym = self.symtab.lookup_with_tag(f"undf:{mangled_name}")
+                    sym = self.symtab.lookup_with_tag(function_space.undf_tag)
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=Reference(sym),

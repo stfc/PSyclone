@@ -2198,7 +2198,7 @@ def test_mangle_function_space():
     mangled_name = fspace.tag_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
-    assert mangled_name == "as2_f2::1"
+    assert mangled_name == "as2:f2::1"
     assert short_name == "as2"
     assert short_mangled == "as2_f2__1"
     # Test any_discontinuous_space
@@ -2213,7 +2213,7 @@ def test_mangle_function_space():
     mangled_name = fspace.tag_name
     short_name = fspace.short_name
     short_mangled = fspace.short_mangled_name
-    assert mangled_name == "ads1_f1::1"
+    assert mangled_name == "ads1:f1::1"
     assert short_name == "ads1"
     assert short_mangled == "ads1_f1__1"
 
