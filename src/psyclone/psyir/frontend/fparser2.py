@@ -34,8 +34,9 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, ComplexLiteral,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
     Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
-    Routine, Schedule, StructureReference, UnaryOperation, WhileLoop,
-    Fparser2CodeBlock, ScopingNode, UnknownDirective)
+    Routine, Schedule, SelectType, StructureReference, TypeGuard,
+    UnaryOperation, WhileLoop, Fparser2CodeBlock, ScopingNode,
+    UnknownDirective)
 
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
@@ -999,8 +1000,6 @@ class Fparser2Reader():
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
             Fortran2003.If_Construct: self._if_construct_handler,
             Fortran2003.Case_Construct: self._case_construct_handler,
-            Fortran2003.Select_Type_Construct:
-                self._select_type_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
             Fortran2003.Block_Nonlabel_Do_Construct:
@@ -1015,6 +1014,8 @@ class Fparser2Reader():
             Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
             Fortran2003.Directive: self._directive_handler,
+            Fortran2003.Select_Type_Construct: self._select_type_handler,
+            Fortran2003.Type_Guard_Stmt: self._type_guard_handler,
         }
         # Used to attach inline comments to the PSyIR symbols and nodes
         self._last_psyir_parsed_and_span = None
@@ -3867,476 +3868,6 @@ class Fparser2Reader():
         self.process_nodes(parent=ifbody, nodes=[node.items[1]])
         return ifblock
 
-    @staticmethod
-    def _add_target_attribute(var_name, table):
-        '''Ensure that the datatype of the symbol with the supplied name has a
-        pointer or target attribute and if not, add the target attribute.
-
-        The datatype is stored as text within an UnsupportedFortranType. We
-        therefore re-create the datatype as an fparser2 ast, add the attribute
-        if required and update the UnsupportedFortranType with the new text.
-
-        :param str var_name: the name of the symbol for which we attempt to
-                             modify the datatype.
-        :param table: a SymbolTable in which to search for the symbol.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :raises NotImplementedError: if the variable cannot be found, is
-            unresolved or is not a DataSymbol.
-        :raises NotImplementedError: if the variable needs to be given
-            the target attribute but represents a symbol defined externally
-            (e.g. a routine argument or an imported symbol).
-
-        '''
-        try:
-            symbol = table.lookup(var_name)
-        except KeyError as err:
-            raise NotImplementedError(
-                f"Cannot add TARGET attribute to variable '{var_name}' "
-                f"because it is unresolved") from err
-        if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
-            raise NotImplementedError(
-                f"Cannot add TARGET attribute to symbol '{symbol}': it must "
-                f"be resolved and a DataSymbol")
-
-        datatype = symbol.datatype
-        # Create Fortran text for the supplied datatype from the
-        # supplied UnsupportedFortranType text, then parse this into an
-        # fparser2 tree and store the fparser2 representation of the
-        # datatype in type_decl_stmt.
-        dummy_code = (
-            f"subroutine dummy()\n"
-            f"  {datatype.declaration}\n"
-            f"end subroutine\n")
-        parser = ParserFactory().create(std=Config.get().fortran_standard)
-        reader = FortranStringReader(dummy_code)
-        fp2_ast = parser(reader)
-        type_decl_stmt = fp2_ast.children[0].children[1].children[0]
-
-        # Look for a preexisting target or pointer attribute and if
-        # one does not exist add a target attribute as this allows the
-        # created pointers to point at the supplied datatype.
-        attr_spec_list = type_decl_stmt.children[1]
-        attr_spec_str_list = []
-
-        if attr_spec_list:
-            for attr_spec in attr_spec_list.children:
-                attr_spec_str = attr_spec.string
-                attr_spec_str_list.append(attr_spec_str)
-                if attr_spec_str.upper() in ["TARGET", "POINTER"]:
-                    # There is already a target or pointer attribute
-                    return
-
-        # TARGET needs to be added as an additional attribute. We cannot
-        # do this if the Symbol has an interface that means it is defined
-        # externally.
-        if not (symbol.is_automatic or symbol.is_modulevar):
-            raise NotImplementedError(
-                f"Type-selector variable '{symbol.name}' is defined externally"
-                f" (has interface '{symbol.interface}') and thus cannot be "
-                f"given the TARGET attribute")
-
-        if attr_spec_str_list:
-            # At least one attribute already exists but it is/they are not
-            # the 'target' or 'pointer' attributes.
-            attr_spec_str_list.append("TARGET")
-            attr_spec_list = Fortran2003.Attr_Spec_List(
-                ", ".join(attr_spec_str_list))
-        else:
-            # There are no pre-existing attributes
-            attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
-        type_decl_stmt.items = (
-            type_decl_stmt.items[0], attr_spec_list,
-            type_decl_stmt.items[2])
-        attr_spec_list.parent = type_decl_stmt
-        # pylint: disable=protected-access
-        datatype._declaration = str(type_decl_stmt)
-
-    def _create_ifblock_for_select_type_content(
-            self, parent, select_type, type_string_symbol, pointer_symbols):
-        '''Use the contents of the supplied SelectTypeInfo instance
-        to create an if nest to capture the content of the associated
-        select type construct.
-
-        This allows the PSyIR to 'see' the content of the select type
-        despite not supporting the select type clause directly in
-        PSyIR. A Codeblock preceding this condition will capture the
-        conditional logic of the select type and the chosen type will
-        be communicated to the if nest at runtime via the
-        'type_string_symbol'. The if nest created here captures the
-        content of each branch of the original select type.
-
-        :param parent: the PSyIR parent to which we are going to add
-            the PSyIR ifblock and any required symbols.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param select_type: information on the select type construct.
-        :type select_type: :py:class:\
-            `psyclone.psyir.frontend.fparser2.Fparser2Reader.SelectTypeInfo`
-        :param type_string_symbol: a run-time symbol capturing (as a string)
-            the value chosen by the select type construct.
-        :type type_string_symbol: :py:class:`psyclone.psyir.type.DataSymbol`
-        :param pointer_symbols: a list of symbols that point to the
-            different select-type types within the select type codeblock.
-        :type pointer_symbols:
-            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
-
-        :returns: the newly created PSyIR IfBlock.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
-
-        :raises NotImplementedError: if there is a CodeBlock that contains a
-            reference to the type-selector variable.
-
-        '''
-        outer_ifblock = None
-        ifblock = None
-        currentparent = parent
-        for idx in range(select_type.num_clauses):
-            if idx == select_type.default_idx:
-                # This is the index of the 'class default' clause so
-                # skip this until the end of the if blocks.
-                continue
-
-            annotation = (
-                "was_class_is" if select_type.clause_type[idx].upper() ==
-                "CLASS IS" else "was_type_is")
-            if ifblock:
-                # We already have an if so this is an else if.
-                elsebody = Schedule(parent=currentparent)
-                ifblock = IfBlock(annotations=[annotation], parent=elsebody)
-                elsebody.addchild(ifblock)
-                currentparent.addchild(elsebody)
-            else:
-                # We do not yet have an if so this is the 'outer' if block.
-                ifblock = IfBlock(parent=currentparent,
-                                  annotations=[annotation])
-                outer_ifblock = ifblock
-
-            # Create an if hierarchy that uses the string (stored in
-            # type_string_symbol) set in an earlier select type
-            # codeblock to choose the appropriate content in the
-            # original select type clauses.
-            clause = BinaryOperation.create(
-                BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(select_type.guard_type_name[idx],
-                        ScalarType.character_type()))
-
-            ifblock.addchild(clause)
-            # Add If_body
-            ifbody = Schedule(parent=ifblock)
-            self.process_nodes(parent=ifbody, nodes=select_type.stmts[idx])
-            # Check that there are no CodeBlocks with references to the type
-            # selector variable.
-            for cblock in ifbody.walk(CodeBlock):
-                names = cblock.get_symbol_names()
-                if select_type.selector in names:
-                    raise NotImplementedError(
-                        f"CodeBlock contains reference to type-selector "
-                        f"variable '{select_type.selector}'")
-            # Replace references to the type selector variable with
-            # references to the appropriate pointer.
-            for reference in ifbody.walk(Reference):
-                symbol = reference.symbol
-                if symbol.name.lower() == select_type.selector:
-                    reference.symbol = pointer_symbols[idx]
-            ifblock.addchild(ifbody)
-            currentparent = ifblock
-
-        if select_type.default_idx >= 0:
-            # There is a class default clause so add this on as an
-            # else at the end of the IfBlock.
-            elsebody = Schedule(parent=currentparent)
-            currentparent.addchild(elsebody)
-            self.process_nodes(
-                parent=elsebody, nodes=select_type.stmts[
-                    select_type.default_idx])
-
-        return outer_ifblock
-
-    @staticmethod
-    def _create_select_type(
-            parent, select_type, type_string_name=None):
-        '''Use the contents of the supplied SelectTypeInfo, `select_type`,
-        to create a CodeBlock containing a select type to capture its control
-        logic without capturing its content.
-
-        The 'output' of this CodeBlock is a character variable containing the
-        'name' of the type that was provided, thus identifying which branch of
-        the code would be executed. A pointer is also created and assigned
-        to the type-selection of the 'type is' or 'class is' clause.
-
-        :param parent: the PSyIR parent to which we are going to add
-            the PSyIR codeblock and any required symbols.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param select_type: instance of the SelectTypeInfo dataclass
-            containing information about the select type construct.
-        :type select_type: :py:class:`Self.SelectTypeInfo`
-        :param Optional[str] type_string_name: the base name to use
-            for the newly created type_string symbol.
-
-        :returns: the DataSymbol representing the character variable which
-                  will hold the 'name' of the type and a list of symbols that
-                  point to the different select-type types within the select
-                  type codeblock.
-        :rtype: tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`,
-            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]]
-
-        '''
-        pointer_symbols = []
-        # Create a symbol from the supplied base name.
-        # TODO #2550 will improve this by using an integer instead.
-        type_string_name = parent.scope.symbol_table.next_available_name(
-            type_string_name)
-        # Length is hardcoded here so could potentially be too short.
-        # TODO #2550 will improve this by using an integer instead.
-        type_string_symbol = DataSymbol(
-            type_string_name,
-            ScalarType(ScalarType.Intrinsic.CHARACTER,
-                       ScalarType.Precision.UNDEFINED, length=256))
-        parent.scope.symbol_table.add(type_string_symbol)
-
-        # Create text for a select type construct using the information
-        # captured in the `select_type` SelectTypeInfo instance.
-        # Also add any required pointer symbols to the symbol table as
-        # UnsupportedFortranType, as pointers are not natively supported in the
-        # PSyIR at the moment.
-        code = "program dummy\n"
-        code += f"select type({select_type.selector})\n"
-        for idx in range(select_type.num_clauses):
-            if idx == select_type.default_idx:
-                # This is the index of the 'class default' clause so no pointer
-                # symbol is required (as there is no type selection).
-                pointer_symbols.append(None)
-                continue
-            # Create pointer symbol for the content of this 'type is'
-            # or 'class is' clause.
-            pointer_name = parent.scope.symbol_table.next_available_name(
-                f"ptr_{select_type.guard_type_name[idx]}")
-            if (select_type.intrinsic_type_name[idx] and
-                    select_type.intrinsic_type_name[idx].upper() ==
-                    "CHARACTER"):
-                # This is a character string pointer which we always
-                # declare with a fixed length to allow it to be
-                # declared locally (otherwise it must be a parameter
-                # or passed by argument). As length is hardcoded here,
-                # the string could potentially be too short.
-
-                tmp_type = "CHARACTER(LEN=256)"
-                # The type spec for a character intrinsic within the
-                # type is and class is clauses must always be assumed
-                type_spec = "CHARACTER(LEN = *)"
-            else:
-                # Declare pointer in the usual way using the
-                # guard_type string
-                tmp_type = f"{select_type.guard_type[idx]}"
-                if not select_type.intrinsic_type_name[idx]:
-                    # This is a type declaration
-                    tmp_type = f"type({tmp_type})"
-                # Use the variable declaration for the type spec in
-                # the type is and class is clauses
-                type_spec = select_type.guard_type[idx]
-
-            # Create a pointer that points to the specific type from
-            # the appropriate select type clause so that the specific
-            # type can be used in a subsequent if block hierarchy
-            # (otherwise Fortran complains that the type is generic).
-            pointer_type = UnsupportedFortranType(
-                f"{tmp_type}, pointer :: {pointer_name} => null()")
-            pointer_symbol = DataSymbol(pointer_name, pointer_type)
-            parent.scope.symbol_table.add(pointer_symbol)
-            pointer_symbols.append(pointer_symbol)
-            # The situation where 'clause_type' is 'class default' is
-            # handled separately, so we can assume 'clause_type' is
-            # either 'type is' or 'class is' which means it will
-            # always have a valid 'type_spec' value.
-            code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
-            code += (f"    {type_string_name} = "
-                     f"\"{select_type.guard_type_name[idx].lower()}\"\n")
-            code += (f"    {pointer_name} => {select_type.selector}\n")
-        code += "end select\n"
-        code += "end program\n"
-
-        # Parse the the created Fortran text to an fparser2 tree and
-        # store the resulting tree in a PSyIR CodeBlock.
-        std = Config.get().fortran_standard
-        parser = ParserFactory().create(std=std)
-        reader = FortranStringReader(code)
-        fp2_program = parser(reader)
-        # Ignore the program part of the fparser2 tree
-        exec_part = walk(fp2_program, Fortran2003.Execution_Part)
-        code_block = Fparser2CodeBlock(
-            exec_part, CodeBlock.Structure.STATEMENT, parent=parent)
-
-        # Handlers assume a single node is returned and in this
-        # implementation we create an assignment (see below), a
-        # CodeBlock (see above) and a nested if statement (see
-        # later). Therefore we add the assignment and codeblock to the
-        # parent here and compute and return the if statement in a
-        # subsequent routine (using the type_string_symbol).
-        parent.addchild(Assignment.create(
-            Reference(type_string_symbol),
-            Literal("", ScalarType.character_type())))
-        parent.addchild(code_block)
-
-        return (type_string_symbol, pointer_symbols)
-
-    @staticmethod
-    def _create_select_type_info(node):
-        '''Create and return a SelectTypeInfo instance that stores the required
-        information for a select-type construct to be used by
-        subsequent methods.
-
-        :param node: fparser2 node from which to extract the select-type
-            information.
-        :type node: :py:class:`fparser2.Fortran2003.Select_Type_Construct`
-
-        :returns: instance of the SelectTypeInfo dataclass containing
-            information about the select-type construct.
-        :rtype: :py:class:`Self.SelectTypeInfo`
-
-        '''
-        select_type = Fparser2Reader.SelectTypeInfo()
-
-        select_idx = -1
-        for child in node.children:
-            if isinstance(child, Fortran2003.Select_Type_Stmt):
-                # Found the select type stmt clause ('select type
-                # (x)')
-                if child.children[0]:
-                    # The selector variable ('x') is renamed and this
-                    # is not yet supported.
-                    raise NotImplementedError(
-                        f"The selector variable '{child.children[1]}' is "
-                        f"renamed to '{child.children[0]}' in the select "
-                        f"clause '{str(node)}'. This is not yet supported in "
-                        f"the PSyIR.")
-                # Store the name of the selector variable in our
-                # dataclass instance.
-                select_type.selector = child.children[1].string.lower()
-            elif isinstance(child, Fortran2003.Type_Guard_Stmt):
-                # Found one of the type stmt guard clauses ('type is',
-                # 'class is', or 'class default').
-                select_idx += 1
-                select_type.stmts.append([])
-                # Extract the fparser2 Type_Specification
-                # e.g. 'real(kind=4)'
-                type_spec = child.children[1]
-                # Default the intrinsic base name to None
-                intrinsic_base_name = None
-                if type_spec is None:
-                    # There is no type information so this is the
-                    # default clause
-                    type_name = None
-                elif isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
-                    # The guard type selector is an intrinsic type
-                    # e.g. 'type is(REAL)'. Set the intrinsic base name
-                    # as there is a base intrinsic type.
-                    intrinsic_base_name = str(type_spec.children[0]).lower()
-                    # Determine type_name for all the different cases
-                    # (must return a string that can be used as a
-                    # variable name).
-                    type_name = intrinsic_base_name
-                    if isinstance(
-                            type_spec.children[1], Fortran2003.Kind_Selector):
-                        # This is a non-character intrinsic type with
-                        # a kind specification
-                        kind_spec_value = type_spec.children[1].children[1]
-                        type_name = f"{type_name}_{kind_spec_value}".lower()
-                    elif walk(type_spec, Fortran2003.Length_Selector):
-                        # This is a character intrinsic type so must
-                        # have an assumed length ('*') which we
-                        # transform to 'star to allow the creation of a
-                        # valid symbol name.
-                        type_name = f"{type_name}_star".lower()
-                else:
-                    # The guard type selector is a Class type ('class
-                    # is (mytype)')
-                    type_name = str(type_spec).lower()
-                select_type.guard_type_name.append(type_name)
-                if type_spec:
-                    select_type.guard_type.append(str(type_spec).lower())
-                else:
-                    select_type.guard_type.append(None)
-                select_type.intrinsic_type_name.append(intrinsic_base_name)
-
-                # Store the index of the class default information
-                select_type.clause_type.append(child.children[0])
-                if child.children[0].lower() == "class default":
-                    select_type.default_idx = select_idx
-            elif isinstance(child, Fortran2003.End_Select_Type_Stmt):
-                pass
-            else:
-                # The next content must be a statement as the content within
-                # select case or select type clauses in fparser2 are *siblings*
-                # of the various select case or select-type statements, rather
-                # than children of them (as one might expect).
-                select_type.stmts[select_idx].append(child)
-        select_type.num_clauses = select_idx + 1
-
-        return select_type
-
-    def _select_type_construct_handler(self, node, parent):
-        '''
-        Transforms an fparser2 Select_Type_Construct to the PSyIR
-        representation (consisting of an Assignment, a CodeBlock
-        and an IfBlock).
-
-        :param node: node in fparser2 tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Select_Type_Construct`
-        :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: PSyIR representation of the node.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
-
-        :raises NotImplementedError: if the symbol representing the type-
-            selector variable is not resolved or is not a DataSymbol.
-
-        '''
-        # Step 1: Search for all the TYPE IS and CLASS IS clauses in
-        # the Select_Type_Construct and extract the required
-        # information. This makes for easier code generation later in
-        # the routine.
-        insert_index = len(parent.children) - 1
-        # Create the required type information in a dataclass instance.
-        select_type = self._create_select_type_info(node)
-
-        # We don't immediately add our new nodes into the PSyIR tree in
-        # case we encounter something we don't support (in which case
-        # an exception will be raised and a CodeBlock created).
-        tmp_parent = Schedule(parent=parent)
-
-        # Step 2: Recreate the select type clause within a CodeBlock
-        # with the content of the clauses being replaced by a string
-        # capturing the name of the type or class clauses
-        # ('type_string'). The string symbol is returned for use in
-        # step 3, as is the list of any pointers to the selector variable.
-        # TODO #2550 - use an integer instead of a string to encode
-        # which branch is chosen at run-time.
-        type_string_symbol, pointer_symbols = self._create_select_type(
-            tmp_parent, select_type, type_string_name="type_string")
-
-        # Step 3: Create the (potentially nested) if statement that
-        # replicates the content of the select type options (as select
-        # type is not supported directly in the PSyIR) allowing the
-        # PSyIR to 'see' the select type content.
-        outer_ifblock = self._create_ifblock_for_select_type_content(
-            parent, select_type, type_string_symbol, pointer_symbols)
-
-        # Step 4: Ensure that the type selector variable declaration
-        # has the pointer or target attribute as we need to create
-        # pointers that point to it to get the specific type.
-        self._add_target_attribute(select_type.selector,
-                                   outer_ifblock.scope.symbol_table)
-
-        # Step 5: We didn't encounter any problems so finally attach our new
-        # nodes to the PSyIR tree in the location we saved earlier.
-        for child in reversed(tmp_parent.pop_all_children()):
-            parent.addchild(child, index=insert_index)
-        # Ensure any Symbols are moved over too.
-        parent.scope.symbol_table.merge(tmp_parent.symbol_table)
-
-        return outer_ifblock
-
     def _case_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Case_Construct to the PSyIR representation.
@@ -6446,6 +5977,155 @@ class Fparser2Reader():
             parent=parent
         )
         return code_block
+
+    def _select_type_handler(
+        self, node: Fortran2003.Select_Type_Construct, parent: Node
+    ) -> SelectType:
+        '''
+        Process a Select Type and add it to the tree.
+
+        :param node: The Select Type to be parsed.
+        :param parent: Parent node of the PSyIR node we are constructing.
+
+        :returns: A PSyIR SelectType node representing the input.
+
+        :raises NotImplementedError: if the Select Type input has an
+            assoc name.
+        '''
+
+        select_type = SelectType(parent=parent)
+
+        # Find the Select_Type_Stmt containing the name we're interested in.
+        select_type_stmt = _first_type_match(node.children,
+                                             Fortran2003.Select_Type_Stmt)
+
+        # Inline comments on a SelectType are indistinguishable from
+        # comments inside a SelectType from the fparser tree, so an
+        # inline comment will appear inside the SelectType.
+
+        # If we have a => b syntax then we don't currently support it.
+        if select_type_stmt.children[0] is not None:
+            raise NotImplementedError(
+                "PSyclone doesn't yet support Select Type with "
+                "an assoc-name for the selector."
+            )
+        variable_name = select_type_stmt.children[1].string
+        symbol = _find_or_create_unresolved_symbol(parent, variable_name)
+        select_type.addchild(Reference(symbol))
+
+        # For all of the Fortran2003.Type_Guard_Stmt we should get the
+        # corresponding TypeGuard PSyIR nodes.
+        # The current position in the children list. We start after the
+        # Select_Type_Stmt
+        current_position = 0
+        for i, child in enumerate(node.children):
+            if child is select_type_stmt:
+                current_position = i + 1
+                break
+
+        current_nodes = []
+        current_type_guard = None
+        while current_position < len(node.children):
+            current = node.children[current_position]
+            # If we come across a TypeGuardStmt we have reached a new block.
+            if isinstance(current, Fortran2003.Type_Guard_Stmt):
+                # If we already had a Type Is statement we process the
+                # previous nodes without this one and then process this.
+                if current_type_guard:
+                    # Find all the nodes until the last non-comment and add
+                    # those to the previous TypeGuard node.
+                    non_comment_indices = [
+                        i for i, e in enumerate(current_nodes) if
+                        not isinstance(e, Fortran2003.Comment)
+                    ]
+                    last_non_comment_index = (
+                        non_comment_indices[-1] if non_comment_indices else
+                        None
+                    )
+
+                    if last_non_comment_index is not None:
+                        # If the previous block only has non-comments we need
+                        # to add them to the previous TypeGuard node.
+                        self.process_nodes(
+                            parent=current_type_guard.body,
+                            nodes=current_nodes[:last_non_comment_index+1]
+                        )
+                        # Keep any trailing comments in the current_nodes list.
+                        current_nodes = current_nodes[
+                            last_non_comment_index+1:
+                        ]
+
+                # Add the current TypeGuard node to the current node list.
+                current_nodes.append(current)
+                self.process_nodes(parent=select_type, nodes=current_nodes)
+                # Update the new current_type_guard to be the newly created
+                # TypeGuard node.
+                current_type_guard = select_type.children[-1]
+                current_nodes = []
+            elif isinstance(current, Fortran2003.End_Select_Type_Stmt):
+                # Add the remaining nodes to the last TypeGuard node.
+                self.process_nodes(parent=current_type_guard.body,
+                                   nodes=current_nodes)
+                break
+            else:
+                current_nodes.append(current)
+            current_position += 1
+
+        return select_type
+
+    def _type_guard_handler(
+        self, node: Fortran2003.Type_Guard_Stmt, parent: Node
+    ) -> TypeGuard:
+        '''
+        Process a TypeGuard and add it to the tree.
+
+        :param node: The Type Guard to be parsed.
+        :param parent: Parent node of the PSyIR node we are constructing.
+
+        :returns: A PSyIR TypeGuard node representing the input.
+        '''
+        _type_guard_to_TypeGuardType: dict[str, TypeGuard.TypeGuardType] = {
+            "type is": TypeGuard.TypeGuardType.TYPE_IS,
+            "class is": TypeGuard.TypeGuardType.CLASS_IS,
+            "class default": TypeGuard.TypeGuardType.CLASS_DEFAULT,
+        }
+        # This is either TYPE IS, CLASS IS or CLASS DEFAULT
+        type_guard_type: str = node.children[0].lower()
+        # Find the Select_Type_Stmt containing the name we're interested in.
+        # If we have a class default there is no type_spec_or_name
+        if type_guard_type == "class default":
+            type_guard = TypeGuard(
+                _type_guard_to_TypeGuardType[type_guard_type], None,
+                parent=parent
+            )
+            type_guard.addchild(Schedule())
+            return type_guard
+
+        type_spec_or_name = node.children[1]
+        symbol_table = parent.scope.symbol_table
+        if isinstance(type_spec_or_name, Fortran2003.Type_Name):
+            type_name = type_spec_or_name.string
+            symbol = symbol_table.lookup(type_name, otherwise=None)
+            if symbol is None:
+                symbol = DataTypeSymbol(type_name, UnresolvedType(),
+                                        interface=UnresolvedInterface())
+                symbol_table.add(symbol)
+            if not isinstance(symbol, DataTypeSymbol):
+                symbol.specialise(DataTypeSymbol,
+                                  interface=UnresolvedInterface())
+                symbol.datatype = UnresolvedType()
+            # Use the DataTypeSymbol instead of the datatype so
+            # the backend can find the name.
+            dtype = symbol
+        elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
+            # If we have an Intrinsic_Type_Spec then we process the type spec
+            # and create use the datatype.
+            dtype, _ = self._process_type_spec(parent, type_spec_or_name)
+        type_guard = TypeGuard(_type_guard_to_TypeGuardType[type_guard_type],
+                               dtype,
+                               parent=parent)
+        type_guard.addchild(Schedule())
+        return type_guard
 
 
 # For Sphinx AutoAPI documentation generation
