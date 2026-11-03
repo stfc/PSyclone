@@ -202,22 +202,24 @@ class LFRicDofmaps(LFRicCollection):
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            # TODO #2577 - once pointer assignments are supported then
-            # we can remove the use of UnsupportedFortranType here.
-            base_name = (
-                "map_" +
-                self._unique_fs_maps[dmap].function_space.short_mangled_name)
+
+            base_name = self._unique_fs_maps[dmap].function_space.map_name
+            tag = self._unique_fs_maps[dmap].function_space.map_tag
+            # TODO Probably tag == dmap?
+
             try:
-                dmap_sym = self.symtab.lookup_with_tag(dmap)
+                dmap_sym = self.symtab.lookup_with_tag(tag)
             except KeyError:
                 name = self.symtab.next_available_name(base_name)
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dtype = UnsupportedFortranType(
                     f"{intrinsic_type.intrinsic.name.lower()}("
                     f"kind={intrinsic_type.precision.name}), pointer "
                     f":: {name}(:,:) => null()",
                     partial_datatype=atype.copy())
                 dmap_sym = self.symtab.find_or_create_tag(
-                    tag=dmap, root_name=base_name, symbol_type=DataSymbol,
+                    tag=tag, root_name=base_name, symbol_type=DataSymbol,
                     datatype=dtype,
                     initial_value=IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.NULL))

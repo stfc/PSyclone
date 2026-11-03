@@ -1130,8 +1130,6 @@ class LFRicFunctionSpaces(LFRicCollection):
         # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
 
-            short_name = function_space.short_mangled_name
-
             # We need ndf for a space if a kernel operates on cell-columns,
             # has a field or operator on that space and is not a
             # CMA kernel performing a matrix-matrix operation.
@@ -1152,7 +1150,7 @@ class LFRicFunctionSpaces(LFRicCollection):
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(
-                    (function_space.undf_tag, f"undf_{short_name}"))
+                    (function_space.undf_tag, function_space.undf_name))
 
     def stub_declarations(self):
         '''
