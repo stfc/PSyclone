@@ -30,6 +30,7 @@ class ReadWriteInfo:
     def __init__(self) -> None:
         self._read_list: list[Tuple[str, Signature]] = []
         self._write_list: list[Tuple[str, Signature]] = []
+        self._call_list: list[Tuple[str, Signature]] = []
         self._sorted = True
 
     # -------------------------------------------------------------------------
@@ -44,6 +45,7 @@ class ReadWriteInfo:
         if not self._sorted:
             self._read_list.sort()
             self._write_list.sort()
+            self._call_list.sort()
             self._sorted = True
         return self._read_list
 
@@ -78,6 +80,21 @@ class ReadWriteInfo:
 
         '''
         return [sig for _, sig in self.write_list]
+
+    # -------------------------------------------------------------------------
+    @property
+    def call_list(self) -> List[Tuple[str, Signature]]:
+        '''
+        :returns: the sorted list of container_name, signature pairs that
+            are called.
+
+        '''
+        if not self._sorted:
+            self._read_list.sort()
+            self._write_list.sort()
+            self._call_list.sort()
+            self._sorted = True
+        return self._call_list
 
     # -------------------------------------------------------------------------
     @property
@@ -130,6 +147,25 @@ class ReadWriteInfo:
         self._sorted = False
 
     # -------------------------------------------------------------------------
+    def add_call(self,
+                 signature: Signature,
+                 container_name: Optional[str] = None) -> None:
+        '''This function adds a write access to the specified signature and
+        container name. The container_name is optional and defaults to "",
+        indicating that this signature is not based on importing a symbol
+        from an external container (i.e. a module in Fortran).
+
+        :param signature: the signature of the access.
+        :param container_name: the container name (optional)
+
+        '''
+        if container_name:
+            self._call_list.append((container_name, signature))
+        else:
+            self._call_list.append(("", signature))
+        self._sorted = False
+
+    # -------------------------------------------------------------------------
     def is_read(self, signature: Signature) -> bool:
         '''
         Checks if the given signature is in the read list.
@@ -173,7 +209,7 @@ class ReadWriteInfo:
             not_found_counter += 1
         if not_found_counter == 2:
             logger = logging.getLogger(__name__)
-            logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
+            logger.warning(f"ExtractNode: Variable '{signature}' is to "
                            f"be removed from ReadWriteInfo, but it's neither "
                            f"in the list of read variables ({self._read_list})"
                            f", nor in the list of write variables "
