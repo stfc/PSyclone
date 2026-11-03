@@ -108,7 +108,7 @@ class FunctionSpace():
             for arg in args:
                 for fspace in arg.function_spaces:
                     if (fspace and fspace.orig_name.lower() == lorig_name):
-                        base_name = f"{self.short_name}_{arg.name}"
+                        base_name = f"{self.short_name}:{arg.name}"
                         break
                 if base_name:
                     break
