@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Union
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
@@ -24,7 +25,7 @@ from psyclone.psyir.symbols import (
     ImportInterface, ArrayType, DataTypeSymbol)
 
 if TYPE_CHECKING:
-    from psyclone.lfric import LFRicInvoke, LFRicKernelArgument
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class LFRicStencils(LFRicCollection):
@@ -111,8 +112,8 @@ class LFRicStencils(LFRicCollection):
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
-    def unique_tag(arg: "LFRicKernelArgument",
-                   context: str) -> str:
+    def tag_name(arg: "LFRicKernelArgument",
+                 context: str) -> str:
         '''
         Creates a unique identifier for a stencil. As a stencil
         differs due to the function space it operates on, type of
@@ -151,7 +152,7 @@ class LFRicStencils(LFRicCollection):
         :returns: a valid unique map name for a stencil in the PSy layer.
 
         '''
-        unique = LFRicStencils.unique_tag(arg, "map")
+        unique = LFRicStencils.tag_name(arg, "map")
         return self.symtab.lookup_with_tag(unique).name
 
     @staticmethod
@@ -169,7 +170,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         root_name = arg.name + "_stencil_dofmap"
-        unique = LFRicStencils.unique_tag(arg, "dofmap")
+        unique = LFRicStencils.tag_name(arg, "dofmap")
         # The dofmap symbol type depends if it's in a stub or an invoke, so
         # don't commit to any type yet.
         return symtab.find_or_create_tag(
@@ -191,7 +192,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         root_name = arg.name + "_stencil_size"
-        unique = LFRicStencils.unique_tag(arg, "size")
+        unique = LFRicStencils.tag_name(arg, "size")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 # We don't commit to a type because it is different on
@@ -215,7 +216,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         root_name = arg.name + "_max_branch_length"
-        unique = LFRicStencils.unique_tag(arg, "length")
+        unique = LFRicStencils.tag_name(arg, "length")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -234,7 +235,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         root_name = arg.name+"_direction"
-        unique = LFRicStencils.unique_tag(arg, "direction")
+        unique = LFRicStencils.tag_name(arg, "direction")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -498,7 +499,7 @@ class LFRicStencils(LFRicCollection):
         const = LFRicConstants()
 
         for arg in self._kern_args:
-            unique_tag = LFRicStencils.unique_tag(arg, "map")
+            unique_tag = LFRicStencils.tag_name(arg, "map")
 
             if unique_tag in stencil_map_names:
                 continue
