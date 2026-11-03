@@ -11,12 +11,9 @@ construction for the Fparser->PSyIR frontend.
 '''
 import pytest
 
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     CodeBlock, Reference, Routine, SelectType, TypeGuard
 )
-from psyclone.psyir.symbols import (AutomaticInterface, UnsupportedFortranType,
-                                    DataSymbol)
 from psyclone.tests.utilities import Compile
 
 
@@ -61,6 +58,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -125,6 +123,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -206,6 +205,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
       type is(real)
         branch3 = 1
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -282,6 +282,7 @@ def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
         branch2 = 0
         iinfo = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -319,6 +320,7 @@ def test_unresolved_selector_symbol(fortran_reader, fortran_writer, tmpdir,
         !  - Unsupported statement: Write_Stmt
         WRITE(*, *) "yes"
     end select
+
   end subroutine my_sub"""
     result = fortran_writer(psyir)
     assert correct in result
@@ -397,6 +399,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         branch2 = 1
         rinfo2 = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -439,6 +442,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         branch1 = 1
         field_type_info = type
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -497,6 +501,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         branch3 = 1
         complex_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -536,6 +541,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -572,6 +578,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -622,6 +629,7 @@ def test_character_kind(
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
@@ -660,6 +668,7 @@ def test_class_target(
       type is(character(len=*))
         character_type = type_selector
     end select
+
   end subroutine select_type"""
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
@@ -667,46 +676,34 @@ def test_class_target(
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_add_target_attribute(fortran_reader):
-    '''Check that _add_target_attribute works when a declaration either has
-    or has no existing attributes.
+def test_imported_type_target(
+        fortran_reader, fortran_writer, tmpdir
+):
+    '''Test that if we have an imported type we still correctly create the
+    required DataTypeSymbol to not crash the creation of the TypeGuard.'''
+    code = """
+    subroutine test(input)
+        use mod, only: some_type
+        class(*) :: input
 
-    This is complicated because it appears that the only way for
-    something that is not an argument to have a dynamic type is for it
-    to be class(*). The fparser2 frontend cannot handle this and we
-    end up with an UnsupportedFortranType with an UnknownInterface. We
-    therefore have to explicitly fix the interface before we can test the
-    functionality.
-
-    '''
-    code = '''\
-module my_mod
-  implicit none
-contains
-
-  subroutine my_sub()
-    ! class(*) must have the ALLOCATABLE or POINTER attribute if it is not
-    ! a dummy argument.
-    class(*), allocatable, dimension(:) :: something
-  end subroutine my_sub
-end module my_mod
-'''
+        select type(input)
+          type is(some_type)
+             print *, "test print"
+        end select
+    end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    table = psyir.children[0].children[0].symbol_table
-    sym = table.lookup("something")
-    # Fix the interface of the symbol.
-    sym.interface = AutomaticInterface()
-    fp2reader = Fparser2Reader()
-    # Test that _add_target_attribute now works for this Symbol.
-    fp2reader._add_target_attribute("something", table)
-    assert ("CLASS(*), ALLOCATABLE, DIMENSION(:), TARGET :: something"
-            in str(sym.datatype))
-    # Test in the absence of any attributes on the original declaration.
-    # This is probably not reachable in normal use (but we want to make sure
-    # that the code handles it in case it happens) so create our own
-    # UnsupportedFortranType using a simple declaration.
-    new_type = UnsupportedFortranType("integer :: a_local")
-    sym2 = DataSymbol("a_local", datatype=new_type)
-    table.add(sym2)
-    fp2reader._add_target_attribute("a_local", table)
-    assert "INTEGER, TARGET :: a_local" in str(sym2.datatype)
+    result = fortran_writer(psyir).lower()
+    correct = """subroutine test(input)
+  use mod, only :
+  class(*) :: input
+
+  select type(input)
+    type is(some_type)
+      ! psyclone codeblock (unsupported code) reason:
+      !  - unsupported statement: print_stmt
+      print *, "test print"
+  end select
+
+end subroutine test"""
+    assert correct in result
+    assert Compile(tmpdir).string_compiles(result)
