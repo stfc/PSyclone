@@ -126,7 +126,7 @@ class FunctionSpace():
         return ":".join(parts)
 
     @property
-    def short_mangled_name(self) -> str:
+    def _short_name_from_tag(self) -> str:
         '''
         :returns: a short, mangled name. This is *not* guaranteed
             to be unique but is useful when constructing meaningful variable
@@ -203,7 +203,7 @@ class FunctionSpace():
         :returns: a dofmap name for the supplied FunctionSpace. This is not
             guaranteed to be unique but can be used as a start point.
         '''
-        return f"map_{self.short_mangled_name}"
+        return f"map_{self._short_name_from_tag}"
 
     @property
     def cbanded_map_tag(self) -> str:
@@ -219,7 +219,7 @@ class FunctionSpace():
         :returns: the base name to use for a column-banded dofmap for this
                   FunctionSpace.
         '''
-        return "cbanded_map_" + self.short_mangled_name
+        return "cbanded_map_" + self._short_name_from_tag
 
     @property
     def cma_indirection_map_tag(self) -> str:
@@ -235,7 +235,7 @@ class FunctionSpace():
         :returns: a base name for a CMA indirection dofmap for this
                   FunctionSpace.
         '''
-        return "cma_indirection_map_" + self.short_mangled_name
+        return "cma_indirection_map_" + self._short_name_from_tag
 
     @property
     def ndf_tag(self) -> str:
@@ -249,7 +249,7 @@ class FunctionSpace():
         '''
         :returns: a base ndf name for this FunctionSpace.
         '''
-        return f"ndf_{self.short_mangled_name}"
+        return f"ndf_{self._short_name_from_tag}"
 
     @property
     def undf_tag(self) -> str:
@@ -263,7 +263,7 @@ class FunctionSpace():
         '''
         :returns: a base undf name for this FunctionSpace.
         '''
-        return f"undf_{self.short_mangled_name}"
+        return f"undf_{self._short_name_from_tag}"
 
     def get_basis_name(self,
                        qr_var: str = None,
@@ -284,13 +284,13 @@ class FunctionSpace():
 
         '''
         tag = f"basis:{self.tag_name}"
-        name = f"basis_{self.short_mangled_name}"
+        name = f"basis_{self._short_name_from_tag}"
         if qr_var:
             tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
             tag += "_on_" + on_space.tag_name
-            name += "_on_" + on_space.short_mangled_name
+            name += "_on_" + on_space._short_name_from_tag
         return name, tag
 
     def get_diff_basis_name(self,
@@ -313,13 +313,13 @@ class FunctionSpace():
 
         '''
         tag = f"diff_basis:{self.tag_name}"
-        name = f"diff_basis_{self.short_mangled_name}"
+        name = f"diff_basis_{self._short_name_from_tag}"
         if qr_var:
             tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
             tag += f"_on_{on_space.tag_name}"
-            name += f"_on_{on_space.short_mangled_name}"
+            name += f"_on_{on_space._short_name_from_tag}"
         return name, tag
 
     def get_operator_name(self,

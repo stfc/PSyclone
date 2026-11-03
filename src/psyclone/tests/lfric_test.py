@@ -2195,12 +2195,9 @@ def test_mangle_function_space():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_space_2"
     fspace = FunctionSpace(fs_name, first_kernel.arguments)
-    mangled_name = fspace.tag_name
-    short_name = fspace.short_name
-    short_mangled = fspace.short_mangled_name
-    assert mangled_name == "as2:f2::1"
-    assert short_name == "as2"
-    assert short_mangled == "as2_f2__1"
+    assert fspace.tag_name == "as2:f2::1"
+    assert fspace.short_name == "as2"
+    assert fspace._short_name_from_tag == "as2_f2__1"
     # Test any_discontinuous_space
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
@@ -2210,12 +2207,9 @@ def test_mangle_function_space():
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_discontinuous_space_1"
     fspace = FunctionSpace(fs_name, first_kernel.arguments)
-    mangled_name = fspace.tag_name
-    short_name = fspace.short_name
-    short_mangled = fspace.short_mangled_name
-    assert mangled_name == "ads1:f1::1"
-    assert short_name == "ads1"
-    assert short_mangled == "ads1_f1__1"
+    assert fspace.tag_name == "ads1:f1::1"
+    assert fspace.short_name == "ads1"
+    assert fspace._short_name_from_tag == "ads1_f1__1"
 
 
 def test_no_mangle_specified_function_space():
@@ -2249,7 +2243,7 @@ def test_no_mangle_specified_function_space():
                            nlayers="3", ndata="physics")
     assert fspace.tag_name == "w2:3:physics"
     assert fspace.short_name == "w2"
-    assert fspace.short_mangled_name == "w2_3_physics"
+    assert fspace._short_name_from_tag == "w2_3_physics"
 
 
 @pytest.mark.parametrize(
