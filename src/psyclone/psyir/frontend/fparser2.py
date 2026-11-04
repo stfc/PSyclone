@@ -5991,6 +5991,7 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if the Select Type input has an
             assoc name.
+        :raises GenerationError: if an invalid Fortran input is provided.
         '''
 
         select_type = SelectType(parent=parent)
@@ -6008,6 +6009,15 @@ class Fparser2Reader():
             raise NotImplementedError(
                 "PSyclone doesn't yet support Select Type with "
                 "an assoc-name for the selector."
+            )
+        # Since we don't have a => b syntaxs then the name must be a
+        # name and not an access to another object. If the above
+        # condition is implemented in PSyclone then this must be updated.
+        if not type(select_type_stmt.children[1]) is Fortran2003.Name:
+            raise GenerationError(
+                f"Invalid Fortran input found as the Select Type has an "
+                f"input that can't be the only element of a Select Type "
+                f"clause: '{str(select_type_stmt.children[1])}'."
             )
         variable_name = select_type_stmt.children[1].string
         symbol = _find_or_create_unresolved_symbol(parent, variable_name)

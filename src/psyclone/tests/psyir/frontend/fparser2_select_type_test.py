@@ -11,6 +11,7 @@ construction for the Fparser->PSyIR frontend.
 '''
 import pytest
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     CodeBlock, Reference, Routine, SelectType, TypeGuard
 )
@@ -707,3 +708,25 @@ def test_imported_type_target(
 end subroutine test"""
     assert correct in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_invalid_select_types(fortran_reader):
+    '''Test that the frontend raises an error if we have invalid Fortran
+    input.'''
+
+    # Invalid use of a structure element without a wildcard import.
+    code = """
+    subroutine test(input)
+        class(*) :: input
+
+        select type(input%element)
+           type is(integer)
+               print *, "Test"
+        end select
+    end subroutine test"""
+    with pytest.raises(
+        GenerationError,
+        match="Invalid Fortran input found as the Select Type has an "
+              "input that can't be the only element of a Select Type "
+              "clause: 'input % element'."):
+        psyir = fortran_reader.psyir_from_source(code)
