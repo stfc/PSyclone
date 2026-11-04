@@ -71,52 +71,6 @@ class FortranReader():
             ignore_comments, free_form, conditional_openmp_statements
         )
 
-    @staticmethod
-    def validate_name(name: str) -> None:
-        '''
-        Utility method that checks that the supplied name is a valid
-        Fortran name.
-
-        :param name: the name to check.
-
-        :raises TypeError: if the name is not a string.
-        :raises ValueError: if this is not a valid name.
-
-        '''
-        if not isinstance(name, str):
-            raise TypeError(
-                f"A name should be a string, but found "
-                f"'{type(name).__name__}'.")
-        if not re.match(r"^[A-Z]\w*$", name, flags=re.I):
-            raise ValueError(
-                f"Invalid Fortran name '{name}' found.")
-
-    @staticmethod
-    def create_valid_name(name: str) -> str:
-        '''
-        Given an initial string, uses it to create a valid Fortran
-        variable name. If that is not possible then just "psy" is
-        returned.
-
-        '''
-        if not isinstance(name, str):
-            raise TypeError(
-                f"Supplied name must be a str but argument is of type "
-                f"'{type(name).__name__}'")
-
-        # A Fortran name must begin with an alphabet character.
-        for idx, char in enumerate(name):
-            if char.isalpha():
-                break
-        else:
-            return "psy"
-
-        # Replace any non-alphanumeric character with an underscore.
-        pattern = re.compile(r"[^a-zA-Z0-9]")
-        result = re.sub(pattern, "_", name[idx:])
-
-        return result
-
     def psyir_from_source(self, source_code: str) -> Node:
         ''' Generate the PSyIR tree for the given Fortran source code.
 

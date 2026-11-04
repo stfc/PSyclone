@@ -18,7 +18,6 @@ from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import DataSymbol
 
 
@@ -188,7 +187,7 @@ class KernStubArgList(ArgOrdering):
         # require in our Fortran code
         for idx in range(1, argvect.vector_size+1):
             text = f"{argvect.name}_{argvect.function_space.tag_name}_v{idx}"
-            self.append(FortranReader().create_valid_name(text), var_accesses)
+            self.append(self._symtab.create_valid_name(text), var_accesses)
 
     def field(self,
               arg: "LFRicKernelArgument",
@@ -202,7 +201,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         text = f"{arg.name}_{arg.function_space.tag_name}"
-        self.append(FortranReader().create_valid_name(text),
+        self.append(self._symtab.create_valid_name(text),
                     var_accesses, mode=arg.access)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):

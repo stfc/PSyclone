@@ -17,7 +17,6 @@ from collections import OrderedDict
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, ScalarType, ArrayType, UnresolvedType,
@@ -99,7 +98,6 @@ class LFRicFields(LFRicCollection):
         '''
         super().stub_declarations()
         const = LFRicConstants()
-        freader = FortranReader()
 
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
@@ -139,7 +137,7 @@ class LFRicFields(LFRicCollection):
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
                     text = f"{fld.name}_{fld.function_space.tag_name}_v{idx}"
-                    name = freader.create_valid_name(text)
+                    name = self.symtab.create_valid_name(text)
                     arg = self.symtab.find_or_create(
                         name, tag=text, symbol_type=DataSymbol,
                         datatype=datatype)
@@ -147,7 +145,7 @@ class LFRicFields(LFRicCollection):
                     self.symtab.append_argument(arg)
             else:
                 text = f"{fld.name}_{fld.function_space.tag_name}"
-                name = freader.create_valid_name(text)
+                name = self.symtab.create_valid_name(text)
                 arg = self.symtab.find_or_create(
                     name, symbol_type=DataSymbol, datatype=datatype)
                 arg.interface = ArgumentInterface(intent)

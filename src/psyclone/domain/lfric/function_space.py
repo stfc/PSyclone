@@ -13,6 +13,7 @@ from typing import Optional, TYPE_CHECKING
 
 from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.psyir.symbols import SymbolTable
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument, LFRicKernelArguments
 
@@ -147,8 +148,7 @@ class FunctionSpace():
         :returns: a shortened form of the name.
 
         '''
-        from psyclone.psyir.frontend.fortran import FortranReader
-        valid_name = FortranReader().create_valid_name(name)
+        valid_name = SymbolTable.create_valid_name(name)
         if len(valid_name) < FunctionSpace.MAX_NAME_LEN:
             return valid_name
         new_parts = []
