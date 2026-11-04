@@ -15,6 +15,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     CodeBlock, Reference, Routine, SelectType, TypeGuard
 )
+from psyclone.psyir.symbols import ImportInterface
 from psyclone.tests.utilities import Compile
 
 
@@ -693,9 +694,13 @@ def test_imported_type_target(
         end select
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
+    # The some_type symbol should not be unresolved.
+    sym = psyir.children[0].symbol_table.lookup("some_type")
+    assert isinstance(sym.interface, ImportInterface)
+    assert sym.interface.container_symbol.name == "mod"
     result = fortran_writer(psyir).lower()
     correct = """subroutine test(input)
-  use mod, only :
+  use mod, only : some_type
   class(*) :: input
 
   select type(input)
@@ -710,11 +715,11 @@ end subroutine test"""
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_invalid_select_types(fortran_reader):
+def test_invalid_select_type(fortran_reader):
     '''Test that the frontend raises an error if we have invalid Fortran
     input.'''
 
-    # Invalid use of a structure element without a wildcard import.
+    # Invalid use of a structure element.
     code = """
     subroutine test(input)
         class(*) :: input
@@ -729,4 +734,4 @@ def test_invalid_select_types(fortran_reader):
         match="Invalid Fortran input found as the Select Type has an "
               "input that can't be the only element of a Select Type "
               "clause: 'input % element'."):
-        psyir = fortran_reader.psyir_from_source(code)
+        _ = fortran_reader.psyir_from_source(code)

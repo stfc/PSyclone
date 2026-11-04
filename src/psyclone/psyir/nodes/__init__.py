@@ -183,4 +183,6 @@ __all__ = [
         'OMPFirstprivateClause',
         'OMPSharedClause',
         'OMPDependClause',
+        'SelectType',
+        'TypeGuard'
         ]

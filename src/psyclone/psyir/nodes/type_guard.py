@@ -12,11 +12,12 @@ from typing import Any, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.symbols import (DataTypeSymbol, DataType, Symbol,
-                                    SymbolTable)
+from psyclone.psyir.symbols import (DataTypeSymbol, DataType, ScalarType,
+                                    Symbol, SymbolTable)
 
 
 class TypeGuard(Statement):
@@ -210,7 +211,7 @@ class TypeGuard(Statement):
         table_or_symbol: Union[SymbolTable, Symbol]
     ) -> None:
         '''
-        Replace the Symbol referred to by this object's `comparison_type` with
+        Replace Symbols referred to by this object's `comparison_type` with
         those in the supplied SymbolTable (or just the supplied Symbol
         instance) if they have matching names. If there is no match for a
         given Symbol then it is left unchanged.
@@ -231,6 +232,14 @@ class TypeGuard(Statement):
                     self.comparison_type = new_sym
                 except KeyError:
                     pass
+        # If we have a ScalarType comparison_type that contains a precision
+        # that is a DataNode we need to make sure we update those symbols as
+        # well.
+        elif (isinstance(self.comparison_type, ScalarType) and
+              isinstance(self.comparison_type.precision, DataNode)):
+            self.comparison_type.precision.replace_symbols_using(
+                table_or_symbol
+            )
 
         super().replace_symbols_using(table_or_symbol)
 

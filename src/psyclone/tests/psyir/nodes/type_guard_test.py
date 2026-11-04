@@ -10,7 +10,7 @@
 import pytest
 
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Schedule, TypeGuard
+from psyclone.psyir.nodes import Reference, Schedule, TypeGuard
 from psyclone.psyir.symbols import (DataTypeSymbol, SymbolTable,
                                     UnresolvedType, UnresolvedInterface)
 
@@ -105,9 +105,11 @@ def test_typeguard_reference_accesses(fortran_reader):
 def test_type_guard_replace_symbols_using(fortran_reader, table):
     '''Test the replace_symbols_using() method of TypeGuard.'''
 
+    # Test the code path when there is a DataTypeSymbol
     code = """subroutine test(a)
     use some_mod, only: test_type
     class(*), allocatable :: a
+    integer :: i, j
 
     select type(a)
         type is(test_type)
@@ -132,6 +134,36 @@ def test_type_guard_replace_symbols_using(fortran_reader, table):
         type_guard.replace_symbols_using(new_tt)
     # Comparison Type should have been updated.
     assert type_guard.comparison_type is new_tt
+
+    # Test the code path when there is a DataType containing some Symbols
+    code = """subroutine test(a)
+    use some_mod, only: wp
+    class(*), allocatable :: a
+    integer :: i
+
+    select type(a)
+       type is(integer(wp))
+         i = 1
+    end select
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    type_guard = psyir.walk(TypeGuard)[0]
+    assert isinstance(type_guard.comparison_type.precision, Reference)
+    assert type_guard.comparison_type.precision.name == "wp"
+    # Create a replacement symbol.
+    new_wp = DataTypeSymbol("wp", datatype=UnresolvedType(),
+                            interface=UnresolvedInterface())
+    assert type_guard.comparison_type.precision.symbol is not new_wp
+    if table is not None:
+        # Test nothing bad happens if no replacement is in the table.
+        type_guard.replace_symbols_using(table)
+        assert type_guard.comparison_type is not new_wp
+        table.add(new_wp)
+        type_guard.replace_symbols_using(table)
+    else:
+        type_guard.replace_symbols_using(new_wp)
+    # Comparison Type should have been updated.
+    assert type_guard.comparison_type.precision.symbol is new_wp
 
 
 def test_type_guard_eq(fortran_reader):
