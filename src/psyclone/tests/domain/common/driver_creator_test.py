@@ -48,8 +48,7 @@ def test_basic_driver_add_call(fortran_writer):
             "'Symbol', not a 'RoutineSymbol'" in str(err.value))
 
     # Clean up previous invalid test symbol
-    del program.symbol_table.symbols_dict['test']
-    del program.symbol_table.tags_dict['test']
+    program.symbol_table.remove(program.symbol_table.lookup('test'))
 
     DriverCreator.add_call(program, "my_sub", [])
     DriverCreator.add_call(program, "my_sub_2",

@@ -156,6 +156,43 @@ def test_function_handler(fortran_reader, fortran_writer):
     assert result == expected
 
 
+def test_invalid_function_in_module(fortran_reader):
+    '''Check that an error processing a module function is not ignored.
+
+    This function is invalid because its result has an INTENT attribute.
+    Previously, the frontend caught the resulting ValueError and returned an
+    empty Routine for this function (and any following routines) instead.
+    '''
+    code = '''
+    module test
+      contains
+      elemental function my_func(a)
+        real, intent(in) :: a(10)
+        real, intent(out) :: my_func(10)
+        integer :: i
+
+        do i = LBOUND(a), UBOUND(a)
+          my_func(i) = a(i) + 1
+        end do
+      end function
+
+      pure subroutine my_sub(a, b)
+        real, intent(in) :: a(10)
+        real, intent(out) :: b(10)
+        integer :: i
+
+        do i = LBOUND(a), UBOUND(a)
+          b(i) = a(i) + 1
+        end do
+      end subroutine
+    end module
+    '''
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_source(code)
+    assert ("Symbol 'my_func" in str(err.value) and
+            "is not listed as a kernel argument" in str(err.value))
+
+
 @pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
                                                  ("integer", "1"),
                                                  ("logical", ".false."),

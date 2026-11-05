@@ -159,8 +159,7 @@ def test_const_loop_bounds_without_field_argument():
 
     # Remove all field arguments
     keep_arguments = []
-    schedule.symbol_table.specify_argument_list([])
-    for arg in schedule.symbol_table.argument_datasymbols:
+    for arg in schedule.symbol_table.argument_list:
         if (isinstance(arg.datatype, DataTypeSymbol) and
                 arg.datatype.name == "r2d_field"):
             arg.interface = AutomaticInterface()
