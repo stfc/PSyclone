@@ -6072,22 +6072,29 @@ class Fparser2Reader():
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
-            # A proc-language-binding-spec, BIND(C[, NAME=...]), follows the
-            # dummy-argument list of a subroutine-stmt. In a function-stmt it
-            # is the suffix, either alone or together with RESULT(...).
+            # BIND(C[, NAME=...]) is a Language_Binding_Spec. A subroutine-stmt
+            # has no suffix, so its stmt.children[3] is that or None. In a
+            # function-stmt, stmt.children[3] is the suffix: a
+            # Language_Binding_Spec if the suffix is only BIND(C), otherwise
+            # a Suffix (handled below).
             binding = stmt.children[3]
-            if isinstance(binding, Fortran2003.Suffix):
-                binding = binding.children[1]
-            if binding is not None:
+            if isinstance(binding, Fortran2003.Language_Binding_Spec):
                 label = binding.children[0]
                 routine.bind_c = "" if label is None else str(label)
 
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RESULT'. A suffix without it is just a BIND(C) (see above).
+                # 'RESULT'.
                 suffix = stmt.children[3]
                 if isinstance(suffix, Fortran2003.Suffix):
+                    # A Suffix is always [Result_Name, Language_Binding_Spec],
+                    # whichever order RESULT and BIND(C) have in the source.
+                    # The Language_Binding_Spec is None if there is no BIND(C).
                     return_name = suffix.children[0].string
+                    binding = suffix.children[1]
+                    if binding is not None:
+                        label = binding.children[0]
+                        routine.bind_c = "" if label is None else str(label)
                 else:
                     # Otherwise, the return value of the function is given by
                     # a symbol of the same name.
