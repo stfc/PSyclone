@@ -42,7 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: 66a2bcd8e9916d41f6d537edf90fdc12ce5cc827
+  LFRIC_APPS_HASH: ee72b93c3e069220fdc1fbb3fcaf027d0ea6d9a3
+  LFRIC_CORE_HASH: d64f14e416aa95eeddec0e4b6123e2f2b69755f2
   PYTHON_VERSION: "3.15"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
@@ -93,6 +94,16 @@ jobs:
         git clone https://github.com/stfc/lfric_apps
         cd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
+        # Remove invoke views
+        grep -rlIF --exclude-dir=.git -- 'view_transformed_schedule(psyir)' . | \
+          xargs -d '\n' -r sed -i 's/view_transformed_schedule(psyir)/pass/g'
+        # Disable XIOS output
+        sed -i 's/^use_xios_io=\.true\.,$/use_xios_io=.false.,/' applications/gungho_model/example/configuration.nml
+        # Use stfc/lfric_core
+        sed -i \
+          -e 's|^    source: git@github\.com:MetOffice/lfric_core\.git$|   source: git@github.com:stfc/lfric_core.git|' \
+          -e "s|^    ref: f45cece811a68c3b89fb55ef48909ed75ffdaf59$|   ref: ${LFRIC_CORE_HASH}|" \
+          dependencies.yaml
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
