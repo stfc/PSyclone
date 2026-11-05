@@ -3181,7 +3181,7 @@ class LFRicBasisFunctions(LFRicCollection):
             try:
                 symbol = self.symtab.lookup_with_tag(nodes_name)
             except KeyError:
-                var_name = FortranReader.create_valid_name(nodes_name)
+                var_name = self.symtab.create_valid_name(nodes_name)
                 name = self.symtab.next_available_name(var_name)
                 symbol = self.symtab.find_or_create_tag(
                     nodes_name,

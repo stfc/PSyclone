@@ -15,6 +15,7 @@ from collections.abc import Iterable
 import inspect
 import copy
 import logging
+import re
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config

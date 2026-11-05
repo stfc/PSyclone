@@ -7,8 +7,6 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-import re
-
 from typing import Optional, Union, List
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
