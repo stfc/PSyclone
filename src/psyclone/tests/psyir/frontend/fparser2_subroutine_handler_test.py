@@ -411,6 +411,10 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
      "my_routine"),
     ("function my_routine(a) result(res) bind(c)", "", "res"),
     ("function my_routine(a) bind(c) result(res)", "", "res"),
+    ("function my_routine(a) result(res) bind(c, name='c_routine')",
+     "'c_routine'", "res"),
+    ("function my_routine(a) bind(c, name='c_routine') result(res)",
+     "'c_routine'", "res"),
     ("function my_routine(a) result(res)", None, "res")])
 def test_routine_bind_c(fortran_reader, header, bind_c, return_name):
     '''Check that a BIND(C) language-binding-spec, with or without a binding

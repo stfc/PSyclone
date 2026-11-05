@@ -432,7 +432,13 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
      "subroutine sub(a) bind(c, name=\"c_sub\")"),
     ("function sub(a) bind(c)", "function sub(a) bind(c)"),
     ("function sub(a) bind(c) result(res)",
-     "function sub(a) result(res) bind(c)")])
+     "function sub(a) result(res) bind(c)"),
+    ("function sub(a) result(res) bind(c)",
+     "function sub(a) result(res) bind(c)"),
+    ("function sub(a) result(res) bind(c, name='c_sub')",
+     "function sub(a) result(res) bind(c, name='c_sub')"),
+    ("function sub(a) bind(c, name='c_sub') result(res)",
+     "function sub(a) result(res) bind(c, name='c_sub')")])
 def test_fw_routine_bind_c(fortran_reader, fortran_writer, header, expected):
     '''Check that the C binding of a routine is written after its dummy
     arguments (and RESULT clause), and is not written once removed.'''
