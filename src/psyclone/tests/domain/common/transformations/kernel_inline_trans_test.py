@@ -271,23 +271,23 @@ def test_lfric_kernel_with_automatic_array(tmp_path, monkeypatch):
         inline_trans.apply(ker)
 
     assert """
-    allocate(x_e(ndf_as1_f2))
-    allocate(lhs_e(ndf_ads1_f4))
+    allocate(x_e(ndf_as1_f2__1))
+    allocate(lhs_e(ndf_ads1_f4__1))
     !$omp parallel default(shared) private(cell)
     !$omp do schedule(static)
     do cell = loop1_start, loop1_stop, 1
       ! deferred-inline successful for kernel 'dg_matrix_vector_code_r_\
 double_inlined_'
       do k = 0, nlayers_f4 - 1, 1_i_def
-        do df_1 = 1, ndf_as1_f2, 1_i_def
-          x_e(df_1) = f2_data(map_as1_f2(df_1 - 1 + lbound(map_as1_f2, \
+        do df_1 = 1, ndf_as1_f2__1, 1_i_def
+          x_e(df_1) = f2_data(map_as1_f2__1(df_1 - 1 + lbound(map_as1_f2__1, \
 dim=1),cell) + k)
         enddo
         ik = (cell - 1) * nlayers_f4 + k + 1
         lhs_e = matmul(mass_matrix_local_stencil(:,:,ik), x_e)
-        do df_1 = 1, ndf_ads1_f4, 1_i_def
-          f4_data(map_ads1_f4(df_1 - 1 + lbound(map_ads1_f4, dim=1),cell) \
-+ k) = lhs_e(df_1)
+        do df_1 = 1, ndf_ads1_f4__1, 1_i_def
+          f4_data(map_ads1_f4__1(df_1 - 1 + lbound(map_ads1_f4__1, dim=1),\
+cell) + k) = lhs_e(df_1)
         enddo
       enddo
     enddo
