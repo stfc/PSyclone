@@ -6072,15 +6072,21 @@ class Fparser2Reader():
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
+            # A proc-language-binding-spec, BIND(C[, NAME=...]), follows the
+            # dummy-argument list of a subroutine-stmt. In a function-stmt it
+            # is the suffix, either alone or together with RESULT(...).
+            binding = stmt.children[3]
+            if isinstance(binding, Fortran2003.Suffix):
+                binding = binding.children[1]
+            if binding is not None:
+                label = binding.children[0]
+                routine.bind_c = "" if label is None else str(label)
+
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RESULT'
+                # 'RESULT'. A suffix without it is just a BIND(C) (see above).
                 suffix = stmt.children[3]
-                if suffix:
-                    # Although the suffix can, in principle, contain a proc-
-                    # language-binding-spec (e.g. BIND(C, "some_name")), this
-                    # is only valid in an interface block and we are dealing
-                    # with a function-subprogram here.
+                if isinstance(suffix, Fortran2003.Suffix):
                     return_name = suffix.children[0].string
                 else:
                     # Otherwise, the return value of the function is given by

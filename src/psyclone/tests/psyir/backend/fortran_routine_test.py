@@ -426,6 +426,39 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     assert "impure elemental subroutine sub" in output
 
 
+@pytest.mark.parametrize("header, expected", [
+    ("subroutine sub(a) bind(c)", "subroutine sub(a) bind(c)"),
+    ("subroutine sub(a) bind(c, name=\"c_sub\")",
+     "subroutine sub(a) bind(c, name=\"c_sub\")"),
+    ("function sub(a) bind(c)", "function sub(a) bind(c)"),
+    ("function sub(a) bind(c) result(res)",
+     "function sub(a) result(res) bind(c)")])
+def test_fw_routine_bind_c(fortran_reader, fortran_writer, header, expected):
+    '''Check that the C binding of a routine is written after its dummy
+    arguments (and RESULT clause), and is not written once removed.'''
+    routine_type = header.split()[0]
+    if "result" in header:
+        result = "    real :: res\n"
+    elif routine_type == "function":
+        result = "    real :: sub\n"
+    else:
+        result = ""
+    code = (f"module test\n"
+            f"contains\n"
+            f"  {header}\n"
+            f"    integer, value :: a\n"
+            f"{result}"
+            f"  end {routine_type} sub\n"
+            f"end module test\n")
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert expected in output
+
+    container.walk(Routine)[0].bind_c = None
+    output = fortran_writer(container)
+    assert "bind(c" not in output
+
+
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 def test_fw_routine_recursive_prefix(fortran_reader, fortran_writer,
                                      routine_type):
