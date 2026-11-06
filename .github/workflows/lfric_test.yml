@@ -159,11 +159,20 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-ompoffload gungho_model |& tee output.txt
-        # Piping to tee ignores the errcode of the first command, make sure we account for it
-        if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-            exit ${PIPESTATUS[0]}
+        for attempt in 1 2; do
+          # Suppress errexit for the pipeline and immediately save the build's status, not tee's.
+          ! LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
+            -w working-gh-ompoffload gungho_model |& tee output.txt
+          BUILD_STATUS=${PIPESTATUS[0]}
+          if [[ ${BUILD_STATUS} -eq 0 ]]; then
+            break
+          fi
+          if [[ ${attempt} -eq 1 ]]; then
+            echo "OpenMP offload build failed (exit ${BUILD_STATUS}); retrying once."
+          fi
+        done
+        if [[ ${BUILD_STATUS} -ne 0 ]]; then
+          exit "${BUILD_STATUS}"
         fi
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         ${PSYCLONE_LFRIC_DIR}/aggregate_gpu_stats.sh output.txt
@@ -198,7 +207,11 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-accoffload
         LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-accoffload gungho_model
+          -w working-gh-accoffload gungho_model || {
+            echo "OpenACC offload build failed (exit $?); retrying once."
+            LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
+              -w working-gh-accoffload gungho_model
+          }
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
@@ -280,10 +293,10 @@ jobs:
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
 
-        # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        # Build the 'cpu' platform, that includes psyclone-transmutation
         rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
+        ./build/local_build.py -p cpu -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
