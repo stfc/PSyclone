@@ -573,10 +573,6 @@ basis_w3_qr)
     call qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, diff_dim_w2, \
 ndf_w2, diff_basis_w2_qr)
 
-    ! Set-up all of the loop bounds
-    loop0_start = 1
-    loop0_stop = mesh%get_last_halo_cell(1)
-
     ! Call kernels and communication routines
     if (coord_proxy(1)%is_dirty(depth=1)) then
       call coord_proxy(1)%halo_exchange(depth=1)
@@ -587,6 +583,10 @@ ndf_w2, diff_basis_w2_qr)
     if (coord_proxy(3)%is_dirty(depth=1)) then
       call coord_proxy(3)%halo_exchange(depth=1)
     end if
+
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = mesh%get_last_halo_cell(1)
     do cell = loop0_start, loop0_stop, 1
       call assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers_mapping, \
 mapping_proxy%ncell_3d, mapping_local_stencil, coord_1_data, coord_2_data, \

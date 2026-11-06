@@ -99,10 +99,10 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3
     integer(kind=i_def) :: diff_dim_w3
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
 """ in generated_code
@@ -173,10 +173,6 @@ def test_field_xyoz(tmpdir):
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
-        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "\n"
         "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -190,6 +186,10 @@ def test_field_xyoz(tmpdir):
         "    if (m2_proxy%is_dirty(depth=1)) then\n"
         "      call m2_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
+        "\n"
+        "    ! Set-up all of the loop bounds\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
@@ -317,10 +317,10 @@ def test_face_qr(tmpdir, dist_mem):
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3
     integer(kind=i_def) :: diff_dim_w3
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
 """ in generated_code
@@ -391,13 +391,9 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n")
+        "\n")
     if dist_mem:
         init_output2 += (
-            "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "\n"
             "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -410,9 +406,15 @@ def test_face_qr(tmpdir, dist_mem):
             "    end if\n"
             "    if (m2_proxy%is_dirty(depth=1)) then\n"
             "      call m2_proxy%halo_exchange(depth=1)\n"
-            "    end if\n")
+            "    end if\n"
+            "\n"
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
+            "    loop0_stop = mesh%get_last_halo_cell(1)\n")
     else:
         init_output2 += (
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "\n"
             "    ! Call kernels\n")

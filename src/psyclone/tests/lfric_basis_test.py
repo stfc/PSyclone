@@ -173,8 +173,7 @@ def test_single_kern_eval(tmpdir):
     assert "    integer(kind=i_def) :: loop0_start" in code
     assert "    integer(kind=i_def) :: loop0_stop" in code
     assert "    integer(kind=i_def) :: df_nodal" in code
-    assert "    integer(kind=i_def) :: df_w0" in code
-    assert "    integer(kind=i_def) :: df_w1" in code
+    assert "    integer(kind=i_def) :: df\n" in code
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: basis_w0_on_w0"
             in code)
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
@@ -249,6 +248,8 @@ def test_single_kern_eval(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+        "\n"
+        "    ! Call kernels\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
@@ -284,8 +285,7 @@ def test_single_kern_eval_op(tmpdir):
     assert "integer(kind=i_def) :: loop0_start" in code
     assert "integer(kind=i_def) :: loop0_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
-    assert "integer(kind=i_def) :: df_w2" in code
-    assert "integer(kind=i_def) :: df_w3" in code
+    assert "integer(kind=i_def) :: df" in code
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
             "basis_w2_on_w0" in code)
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
@@ -709,8 +709,7 @@ def test_qr_plus_eval(tmpdir):
     assert "integer(kind=i_def) :: loop1_start" in code
     assert "integer(kind=i_def) :: loop1_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
-    assert "integer(kind=i_def) :: df_w0" in code
-    assert "integer(kind=i_def) :: df_w1" in code
+    assert "integer(kind=i_def) :: df" in code
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: basis_w0_on_w0"
             in code)
     assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
@@ -887,6 +886,8 @@ def test_two_eval_same_space(tmpdir):
         "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
         "    loop1_start = 1\n"
         "    loop1_stop = f2_proxy%vspace%get_ncell()\n"
+        "\n"
+        "    ! Call kernels\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "

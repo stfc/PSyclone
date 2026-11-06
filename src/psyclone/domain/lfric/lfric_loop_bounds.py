@@ -9,6 +9,7 @@
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
 from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
+from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol
 
@@ -19,13 +20,11 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def initialise(self, cursor: int) -> int:
+    def initialise(self, _) -> int:
         '''
         Updates the PSyIR so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
 
-        :param cursor: position where to add the next initialisation
-            statements.
         :returns: Updated cursor value.
 
         '''
@@ -33,10 +32,19 @@ class LFRicLoopBounds(LFRicCollection):
         assign_map: dict[Symbol, Assignment] = {}
         for assign in assigns:
             assign_map[assign.lhs.symbol] = assign
-        if assigns:
-            # Loop bounds go after any existing assignments (cheap way
-            # of ensuring dependencies satisfied).
-            cursor = assigns[-1].position + 1
+
+        # Loop bounds go just before the first kernel and after any existing
+        # assignments (cheap way of ensuring dependencies satisfied).
+        kernels = self._invoke.schedule.walk(Kern)
+        if kernels:
+            indices = kernels[0].path_from(self._invoke.schedule)
+            cursor = indices[0]
+        elif assigns:
+            # Allow for the fact that an assignment might be within a loop.
+            indices = assigns[-1].path_from(self._invoke.schedule)
+            cursor = indices[0] + 1
+        else:
+            cursor = 0
 
         loops = filter(lambda x: isinstance(x, LFRicLoop),
                        self._invoke.schedule.loops())

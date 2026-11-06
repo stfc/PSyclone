@@ -1478,6 +1478,7 @@ class LFRicProxies(LFRicCollection):
 
         '''
         init_cursor = cursor
+
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars or arrays of scalars.
             if arg.is_scalar or arg.is_scalar_array:
@@ -2473,7 +2474,7 @@ class LFRicMeshes():
 
             # Number of fine cells per coarse cell in x.
             if dig.ncellpercellx not in assigned_symbols:
-                assigned_symbols.append(dig.ncellpercellx)
+                assigned_symbols.add(dig.ncellpercellx)
                 digncellpercellx = self.symtab.lookup(dig.ncellpercellx)
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercellx),
@@ -2531,7 +2532,8 @@ class LFRicMeshes():
                 root_sched.addchild(assignment, cursor)
                 cursor += 1
             # Colour map for the coarse mesh (if required)
-            if dig.tilecolourmap_symbol not in assigned_symbols:
+            if (dig.tilecolourmap_symbol and
+                    dig.tilecolourmap_symbol not in assigned_symbols):
                 # Number of colours
                 if dig.ntilecolours_var_symbol not in assigned_symbols:
                     assigned_symbols.add(dig.ntilecolours_var_symbol)
@@ -3288,12 +3290,13 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             base_name = basis_arrays[basis].base_name
+            ndims = len(basis_arrays[basis].dim_vars)
             new_name = self.symtab.next_available_name(base_name)
             symbol = self.symtab.find_or_create_tag(
                 tag=basis, root_name=new_name, symbol_type=DataSymbol,
                 datatype=ArrayType(
                     LFRicTypes("LFRicRealScalarDataType")(),
-                    [ArrayType.Extent.DEFERRED]*len(basis_arrays[basis]))
+                    [ArrayType.Extent.DEFERRED]*ndims)
             )
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
