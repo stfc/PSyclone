@@ -33,7 +33,7 @@ from psyclone.parse.kernel import (
     BuiltInKernelTypeFactory, get_kernel_ast, KernelType, KernelTypeFactory)
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
-from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-branches
@@ -559,7 +559,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 
     try:
         if invoke_label:
-            FortranReader.validate_name(invoke_label)
+            SymbolTable.validate_name(invoke_label)
             # We store any name as lowercase.
             invoke_label = invoke_label.lower()
     except (TypeError, ValueError) as err:

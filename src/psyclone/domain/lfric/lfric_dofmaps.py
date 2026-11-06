@@ -201,35 +201,35 @@ class LFRicDofmaps(LFRicCollection):
             [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
 
         # Function space dofmaps
-        for dmap in sorted(self._unique_fs_maps):
-            # TODO #2577 - once pointer assignments are supported then
-            # we can remove the use of UnsupportedFortranType here.
-            base_name = (
-                "map_" +
-                self._unique_fs_maps[dmap].function_space.short_mangled_name)
+        for dmap_tag in sorted(self._unique_fs_maps):
+
+            base_name = self._unique_fs_maps[dmap_tag].function_space.map_name
+
             try:
-                dmap_sym = self.symtab.lookup_with_tag(dmap)
+                dmap_sym = self.symtab.lookup_with_tag(dmap_tag)
             except KeyError:
                 name = self.symtab.next_available_name(base_name)
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dtype = UnsupportedFortranType(
                     f"{intrinsic_type.intrinsic.name.lower()}("
                     f"kind={intrinsic_type.precision.name}), pointer "
                     f":: {name}(:,:) => null()",
                     partial_datatype=atype.copy())
                 dmap_sym = self.symtab.find_or_create_tag(
-                    tag=dmap, root_name=base_name, symbol_type=DataSymbol,
+                    tag=dmap_tag, root_name=base_name, symbol_type=DataSymbol,
                     datatype=dtype,
                     initial_value=IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.NULL))
 
         # Column-banded dofmaps
-        for dmap in sorted(self._unique_cbanded_maps):
+        for dmap_tag in sorted(self._unique_cbanded_maps):
             try:
-                dmap_sym = self.symtab.lookup_with_tag(dmap)
+                dmap_sym = self.symtab.lookup_with_tag(dmap_tag)
             except KeyError:
                 # TODO #2577 - once pointer assignments are supported then
                 # we can remove the use of UnsupportedFortranType here.
-                base_name = self._unique_cbanded_maps[dmap]["base_name"]
+                base_name = self._unique_cbanded_maps[dmap_tag]["base_name"]
                 name = self.symtab.next_available_name(base_name)
                 dmap_sym = DataSymbol(
                     name, UnsupportedFortranType(
@@ -238,16 +238,17 @@ class LFRicDofmaps(LFRicCollection):
                         partial_datatype=atype.copy()),
                     initial_value=IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.NULL))
-                self.symtab.add(dmap_sym, tag=dmap)
+                self.symtab.add(dmap_sym, tag=dmap_tag)
 
         # CMA operator indirection dofmaps
-        for dmap in sorted(self._unique_indirection_maps):
+        for dmap_tag in sorted(self._unique_indirection_maps):
             try:
-                dmap_sym = self.symtab.lookup_with_tag(dmap)
+                dmap_sym = self.symtab.lookup_with_tag(dmap_tag)
             except KeyError:
                 # TODO #2577 - once pointer assignments are supported then
                 # we can remove the use of UnsupportedFortranType here.
-                base_name = self._unique_indirection_maps[dmap]["base_name"]
+                base_name = (
+                    self._unique_indirection_maps[dmap_tag]["base_name"])
                 name = self.symtab.next_available_name(base_name)
                 dmap_sym = DataSymbol(
                     name, UnsupportedFortranType(
@@ -256,7 +257,7 @@ class LFRicDofmaps(LFRicCollection):
                         partial_datatype=atype.copy()),
                     initial_value=IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.NULL))
-                self.symtab.add(dmap_sym, tag=dmap)
+                self.symtab.add(dmap_sym, tag=dmap_tag)
 
     def stub_declarations(self):
         '''
