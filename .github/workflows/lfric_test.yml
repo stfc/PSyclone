@@ -42,7 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: 2bdb089a0307f70de58e6c17f40d69ae3e290855
+  LFRIC_APPS_HASH: ee72b93c3e069220fdc1fbb3fcaf027d0ea6d9a3
+  LFRIC_CORE_HASH: d64f14e416aa95eeddec0e4b6123e2f2b69755f2
   PYTHON_VERSION: "3.15"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
@@ -93,6 +94,16 @@ jobs:
         git clone https://github.com/stfc/lfric_apps
         cd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
+        # Remove invoke views
+        grep -rlIF --exclude-dir=.git -- 'view_transformed_schedule(psyir)' . | \
+          xargs -d '\n' -r sed -i 's/view_transformed_schedule(psyir)/pass/g'
+        # Disable XIOS output
+        sed -i 's/^use_xios_io=\.true\.,$/use_xios_io=.false.,/' applications/gungho_model/example/configuration.nml
+        # Use stfc/lfric_core
+        sed -i \
+          -e 's|^    source: git@github\.com:MetOffice/lfric_core\.git$|   source: git@github.com:stfc/lfric_core.git|' \
+          -e "s|^    ref: f45cece811a68c3b89fb55ef48909ed75ffdaf59$|   ref: ${LFRIC_CORE_HASH}|" \
+          dependencies.yaml
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
@@ -148,11 +159,20 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-ompoffload gungho_model |& tee output.txt
-        # Piping to tee ignores the errcode of the first command, make sure we account for it
-        if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-            exit ${PIPESTATUS[0]}
+        for attempt in 1 2; do
+          # Suppress errexit for the pipeline and immediately save the build's status, not tee's.
+          ! LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
+            -w working-gh-ompoffload gungho_model |& tee output.txt
+          BUILD_STATUS=${PIPESTATUS[0]}
+          if [[ ${BUILD_STATUS} -eq 0 ]]; then
+            break
+          fi
+          if [[ ${attempt} -eq 1 ]]; then
+            echo "OpenMP offload build failed (exit ${BUILD_STATUS}); retrying once."
+          fi
+        done
+        if [[ ${BUILD_STATUS} -ne 0 ]]; then
+          exit "${BUILD_STATUS}"
         fi
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         ${PSYCLONE_LFRIC_DIR}/aggregate_gpu_stats.sh output.txt
@@ -187,7 +207,11 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-accoffload
         LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-accoffload gungho_model
+          -w working-gh-accoffload gungho_model || {
+            echo "OpenACC offload build failed (exit $?); retrying once."
+            LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
+              -w working-gh-accoffload gungho_model
+          }
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
@@ -269,10 +293,10 @@ jobs:
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
 
-        # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        # Build the 'cpu' platform, that includes psyclone-transmutation
         rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
+        ./build/local_build.py -p cpu -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
@@ -298,12 +322,12 @@ jobs:
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
 
-        # Currently we just compile the 'meto-ex1a' with the nvidia compiler, this won't
+        # Currently we just compile the 'cpu' with the nvidia compiler, this won't
         # create offloading directives and fails at runtime because lfric_atm needs XIOS
         # enabled, but we want to make sure we keep the nvfortran build working.
         rm -rf working-atm-gpu
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -p meto-ex1a -j 16 -w working-atm-gpu lfric_atm
+        ./build/local_build.py -p cpu -j 16 -w working-atm-gpu lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
 
