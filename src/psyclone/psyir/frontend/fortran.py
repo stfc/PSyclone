@@ -7,8 +7,6 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-import re
-
 from typing import Optional, Union, List
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
@@ -70,26 +68,6 @@ class FortranReader():
             ignore_directives, last_comments_as_codeblocks, resolve_modules,
             ignore_comments, free_form, conditional_openmp_statements
         )
-
-    @staticmethod
-    def validate_name(name: str) -> None:
-        '''
-        Utility method that checks that the supplied name is a valid
-        Fortran name.
-
-        :param name: the name to check.
-
-        :raises TypeError: if the name is not a string.
-        :raises ValueError: if this is not a valid name.
-
-        '''
-        if not isinstance(name, str):
-            raise TypeError(
-                f"A name should be a string, but found "
-                f"'{type(name).__name__}'.")
-        if not re.match(r"^[A-Z]\w*$", name, flags=re.I):
-            raise ValueError(
-                f"Invalid Fortran name '{name}' found.")
 
     def psyir_from_source(self, source_code: str) -> Node:
         ''' Generate the PSyIR tree for the given Fortran source code.

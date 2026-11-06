@@ -102,7 +102,7 @@ class LFRicFields(LFRicCollection):
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
-            undf_name = fld.function_space.undf_name
+            undf_tag = fld.function_space.undf_tag
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
@@ -126,7 +126,7 @@ class LFRicFields(LFRicCollection):
                 intr = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   Reference(kind_sym))
 
-            undf_sym = self.symtab.find_or_create(undf_name)
+            undf_sym = self.symtab.find_or_create_tag(undf_tag)
             datatype = ArrayType(intr, [Reference(undf_sym)])
 
             if fld.intent == "in":
@@ -136,15 +136,16 @@ class LFRicFields(LFRicCollection):
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
-                    text = (fld.name + "_" +
-                            fld.function_space.mangled_name +
-                            "_v" + str(idx))
+                    text = f"{fld.name}_{fld.function_space.tag_name}_v{idx}"
+                    name = self.symtab.create_valid_name(text)
                     arg = self.symtab.find_or_create(
-                        text, symbol_type=DataSymbol, datatype=datatype)
+                        name, tag=text, symbol_type=DataSymbol,
+                        datatype=datatype)
                     arg.interface = ArgumentInterface(intent)
                     self.symtab.append_argument(arg)
             else:
-                name = fld.name + "_" + fld.function_space.mangled_name
+                text = f"{fld.name}_{fld.function_space.tag_name}"
+                name = self.symtab.create_valid_name(text)
                 arg = self.symtab.find_or_create(
                     name, symbol_type=DataSymbol, datatype=datatype)
                 arg.interface = ArgumentInterface(intent)
