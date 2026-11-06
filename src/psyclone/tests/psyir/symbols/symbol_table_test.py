@@ -4002,3 +4002,42 @@ def test_equality():
     symtab2 = symtab1.deep_copy()
     symtab2.new_symbol("s3")
     assert symtab1 != symtab2
+
+
+def test_validate_name():
+    '''
+    Test that validate_name() raises the correct errors for strings
+    that are not valid Fortran names.
+
+    '''
+    with pytest.raises(TypeError, match="A name should be a string"):
+        symbols.SymbolTable.validate_name(11)
+
+    symbols.SymbolTable.validate_name("a_test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        symbols.SymbolTable.validate_name("1a_test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        symbols.SymbolTable.validate_name("a test")
+
+    with pytest.raises(ValueError, match="Invalid Fortran name"):
+        symbols.SymbolTable.validate_name("at,est")
+
+
+def test_create_valid_name():
+    '''
+    Test create_valid_name() creates valid variable names.
+
+    '''
+    with pytest.raises(TypeError, match=("name must be a str but argument "
+                                         "is of type 'int'")):
+        symbols.SymbolTable.create_valid_name(1)
+
+    assert symbols.SymbolTable.create_valid_name("a_test") == "a_test"
+    assert symbols.SymbolTable.create_valid_name("_a test") == "a_test"
+    assert symbols.SymbolTable.create_valid_name("1 2 a:test,") == "a_test_"
+    assert symbols.SymbolTable.create_valid_name("A") == "A"
+    # When it's impossible to use the supplied text
+    assert symbols.SymbolTable.create_valid_name("") == "psy"
+    assert symbols.SymbolTable.create_valid_name("22") == "psy"

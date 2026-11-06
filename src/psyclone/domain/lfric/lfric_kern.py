@@ -412,8 +412,8 @@ class LFRicKern(CodedKern):
                 arg, fspace = self.arguments.get_arg_on_space_name(fs_name)
                 # Set up our dict of evaluator targets, one entry per
                 # target FS.
-                if fspace.mangled_name not in self._eval_targets:
-                    self._eval_targets[fspace.mangled_name] = (fspace, arg)
+                if fspace.tag_name not in self._eval_targets:
+                    self._eval_targets[fspace.tag_name] = (fspace, arg)
 
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
