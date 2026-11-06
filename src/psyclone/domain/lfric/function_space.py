@@ -277,9 +277,8 @@ class FunctionSpace():
 
         '''
         tag_name = self.tag_name
-        short_name = self._shorten_name(tag_name)
         tag = f"basis:{tag_name}"
-        name = f"basis_{short_name}"
+        name = f"basis_{self._shorten_name(tag_name)}"
         if qr_var:
             tag += f"_{qr_var}"
             name += f"_{qr_var}"
