@@ -9,6 +9,7 @@
 
 import pytest
 from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.transformations import IncreaseRankLoopArraysTrans
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import TransformationError
@@ -81,8 +82,14 @@ def test_irla_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[2], arrays=[1])
-    assert ("IncreaseRankLoopArraysTrans must be passed a list of symbol "
-            "names or Symbol objects but found int" in str(err.value))
+    assert ("IncreaseRankLoopArraysTrans must be passed a list of DataSymbol "
+            "names or DataSymbol objects but found '1'" in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[2], arrays=[Symbol("disaster")])
+    assert ("IncreaseRankLoopArraysTrans must be passed a list of DataSymbol "
+            "names or DataSymbol objects but found 'disaster: "
+            "Symbol<Automatic>'" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[2].detach(), arrays=['a'])
@@ -392,10 +399,10 @@ end module
     with pytest.raises(TransformationError) as err:
         trans.validate(psyir.walk(Loop)[0], arrays=['a'])
 
-    assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
-            " an assignment to an array range is allowed as this"
-            " would imply a change to the return type of"
-            " the call (a(1,:) = 1 + dummy_func())." in str(err.value))
+    assert ("IncreaseRankLoopArraysTrans the RHS of an assignment to an array "
+            "range must be of scalar type but the RHS of "
+            "'a(1,:) = 1 + dummy_func()' is of type 'UnresolvedType'."
+            in str(err.value))
 
 
 def test_irla_assignment_to_full_array_with_call_on_rhs(fortran_reader):
@@ -429,10 +436,10 @@ end module
     with pytest.raises(TransformationError) as err:
         trans.validate(psyir.walk(Loop)[0], arrays=['a'])
 
-    assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
-            " an assignment to an array range is allowed as this"
-            " would imply a change to the return type of"
-            " the call (a = 1 + dummy_func())." in str(err.value))
+    assert ("IncreaseRankLoopArraysTrans the RHS of an assignment to an array "
+            "range must be of scalar type but the RHS of "
+            "'a = 1 + dummy_func()' is of type 'UnresolvedType'."
+            in str(err.value))
 
 
 def test_irla_allocatable_array(fortran_reader):

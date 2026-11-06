@@ -14,7 +14,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Call, CodeBlock, Loop, Range, Reference,
     Routine, Statement, IntrinsicCall, Assignment)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, UnresolvedType)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -133,13 +133,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"inside a Routine.")
 
         # Convert to list of symbols, if provided as strings
-        arrays_symbols: list[DataSymbol] = []
+        array_symbols_to_increase: list[DataSymbol] = []
         for sym_or_name in arrays:
-            if isinstance(sym_or_name, DataSymbol):
-                sym = sym_or_name
-                arrays_symbols.append(sym)
 
-            elif isinstance(sym_or_name, str):
+            if isinstance(sym_or_name, str):
                 try:
                     sym = target_loop.scope.symbol_table.lookup(sym_or_name)
                 except KeyError as err:
@@ -147,12 +144,15 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f"{self.name} provided array '{sym_or_name}' does not "
                         f"exist in this scope."
                     ) from err
-                arrays_symbols.append(sym)
+            else:
+                sym = sym_or_name
 
+            if isinstance(sym, DataSymbol):
+                array_symbols_to_increase.append(sym)
             else:
                 raise TransformationError(
-                    f"{self.name} must be passed a list of symbol names or "
-                    f"Symbol objects but found {type(sym_or_name).__name__}"
+                    f"{self.name} must be passed a list of DataSymbol names or"
+                    f" DataSymbol objects but found '{sym}'"
                 )
 
         # Check if the loop bound expressions are static:
@@ -169,7 +169,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     continue
             values_to_check.add(ref.symbol)
 
-        # Opt-out for special assignment cases
+        # Second, check for any assignments to these Symbols..
         for assignment in routine.walk(Assignment):
 
             if isinstance(assignment.lhs, Reference):
@@ -184,37 +184,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f" '{assignment.debug_string().strip()}'."
                     )
 
-                # This checks for assignments of the form `a = ...` where 'a'
-                # is requested to have its rank increased.
-                if assignment.lhs.symbol not in arrays_symbols:
-                    continue
-
-                if assignment.is_descendant_of(target_loop):
-                    continue
-
-                if not assignment.rhs.walk(Call):
-                    continue
-
-                if isinstance(assignment.lhs.datatype,
-                              (ArrayType, UnresolvedType)):
-                    # Reject because such an assignment needs to change
-                    # the function as well (or introduce one or more
-                    # additional loops), e.g.:
-                    #      a(1,:) = 1 + dummy_func()
-                    info_str = assignment.debug_string().strip()
-                    raise TransformationError(
-                        f"{self.name} No call on r.h.s. of an assignment"
-                        " to an array range is allowed as this would"
-                        " imply a change to the return type of the call"
-                        f" ({info_str})."
-                    )
-
         # Capture all symbols used inside codeblocks, these are not permitted
         codeblock_names: set[DataSymbol] = set()
-        # Capture all symbols used outside the loop anywhere other than the
+        # Capture all symbols used *outside* the loop anywhere other than the
         # top reference of an array assignment. This is because we cannot
         # guarantee their safety as they could change the rank of an expression
-        # or read location of and index and therefore change the meaning of the
+        # or read location of an index and therefore change the meaning of the
         # code.
         non_supported_outside_loop_symbols: set[DataSymbol] = set()
         for check in routine.walk((CodeBlock, Reference)):
@@ -228,8 +203,21 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     continue
                 if (isinstance(check.parent, Assignment) and
                         check is check.parent.lhs):
-                    # Assignments to the variable are fine, because the value
-                    # will just be repeated to each index of the new rank.
+                    assign = check.parent
+                    rhs_type = assign.rhs.datatype
+                    if (check.symbol in array_symbols_to_increase and
+                            not isinstance(rhs_type, ScalarType)):
+                        # The LHS is a reference to one of the target array
+                        # symbols. We can't transform this if the RHS of the
+                        # assignment is not a scalar.
+                        raise TransformationError(
+                            f"{self.name} the RHS of an assignment to an array"
+                            " range must be of scalar type but the RHS of "
+                            f"'{assign.debug_string().strip()}' is of type "
+                            f"'{rhs_type}'.")
+
+                    # Other assignments to the variable are fine, because the
+                    # value will be repeated to each index of the new rank.
                     continue
                 if (isinstance(check.parent, IntrinsicCall) and
                         check.parent.is_inquiry and
@@ -242,7 +230,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 # Everything else is currently forbidden
                 non_supported_outside_loop_symbols.add(check.symbol)
 
-        for array in arrays_symbols:
+        for array in array_symbols_to_increase:
 
             if routine.return_symbol is array:
                 raise TransformationError(
@@ -254,7 +242,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"{self.name} can't be applied to character arrays.")
 
             if (not array.is_automatic or not array.is_array or
-                    isinstance(sym.datatype.intrinsic, DataTypeSymbol)):
+                    isinstance(array.datatype.intrinsic, DataTypeSymbol)):
                 raise TransformationError(
                     f"{self.name} provided 'arrays' must be local array "
                     f"symbols of intrinsic type, but '{array}' is not.")
@@ -281,39 +269,33 @@ class IncreaseRankLoopArraysTrans(Transformation):
         #     `call foo(some_array)`
         # where the argument is a `Reference` and not an `ArrayReference`.
         for ref in target_loop.walk(Reference):
-            # We iterate here over the arrays since it's more efficient
-            # than in the outer.
-            for array in arrays_symbols:
+            if ref.symbol not in array_symbols_to_increase:
+                continue
 
-                if ref.symbol is not array:
-                    continue
+            if not isinstance(ref, ArrayReference):
+                # Check for cases where an array is used as an argument
+                # to a call, e.g., `call foo(some_array)`. We reject these
+                # since changing the rank of 'some_array' would imply a
+                # change to the interface of 'foo'.
+                call: Call = ref.ancestor(Call)
+                if isinstance(call, IntrinsicCall):
+                    if call.is_inquiry and "dim" in call.argument_names:
+                        continue
 
-                if type(ref) is Reference:
-                    # Check for cases where an array is used as an argument
-                    # to a call, e.g., `call foo(some_array)`. We reject these
-                    # since changing the rank of 'some_array' would imply a
-                    # change to the interface of 'foo'.
-                    call: Call = ref.ancestor(Call)
-                    if isinstance(call, IntrinsicCall):
-                        if call.is_inquiry and "dim" in call.argument_names:
-                            continue
+                raise TransformationError(
+                    f"{self.name} does not yet support all special cases "
+                    f"for arrays accessed without indices. Found "
+                    f"'{ref.ancestor(Statement).debug_string().strip()}'.")
 
-                    raise TransformationError(
-                        f"{self.name} does not yet support all special cases "
-                        f"for arrays accessed without indices. Found "
-                        f"'{ref.ancestor(Statement).debug_string().strip()}'.")
-
-                array_ref: ArrayReference = ref
-
-                for idx in array_ref.indices:
-                    for n in idx.walk(Reference):
-                        if n.symbol is target_loop.variable_reference.symbol:
-                            raise TransformationError(
-                                f"{self.name} does not support arrays"
-                                f" that are already indexed with the loop"
-                                f" variable of the target loop,"
-                                f" but '{array.name}' is indexed"
-                                f" with '{target_loop.variable.name}'.")
+            for idx in ref.indices:
+                for n in idx.walk(Reference):
+                    if n.symbol is target_loop.variable_reference.symbol:
+                        raise TransformationError(
+                            f"{self.name} does not support arrays"
+                            f" that are already indexed with the loop"
+                            f" variable of the target loop,"
+                            f" but '{array.name}' is indexed"
+                            f" with '{target_loop.variable.name}'.")
 
     def apply(
         self,
