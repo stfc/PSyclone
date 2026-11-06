@@ -580,6 +580,10 @@ class LFRicMeshProperties(LFRicCollection):
 
         '''
         const = LFRicConstants()
+
+        assigns = self._invoke.schedule.walk(Assignment)
+        assign_map = {assign.lhs.symbol: assign for assign in assigns}
+
         # Since colouring is applied via transformations, we have to check for
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
@@ -624,13 +628,14 @@ class LFRicMeshProperties(LFRicCollection):
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self.symtab.find_or_create_tag(
                     "adjacent_face")
-                assignment = Assignment.create(
+                if adj_face not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(adj_face),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_adjacent_face"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 symbol = self.symtab.find_or_create(
@@ -638,12 +643,13 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                assignment = Assignment.create(
+                if symbol not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_last_edge_cell"])),)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
                 symbol = self.symtab.find_or_create(
@@ -651,12 +657,13 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                assignment = Assignment.create(
+                if symbol not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_ncells_2d"])),)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{str(prop)}' when "
@@ -668,55 +675,63 @@ class LFRicMeshProperties(LFRicCollection):
         if need_colour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_cell_all_colours")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_colour_limits:
             lhs = self.symtab.find_or_create_tag(
-                "last_edge_cell_all_colours")
-            assignment = Assignment.create(
+                "last_edge_cell_all_colours",
+                symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type())
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_tilecolour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_tile_per_colour")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_tile_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_cell_per_colour_and_tile")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours_all_tiles"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_tilecolour_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_tile_per_colour")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_tile_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_cell_per_colour_and_tile")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours_all_tiles"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         return cursor
 
 
@@ -1463,6 +1478,7 @@ class LFRicProxies(LFRicCollection):
 
         '''
         init_cursor = cursor
+
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars or arrays of scalars.
             if arg.is_scalar or arg.is_scalar_array:
@@ -2267,7 +2283,7 @@ class LFRicMeshes():
 
     def initialise(self, cursor: int) -> int:
         '''
-        Initialise parameters specific to inter-grid kernels.
+        Initialise variables related to meshes (including colour maps).
 
         :param cursor: position where to add the next initialisation
             statements.
@@ -2281,74 +2297,88 @@ class LFRicMeshes():
         if not self._mesh_tag_names:
             return cursor
 
-        symtab = self._invoke.schedule.symbol_table
+        root_sched = self._invoke.schedule
+        symtab = root_sched.symbol_table
+
+        # Keep a list of quantities that we've already initialised so
+        # that we don't generate duplicate assignments
+        assignments = root_sched.walk(Assignment)
+        assigned_symbols = set(assign.lhs.symbol for assign in assignments)
 
         if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
             # contains no inter-grid kernels (which would require at least 2)
             mesh_sym = symtab.lookup_with_tag(self._mesh_tag_names[0])
-            assignment = Assignment.create(
-                lhs=Reference(mesh_sym),
-                rhs=self._first_var.generate_method_call("get_mesh"),
-                is_pointer=True)
-            assignment.preceding_comment = "Create a mesh object"
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+            if mesh_sym not in assigned_symbols:
+                assigned_symbols.add(mesh_sym)
+                assignment = Assignment.create(
+                    lhs=Reference(mesh_sym),
+                    rhs=self._first_var.generate_method_call("get_mesh"),
+                    is_pointer=True)
+                assignment.preceding_comment = "Create a mesh object"
+                root_sched.addchild(assignment, cursor)
+                cursor += 1
             if Config.get().distributed_memory:
                 # If distributed memory is enabled then we need the maximum
                 # halo depth.
                 depth_sym = self.symtab.lookup_with_tag(
                     f"max_halo_depth_{self._mesh_tag_names[0]}")
-                self._invoke.schedule.addchild(Assignment.create(
-                    lhs=Reference(depth_sym),
-                    rhs=Call.create(StructureReference.create(
-                        mesh_sym, ["get_halo_depth"]))),
-                    cursor)
-                cursor += 1
+                if depth_sym not in assigned_symbols:
+                    assigned_symbols.add(depth_sym)
+                    root_sched.addchild(Assignment.create(
+                        lhs=Reference(depth_sym),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_halo_depth"]))),
+                                                   cursor)
+                    cursor += 1
             if self._needs_colourmap or self._needs_colourmap_halo:
                 # Look-up variable names for colourmap and number of colours
                 cmap = self.symtab.find_or_create_tag("cmap")
                 ncolour = self.symtab.find_or_create_tag("ncolour")
-                # Get the number of colours
-                assignment = Assignment.create(
+                if ncolour not in assigned_symbols:
+                    assigned_symbols.add(ncolour)
+                    # Get the number of colours
+                    assignment = Assignment.create(
                         lhs=Reference(ncolour),
                         rhs=Call.create(StructureReference.create(
                             mesh_sym, ["get_ncolours"])))
-                assignment.preceding_comment = "Get the colourmap"
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    assignment.preceding_comment = "Get the colourmap"
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
                 # Get the colour map
-                assignment = Assignment.create(
+                if cmap not in assigned_symbols:
+                    assigned_symbols.add(cmap)
+                    assignment = Assignment.create(
                         lhs=Reference(cmap),
                         rhs=Call.create(StructureReference.create(
                             mesh_sym, ["get_colour_map"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
             if self._needs_colourtilemap or self._needs_colourtilemap_halo:
                 # Look-up variable names for colourmap and number of colours
                 tmap = self.symtab.lookup_with_tag("tilecolourmap")
                 ntc = self.symtab.lookup_with_tag("ntilecolours")
                 # Get the number of colours
-                assignment = Assignment.create(
+                if ntc not in assigned_symbols:
+                    assigned_symbols.add(ntc)
+                    assignment = Assignment.create(
                         lhs=Reference(ntc),
                         rhs=Call.create(StructureReference.create(
                             mesh_sym, ["get_ntilecolours"])))
-                assignment.preceding_comment = "Get the tiled colourmap"
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    assignment.preceding_comment = "Get the tiled colourmap"
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
                 # Get the colour map
-                assignment = Assignment.create(
+                if tmap not in assigned_symbols:
+                    assigned_symbols.add(tmap)
+                    assignment = Assignment.create(
                         lhs=Reference(tmap),
                         rhs=Call.create(StructureReference.create(
                             mesh_sym, ["get_coloured_tiling_map"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
-
-        # Keep a list of quantities that we've already initialised so
-        # that we don't generate duplicate assignments
-        initialised = []
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
 
         comment_cursor = cursor
         # Loop over the LFRicInterGrid objects
@@ -2358,13 +2388,13 @@ class LFRicMeshes():
             fine_mesh = self.symtab.find_or_create_tag(f"mesh_{dig.fine.name}")
             coarse_mesh = self.symtab.find_or_create_tag(
                                             f"mesh_{dig.coarse.name}")
-            if fine_mesh not in initialised:
-                initialised.append(fine_mesh)
+            if fine_mesh not in assigned_symbols:
+                assigned_symbols.add(fine_mesh)
                 assignment = Assignment.create(
                         lhs=Reference(fine_mesh),
                         rhs=dig.fine.generate_method_call("get_mesh"),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_f_mesh = (
@@ -2374,15 +2404,15 @@ class LFRicMeshes():
                             lhs=Reference(max_halo_f_mesh),
                             rhs=Call.create(StructureReference.create(
                                 fine_mesh, ["get_halo_depth"])))
-                    self._invoke.schedule.addchild(assignment, cursor)
+                    root_sched.addchild(assignment, cursor)
                     cursor += 1
-            if coarse_mesh not in initialised:
-                initialised.append(coarse_mesh)
+            if coarse_mesh not in assigned_symbols:
+                assigned_symbols.add(coarse_mesh)
                 assignment = Assignment.create(
                         lhs=Reference(coarse_mesh),
                         rhs=dig.coarse.generate_method_call("get_mesh"),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_c_mesh = (
@@ -2392,12 +2422,12 @@ class LFRicMeshes():
                             lhs=Reference(max_halo_c_mesh),
                             rhs=Call.create(StructureReference.create(
                                 coarse_mesh, ["get_halo_depth"])))
-                    self._invoke.schedule.addchild(assignment, cursor)
+                    root_sched.addchild(assignment, cursor)
                     cursor += 1
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if dig.mmap not in initialised:
-                initialised.append(dig.mmap)
+            if dig.mmap not in assigned_symbols:
+                assigned_symbols.add(dig.mmap)
                 digmmap = self.symtab.lookup(dig.mmap)
                 assignment = Assignment.create(
                         lhs=Reference(digmmap),
@@ -2405,24 +2435,24 @@ class LFRicMeshes():
                                 coarse_mesh, ["get_mesh_map"]),
                             arguments=[Reference(fine_mesh)]),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
 
             # Cell map. This is obtained from the mesh map.
-            if dig.cell_map not in initialised:
-                initialised.append(dig.cell_map)
+            if dig.cell_map not in assigned_symbols:
+                assigned_symbols.add(dig.cell_map)
                 digcellmap = self.symtab.lookup(dig.cell_map)
                 assignment = Assignment.create(
                         lhs=Reference(digcellmap),
                         rhs=Call.create(StructureReference.create(
                             digmmap, ["get_whole_cell_map"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
 
             # Number of cells in the fine mesh
-            if dig.ncell_fine not in initialised:
-                initialised.append(dig.ncell_fine)
+            if dig.ncell_fine not in assigned_symbols:
+                assigned_symbols.add(dig.ncell_fine)
                 digncellfine = self.symtab.lookup(dig.ncell_fine)
                 if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
@@ -2433,56 +2463,62 @@ class LFRicMeshes():
                                 fine_mesh, ["get_last_halo_cell"])))
                     assignment.rhs.append_named_arg(
                         "depth", Literal("2", ScalarType.integer_type()))
-                    self._invoke.schedule.addchild(assignment, cursor)
+                    root_sched.addchild(assignment, cursor)
                     cursor += 1
                 else:
                     assignment = Assignment.create(
                             lhs=Reference(digncellfine),
                             rhs=dig.fine.generate_method_call("get_ncell"))
-                    self._invoke.schedule.addchild(assignment, cursor)
+                    root_sched.addchild(assignment, cursor)
                     cursor += 1
 
             # Number of fine cells per coarse cell in x.
-            if dig.ncellpercellx not in initialised:
-                initialised.append(dig.ncellpercellx)
+            if dig.ncellpercellx not in assigned_symbols:
+                assigned_symbols.add(dig.ncellpercellx)
                 digncellpercellx = self.symtab.lookup(dig.ncellpercellx)
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercellx),
                         rhs=Call.create(StructureReference.create(
                             digmmap, ["get_ntarget_cells_per_source_x"])))
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
 
             # Number of fine cells per coarse cell in y.
-            if dig.ncellpercelly not in initialised:
-                initialised.append(dig.ncellpercelly)
+            if dig.ncellpercelly not in assigned_symbols:
+                assigned_symbols.add(dig.ncellpercelly)
                 digncellpercelly = self.symtab.lookup(dig.ncellpercelly)
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercelly),
                         rhs=Call.create(StructureReference.create(
                             digmmap, ["get_ntarget_cells_per_source_y"])))
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
 
             # Colour map for the coarse mesh (if required)
-            if dig.colourmap_symbol:
+            if (dig.ncolours_var_symbol and dig.ncolours_var_symbol not
+                    in assigned_symbols):
                 # Number of colours
+                assigned_symbols.add(dig.ncolours_var_symbol)
                 assignment = Assignment.create(
                         lhs=Reference(dig.ncolours_var_symbol),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, ["get_ncolours"])))
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
+            if (dig.colourmap_symbol and dig.colourmap_symbol not
+                    in assigned_symbols):
                 # Colour map itself
+                assigned_symbols.add(dig.colourmap_symbol)
                 assignment = Assignment.create(
                         lhs=Reference(dig.colourmap_symbol),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, ["get_colour_map"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
                 # Last halo/edge cell per colour.
                 sym = dig.last_cell_var_symbol
+                assigned_symbols.add(sym)
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
                     name = "get_last_halo_cell_all_colours"
@@ -2493,53 +2529,61 @@ class LFRicMeshes():
                         lhs=Reference(sym),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, [name])))
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
             # Colour map for the coarse mesh (if required)
-            if dig.tilecolourmap_symbol:
+            if (dig.tilecolourmap_symbol and
+                    dig.tilecolourmap_symbol not in assigned_symbols):
                 # Number of colours
-                assignment = Assignment.create(
+                if dig.ntilecolours_var_symbol not in assigned_symbols:
+                    assigned_symbols.add(dig.ntilecolours_var_symbol)
+                    assignment = Assignment.create(
                         lhs=Reference(dig.ntilecolours_var_symbol),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, ["get_ntilecolours"])))
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
                 # Colour map itself
+                assigned_symbols.add(dig.tilecolourmap_symbol)
                 assignment = Assignment.create(
                         lhs=Reference(dig.tilecolourmap_symbol),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, ["get_coloured_tiling_map"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
+                root_sched.addchild(assignment, cursor)
                 cursor += 1
                 # Last halo/edge tile per colour.
                 sym = dig.last_tile_var_symbol
-                if len(sym.datatype.shape) == 2:
-                    # Array is 2D so is a halo access.
-                    name = "get_last_halo_tile_all_colours"
-                else:
-                    # Array is just 1D so go to the last edge cell.
-                    name = "get_last_edge_tile_all_colours"
-                assignment = Assignment.create(
-                        lhs=Reference(sym),
-                        rhs=Call.create(StructureReference.create(
+                if sym not in assigned_symbols:
+                    assigned_symbols.add(sym)
+                    if len(sym.datatype.shape) == 2:
+                        # Array is 2D so is a halo access.
+                        name = "get_last_halo_tile_all_colours"
+                    else:
+                        # Array is just 1D so go to the last edge cell.
+                        name = "get_last_edge_tile_all_colours"
+                        assignment = Assignment.create(
+                            lhs=Reference(sym),
+                            rhs=Call.create(StructureReference.create(
                             coarse_mesh, [name])))
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                        root_sched.addchild(assignment, cursor)
+                        cursor += 1
                 # Last halo/edge cell per colour and tile.
                 sym = dig.last_cell_tile_var_symbol
-                if len(sym.datatype.shape) == 3:
-                    # Array is 3D so is a halo access.
-                    name = "get_last_halo_cell_all_colours_all_tiles"
-                else:
-                    # Array is just 2D so go to the last edge cell.
-                    name = "get_last_edge_cell_all_colours_all_tiles"
-                assignment = Assignment.create(
+                if sym not in assigned_symbols:
+                    assigned_symbols.add(sym)
+                    if len(sym.datatype.shape) == 3:
+                        # Array is 3D so is a halo access.
+                        name = "get_last_halo_cell_all_colours_all_tiles"
+                    else:
+                        # Array is just 2D so go to the last edge cell.
+                        name = "get_last_edge_cell_all_colours_all_tiles"
+                    assignment = Assignment.create(
                         lhs=Reference(sym),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, [name])))
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    root_sched.addchild(assignment, cursor)
+                    cursor += 1
         if cursor != comment_cursor:
             self._invoke.schedule[comment_cursor].preceding_comment = (
                 "Look-up mesh objects and loop limits for inter-grid kernels")
@@ -2578,11 +2622,11 @@ class LFRicInterGrid():
         self.fine = fine_arg
 
         # Get a reference to the InvokeSchedule SymbolTable
-        symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
+        self._symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
         base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
-        self.mmap = symtab.find_or_create(
+        self.mmap = self._symtab.find_or_create(
                 base_mmap_name, tag=base_mmap_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -2592,21 +2636,21 @@ class LFRicInterGrid():
 
         # Generate name for ncell variables
         name = f"ncell_{fine_arg.name}"
-        self.ncell_fine = symtab.find_or_create(
+        self.ncell_fine = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
         ).name
         # No. of fine cells per coarse cell in x
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_x"
-        self.ncellpercellx = symtab.find_or_create(
+        self.ncellpercellx = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
         ).name
         # No. of fine cells per coarse cell in y
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_y"
-        self.ncellpercelly = symtab.find_or_create(
+        self.ncellpercelly = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
@@ -2616,7 +2660,7 @@ class LFRicInterGrid():
         ArrayType(
             LFRicTypes("LFRicRealScalarDataType")(),
             [ArrayType.Extent.DEFERRED]*2)
-        sym = symtab.find_or_create(
+        sym = self._symtab.find_or_create(
                 base_name,
                 tag=base_name,
                 symbol_type=DataSymbol,
@@ -2691,6 +2735,7 @@ class LFRicInterGrid():
         '''
         :returns: the symbol storing the number of colours.
         '''
+        #return self._symtab.lookup_with_tag("ncolours")
         return self._ncolours_var_symbol
 
     @property
@@ -3244,14 +3289,15 @@ class LFRicBasisFunctions(LFRicCollection):
 
         # Allocate basis arrays
         for basis in basis_arrays:
-            dims = "("+",".join([":"]*len(basis_arrays[basis].dim_vars))+")"
             base_name = basis_arrays[basis].base_name
+            ndims = len(basis_arrays[basis].dim_vars)
             new_name = self.symtab.next_available_name(base_name)
             symbol = self.symtab.find_or_create_tag(
                 tag=basis, root_name=new_name, symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {new_name}{dims}"
-                ))
+                datatype=ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*ndims)
+            )
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(

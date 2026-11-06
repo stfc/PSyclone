@@ -30,8 +30,8 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCParallelDirective, ACCRoutineDirective, Call, CodeBlock, Container,
-    Literal, Loop, Node, OMPMasterDirective, OMPParallelDirective,
+    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
+    Container, Literal, Loop, Node, OMPMasterDirective, OMPParallelDirective,
     OMPSerialDirective, OMPSingleDirective, Reference, Return, Schedule,
     PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
@@ -413,8 +413,18 @@ class ColourTrans(LoopTrans):
         colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
+        inv_sched = node.ancestor(InvokeSchedule)
+        if inv_sched:
+            assigns = inv_sched.walk(Assignment)
+            assign_map = {assign.lhs.symbol: assign for assign in assigns}
+            for expr in [node.start_expr, node.stop_expr]:
+                if isinstance(expr, Reference) and expr.symbol in assign_map:
+                    assign_map[expr.symbol].detach()
+                    inv_sched.symbol_table.remove(expr.symbol)
+
         # remove original loop
         node.detach()
+       
 
     def _create_colours_loop(self, node):
         '''
@@ -554,17 +564,19 @@ class LFRicColourTrans(ColourTrans):
         # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
+            cursor = 0  # TODO - not sure what value to use here.
+            cursor = sched.invoke.meshes.initialise(cursor)
+            cursor = sched.invoke.mesh_properties.initialise(cursor)
+            sched.invoke.loop_bounds.initialise(cursor)
 
-    def _create_colours_loop(self, node):
+    def _create_colours_loop(self, node: Loop) -> Loop:
         '''
         Creates a nested loop (colours, and cells of a given colour) which
         can be used to replace the supplied loop over cells.
 
         :param node: the loop for which to create a coloured version.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: doubly-nested loop over colours and cells of a given colour.
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
         # Create a colours loop. This loops over colours and must be run
@@ -574,6 +586,8 @@ class LFRicColourTrans(ColourTrans):
         colours_loop.iteration_space = node.iteration_space
         colours_loop.set_lower_bound("start")
         colours_loop.set_upper_bound("ncolours")
+        colours_loop.start_expr = Literal("1", ScalarType.integer_type())
+
 
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
@@ -582,6 +596,7 @@ class LFRicColourTrans(ColourTrans):
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
+        colour_loop.start_expr = Literal("1", ScalarType.integer_type())
         colour_loop.set_lower_bound("start")
         colour_loop.kernel = node.kernel
 
@@ -593,6 +608,8 @@ class LFRicColourTrans(ColourTrans):
         else:
             # No halo access.
             colour_loop.set_upper_bound("ncolour")
+
+        #colour_loop.stop_expr = colour_loop.upper_bound_psyir()
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)

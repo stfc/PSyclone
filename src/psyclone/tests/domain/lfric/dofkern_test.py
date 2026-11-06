@@ -182,19 +182,22 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
 
     # Since (redundant) computation over annexed dofs is enabled, there
     # should be no halo exchange before the first kernel call
-    assert isinstance(first_invoke.schedule[0], LFRicLoop)
+    nodes = first_invoke.schedule.walk((LFRicHaloExchange, LFRicLoop))
+    assert isinstance(nodes[0], LFRicLoop)
 
     # Now transform the first loop to perform redundant computation out to
     # the level-3 halo
     rtrans = LFRicRedundantComputationTrans()
-    rtrans.apply(first_invoke.schedule[0], options={"depth": 3})
+    rtrans.apply(nodes[0], options={"depth": 3})
 
     # There should now be a halo exchange for f2
-    assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
-    assert first_invoke.schedule[0].field.name == "f2"
+    nodes = first_invoke.schedule.walk((LFRicHaloExchange, LFRicLoop))
+    assert isinstance(nodes[0], LFRicHaloExchange)
+    assert nodes[0].field.name == "f2"
     # Check the correct depth is set
-    assert "halo_exchange(depth=3)" in str(psy.gen)
-    assert "halo_exchange(depth=1)" not in str(psy.gen)
+    output = str(psy.gen)
+    assert "halo_exchange(depth=3)" in output
+    assert "halo_exchange(depth=1)" not in output
 
     # There should be one halo exchange for each field that is not f1
     # (f2, f3, f4)
