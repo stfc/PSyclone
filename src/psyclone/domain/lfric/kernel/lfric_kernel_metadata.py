@@ -11,6 +11,7 @@ kernel-layer-specific class that captures the LFRic kernel metadata.
 '''
 from __future__ import annotations
 import inspect
+from typing import Optional
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, get_child
@@ -47,9 +48,8 @@ from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, StructureType, UnsupportedFortranType)
+    DataTypeSymbol, StructureType, SymbolTable, UnsupportedFortranType)
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -1043,9 +1043,9 @@ class LFRicKernelMetadata(CommonMetadata):
         return self._procedure_name
 
     @procedure_name.setter
-    def procedure_name(self, value):
+    def procedure_name(self, value: Optional[str] = None) -> None:
         '''
-        :param Optional[str] value: set the kernel procedure name in the \
+        :param Optional[str] value: set the kernel procedure name in the
             metadata to the specified value.
 
         :raises ValueError: if the metadata has an invalid value.
@@ -1053,7 +1053,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if value:
             try:
-                FortranReader.validate_name(value)
+                SymbolTable.validate_name(value)
             except (ValueError, TypeError) as err:
                 raise ValueError(
                     f"Expected procedure_name to be a valid Fortran name but "
@@ -1071,15 +1071,15 @@ class LFRicKernelMetadata(CommonMetadata):
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str) -> None:
         '''
-        :param str value: set the name of the symbol that will contain \
+        :param value: set the name of the symbol that will contain
             the metadata when lowering.
 
         :raises ValueError: if the name is not valid.
 
         '''
-        FortranReader.validate_name(value)
+        SymbolTable.validate_name(value)
         self._name = value
 
     def meta_args_get(self, types):
