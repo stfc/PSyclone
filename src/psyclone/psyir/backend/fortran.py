@@ -642,6 +642,8 @@ class FortranWriter(LanguageWriter):
                     result += (f" {self._COMMENT_PREFIX}"
                                f"{symbol.inline_comment}")
                 result += "\n"
+                if isinstance(symbol, DataSymbol) and symbol.directive:
+                    result += self._visit(symbol.directive)
                 return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
@@ -703,7 +705,10 @@ class FortranWriter(LanguageWriter):
         if symbol.inline_comment != "":
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
-        return result + "\n"
+        result += "\n"
+        if isinstance(symbol, DataSymbol) and symbol.directive:
+            result += self._visit(symbol.directive)
+        return result
 
     def _gen_common_block_decls(self, symbols: list[Symbol]) -> str:
         '''Generate declarations for all common blocks represented by the

@@ -15,7 +15,7 @@ from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import (
     add_attributes_to_unsupported_declaration)
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.nodes import Container, OMPDeclareTargetVariable, Routine
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, UnresolvedType, RoutineSymbol,
     UnsupportedType, UnsupportedFortranType, ImportInterface, ContainerSymbol,
@@ -278,6 +278,24 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
+
+
+def test_fw_unsupported_with_directive(fortran_reader, fortran_writer):
+    '''
+    Check that directives work as expected with unsupport types.
+    '''
+    code = '''
+      module my_mod
+        real, pointer :: unsupported
+      end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sym_tab = psyir.children[0].symbol_table
+    sym = sym_tab.lookup("unsupported")
+    sym.directive = OMPDeclareTargetVariable()
+
+    output = fortran_writer(psyir)
+    assert "real, pointer, public :: unsupported" in output
+    assert "!$omp declare target(unsupported)" in output
 
 
 def test_fw_unsupported_type_components_with_visibility(

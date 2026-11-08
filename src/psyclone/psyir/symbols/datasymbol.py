@@ -9,9 +9,17 @@
 
 from __future__ import annotations
 
+from typing import Optional, TYPE_CHECKING
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
-from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import DataNode, Node
+    from psyclone.psyir.nodes.symbol_directive import SymbolDirective
+    from psyclone.psyir.symbols.datatypes import DataType
+    from psyclone.psyir.symbols import ScalarType
+    from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
 class DataSymbol(TypedSymbol):
@@ -20,10 +28,9 @@ class DataSymbol(TypedSymbol):
     the datatype, the shape (in column-major order) and the interface
     to that symbol (i.e. Local, Global, Argument).
 
-    :param str name: name of the symbol.
+    :param name: name of the symbol.
     :param datatype: data type of the symbol.
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param bool is_constant: whether this DataSymbol is a compile-time
+    :param is_constant: whether this DataSymbol is a compile-time
         constant (default is False). If True then an `initial_value` must
         also be provided.
     :param initial_value: sets a fixed known expression as an initial
@@ -32,16 +39,18 @@ class DataSymbol(TypedSymbol):
         symbol does not have an initial value (and cannot be a constant).
         Otherwise it can receive PSyIR expressions or Python intrinsic types
         available in the TYPE_MAP_TO_PYTHON map. By default it is None.
-    :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
-        :py:class:`psyclone.psyir.nodes.Node`]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
-    :type kwargs: unwrapped dict.
 
     '''
 
-    def __init__(self, name, datatype, is_constant=False, initial_value=None,
+    def __init__(self, name: str,
+                 datatype: DataType,
+                 is_constant: bool = False,
+                 initial_value: Optional[ScalarType.TYPE_MAP_TO_PYTHON |
+                                         Node] = None,
                  **kwargs):
+        self._directive: Optional[SymbolDirective] = None
         super().__init__(name, datatype)
         self._is_constant = False
         self._initial_value = None
@@ -66,6 +75,7 @@ class DataSymbol(TypedSymbol):
                 default it is None.\n
             :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
                 :py:class:`psyclone.psyir.nodes.Node`]\n
+            :param directive: optional symbol-associated PSyIR directive.\n
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
         :type kwargs: unwrapped dict.
 
@@ -76,6 +86,9 @@ class DataSymbol(TypedSymbol):
         '''
         new_initial_value = None
         new_is_constant_value = None
+        directive = kwargs.pop("directive", None)
+        if not hasattr(self, "_directive"):
+            self._directive = None
 
         # We need to consume 'initial_value' and 'is_constant' before calling
         # the super because otherwise there will be an unknown argument in
@@ -105,6 +118,9 @@ class DataSymbol(TypedSymbol):
 
         super()._process_arguments(**kwargs)
 
+        if directive is not None:
+            self.directive = directive
+
         # Now that we have a datatype we can use initial_value setter
         # with proper error checking.
         if new_initial_value is not None:
@@ -122,18 +138,53 @@ class DataSymbol(TypedSymbol):
             self.interface = StaticInterface()
 
     @property
-    def is_constant(self):
+    def directive(self) -> Optional[SymbolDirective]:
+        '''
+        :returns: the symbol-associated directive, if any.
+        '''
+        return self._directive
+
+    @directive.setter
+    def directive(self, directive: Optional[SymbolDirective] = None):
+        '''
+        Setter for the directive associated with this DataSymbol.
+
+        :param directive: the symbol-associated directive, if any.
+
+        :raises TypeError: if the supplied directive is not a SymbolDirective
+            or None.
+        '''
+        # This import has to be local to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.symbol_directive import SymbolDirective
+        if directive is not None and not isinstance(directive,
+                                                    SymbolDirective):
+            raise TypeError(
+                f"The directive associated with a DataSymbol must subclass "
+                f"SymbolDirective or be None but got "
+                f"'{type(directive).__name__}'.")
+        if directive is not None:
+            if (directive.parent_symbol is not None and
+                    directive.parent_symbol is not self):
+                raise SymbolError(
+                    f"The directive '{directive}' is already associated with "
+                    f"the symbol '{directive.parent_symbol.name}' and "
+                    f"cannot be associated with the symbol '{self.name}'.")
+            directive.parent_symbol = self
+        self._directive = directive
+
+    @property
+    def is_constant(self) -> bool:
         '''
         :returns: Whether the symbol is a compile-time constant (True) or
             not (False).
-        :rtype: bool
         '''
         return self._is_constant
 
     @is_constant.setter
-    def is_constant(self, value):
+    def is_constant(self, value: bool):
         '''
-        :param bool value: whether or not this symbol is a compile-time
+        :param value: whether or not this symbol is a compile-time
             constant.
 
         :raises ValueError: if `value` is True but this symbol does not have an
@@ -154,24 +205,22 @@ class DataSymbol(TypedSymbol):
         self._is_constant = value
 
     @property
-    def initial_value(self):
+    def initial_value(self) -> Optional[ScalarType.TYPE_MAP_TO_PYTHON | Node]:
         '''
         :returns: the initial value associated with this symbol (if any).
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return self._initial_value
 
     @initial_value.setter
-    def initial_value(self, new_value):
+    def initial_value(self, new_value: Optional[ScalarType.TYPE_MAP_TO_PYTHON |
+                                                Node]):
         '''
         :param new_value: set or change the initial value associated
             with this DataSymbol. If the value is None then this symbol does
             not have an initial value (and cannot be a constant). Otherwise it
             can receive PSyIR expressions or Python intrinsic types available
             in the TYPE_MAP_TO_PYTHON map.
-        :type new_value: Optional[item of TYPE_MAP_TO_PYTHON |
-            :py:class:`psyclone.psyir.nodes.Node`]
 
         :raises ValueError: if a non-None value is provided and 1) this
             DataSymbol instance represents an argument, or 2) this
@@ -269,7 +318,7 @@ class DataSymbol(TypedSymbol):
             ret += ", constant=True"
         return ret + ">"
 
-    def copy(self):
+    def copy(self) -> DataSymbol:
         '''Create and return a copy of this object. Any references to the
         original will not be affected so the copy will not be referred
         to by any other object.
@@ -279,7 +328,6 @@ class DataSymbol(TypedSymbol):
         in the copied object. See the `replace_symbols_using` method.
 
         :returns: An object with the same properties as this symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         if self.initial_value is not None:
@@ -302,8 +350,11 @@ class DataSymbol(TypedSymbol):
         copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
+
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
@@ -326,12 +377,17 @@ class DataSymbol(TypedSymbol):
             raise TypeError(f"Argument should be of type 'DataSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
         super().copy_properties(symbol_in, exclude_interface=exclude_interface)
+        copied_directive = None
+        if symbol_in.directive:
+            copied_directive = symbol_in.directive.copy()
+        self.directive = copied_directive
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
         self.preceding_comment = symbol_in.preceding_comment
         self.inline_comment = symbol_in.inline_comment
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self,
+                              table_or_symbol: SymbolTable | Symbol):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -340,8 +396,6 @@ class DataSymbol(TypedSymbol):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -371,12 +425,10 @@ class DataSymbol(TypedSymbol):
             symbols.update(self.initial_value.get_all_accessed_symbols())
         return symbols
 
-    def get_bounds(self, idx: int):
+    def get_bounds(self, idx: int) -> tuple[DataNode, DataNode]:
         '''
         :returns: the lower and upper bounds of the specified (0-indexed)
                   array dimension.
-        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
-                      :py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises IndexError: if the requested array dimension is invalid.
 
@@ -400,14 +452,14 @@ class DataSymbol(TypedSymbol):
         if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE]:
             # We have no information on the bounds of this dimension.
-            bounds = []
+            bounds: list[DataNode] = []
             for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
                               IntrinsicCall.Intrinsic.UBOUND]:
                 bounds.append(IntrinsicCall.create(
                     intrinsic, [Reference(self),
                                 ("dim", Literal(str(idx+1),
                                                 ScalarType.integer_type()))]))
-            return tuple(bounds)
+            return (bounds[0], bounds[1])
 
         lower = self.shape[idx].lower.copy()
         if not isinstance(self.shape[idx].upper, ArrayType.Extent):
@@ -418,3 +470,7 @@ class DataSymbol(TypedSymbol):
             [Reference(self), ("dim", Literal(str(idx+1),
                                               ScalarType.integer_type()))])
         return lower, upper
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["DataSymbol"]
