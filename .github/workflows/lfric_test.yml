@@ -99,11 +99,13 @@ jobs:
           xargs -d '\n' -r sed -i 's/view_transformed_schedule(psyir)/pass/g'
         # Disable XIOS output
         sed -i 's/^use_xios_io=\.true\.,$/use_xios_io=.false.,/' applications/gungho_model/example/configuration.nml
-        # Use stfc/lfric_core
-        sed -i \
-          -e 's|^    source: git@github\.com:MetOffice/lfric_core\.git$|   source: git@github.com:stfc/lfric_core.git|' \
-          -e "s|^    ref: f45cece811a68c3b89fb55ef48909ed75ffdaf59$|   ref: ${LFRIC_CORE_HASH}|" \
-          dependencies.yaml
+        # Replace the MetOffice repo with the stfc fork and update the ref hash
+        # 'n' advances the sed expression to the 'next' line
+        sed -i "\|^    source: git@github\.com:MetOffice/lfric_core\.git$| {
+          s|MetOffice|stfc|
+          n
+          s|ref:.*|ref: ${LFRIC_CORE_HASH}|
+        }" dependencies.yaml
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
@@ -159,10 +161,12 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
+        # Attempt the build twice since signal 11 compiler failures can often be resolved by re-building
         for attempt in 1 2; do
-          # Suppress errexit for the pipeline and immediately save the build's status, not tee's.
+          # '!' Suppress errexit for the build command (as we always want to do the 'tee')
           ! LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-            -w working-gh-ompoffload gungho_model |& tee output.txt
+            -w working-gh-ompoffload gungho_model |& tee output_omp_gpu.txt
+          # Then we can explictly check what was the status of the first part of the pipeline
           BUILD_STATUS=${PIPESTATUS[0]}
           if [[ ${BUILD_STATUS} -eq 0 ]]; then
             break
@@ -175,7 +179,7 @@ jobs:
           exit "${BUILD_STATUS}"
         fi
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
-        ${PSYCLONE_LFRIC_DIR}/aggregate_gpu_stats.sh output.txt
+        ${PSYCLONE_LFRIC_DIR}/aggregate_gpu_stats.sh output_omp_gpu.txt
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
@@ -206,6 +210,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-accoffload
+        # Attempt the build twice since signal 11 compiler failures can often be resolved by re-building
         LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
           -w working-gh-accoffload gungho_model || {
             echo "OpenACC offload build failed (exit $?); retrying once."
