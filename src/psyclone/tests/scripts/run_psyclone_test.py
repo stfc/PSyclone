@@ -1,5 +1,7 @@
 """Tests for the PSyclone control-file discovery script."""
 
+import sys
+
 import pytest
 
 from psyclone.scripts import run_psyclone
@@ -206,11 +208,15 @@ def test_execute_psyclone_adds_kernel_dirs_only_in_psykal_mode(
     """Check -d is repeated for each root only in PSyKAl mode."""
     kernel_dirs = [tmp_path / "kernels-a", tmp_path / "kernels-b"]
     psyclone_calls = []
-    monkeypatch.setattr(
-        run_psyclone, "psyclone_main",
-        lambda args: psyclone_calls.append(args),
-    )
+    paths_during_call = []
+
+    def fake_main(args):
+        psyclone_calls.append(args)
+        paths_during_call.append(list(sys.path))
+
+    monkeypatch.setattr(run_psyclone, "psyclone_main", fake_main)
     runner = RunPsyclone(tmp_path, [], kernel_dirs=kernel_dirs)
+    original_path = list(sys.path)
     # The transmute case renames the input file to .xu90, so it must exist.
     (tmp_path / "input.x90").touch()
 
@@ -233,6 +239,18 @@ def test_execute_psyclone_adds_kernel_dirs_only_in_psykal_mode(
         "-d", str(kernel_dirs[0]), "-d", str(kernel_dirs[1]),
     ]
     assert "-d" not in psyclone_calls[1]
+    # The script's grandparent directory is on sys.path only during each call.
+    for path in paths_during_call:
+        assert path[0] == str(tmp_path)
+        assert path[1:] == original_path
+    assert sys.path == original_path
+
+    # Without a script, sys.path is not modified.
+    (tmp_path / "input.x90").touch()
+    runner._execute_psyclone(tmp_path / "input.x90", tmp_path / "out.x90",
+                             None, {})
+    assert paths_during_call[2] == original_path
+    assert sys.path == original_path
 
 
 def test_run_skips_phase_without_file_pattern(tmp_path, caplog, monkeypatch):
