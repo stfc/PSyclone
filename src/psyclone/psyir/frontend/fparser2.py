@@ -6072,23 +6072,24 @@ class Fparser2Reader():
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
-            # BIND(C[, NAME=...]) is a Language_Binding_Spec. A subroutine-stmt
-            # has no suffix, so its stmt.children[3] is that or None. In a
-            # function-stmt, stmt.children[3] is the suffix: a
-            # Language_Binding_Spec if the suffix is only BIND(C), otherwise
-            # a Suffix (handled below).
+            # A subroutine-stmt has no suffix, so its stmt.children[3] is
+            # either bind(c) or None. In a function-stmt, stmt.children[3]
+            # is the suffix: a Language_Binding_Spec if the suffix is only
+            # BIND(C), otherwise a Suffix (handled below).
             binding = stmt.children[3]
+            # BIND(C[, NAME=...]) is a Language_Binding_Spec
             if isinstance(binding, Fortran2003.Language_Binding_Spec):
                 label = binding.children[0]
                 routine.bind_c = "" if label is None else str(label)
 
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RESULT'.
+                # 'RESULT', which occurs if stmt.children[3] is a Suffix.
                 suffix = stmt.children[3]
                 if isinstance(suffix, Fortran2003.Suffix):
                     # A Suffix is always [Result_Name, Language_Binding_Spec],
-                    # whichever order RESULT and BIND(C) have in the source.
+                    # regardless of the order of RESULT and BIND(C) in the
+                    # source.
                     # The Language_Binding_Spec is None if there is no BIND(C).
                     return_name = suffix.children[0].string
                     binding = suffix.children[1]
