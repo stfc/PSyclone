@@ -27,8 +27,10 @@ def index_str_fixture(request):
     return request.param
 
 
-def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
-                  tmpdir):
+def check_adjoint(tl_fortran: str,
+                  active_variable_names: list[str],
+                  expected_ad_fortran: str,
+                  tmpdir: str) -> None:
     '''Utility routine that takes tangent linear fortran code as input in
     the argument 'tl_fortran', transforms this code into its adjoint
     using the active variables specified in the
@@ -39,11 +41,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     To help keep the test code short this routine also adds the
     subroutine / end subroutine lines to the incoming code.
 
-    :param str tl_fortran: tangent linear code.
-    :param list of str active_variable_names: a list of active \
-        variable names.
-    :param str tl_fortran: the expected adjoint code to be produced.
-    :param str tmpdir: temporary directory created by pytest in which \
+    :param tl_fortran: tangent linear code.
+    :param active_variable_names: a list of active variable names.
+    :param tl_fortran: the expected adjoint code to be produced.
+    :param tmpdir: temporary directory created by pytest in which
         to perform compilation.
 
     '''
@@ -78,8 +79,6 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     writer = FortranWriter()
     ad_fortran = writer(psyir)
 
-    # Check that the code produced is the same as the expected code
-    # provided.
     assert ad_fortran == expected_output_code
 
     # Check that the code produced will compile.
@@ -127,8 +126,8 @@ def test_zero(tmpdir):
     active_variables = ["a"]
     ad_fortran = (
         "  integer, parameter :: n = 10\n"
-        "  real, dimension(n) :: a\n"
-        "  integer, dimension(n) :: b\n\n"
+        "  integer, dimension(n) :: b\n"
+        "  real, dimension(n) :: a\n\n"
         "  a(b(n)) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
     # Array range
@@ -200,7 +199,8 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
@@ -214,9 +214,11 @@ def test_single_assign(tmpdir):
         "  a(lookup(2*i)) = b(lookup(n)+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n  integer :: i\n"
-        "  integer, dimension(n) :: lookup\n\n"
+        "  integer :: i\n"
+        "  integer, parameter :: n = 10\n"
+        "  integer, dimension(n) :: lookup\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
         "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
         "  a(lookup(2 * i)) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -266,8 +268,8 @@ def test_single_assign_fail(tmpdir):
         "  a%data(2*i) = b%data(n+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
         "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 2\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
@@ -294,8 +296,9 @@ def test_single_valued_assign(tmpdir):
         "  a(i) = 3*n*b(j)\n")
     active_variables = ["A", "B"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -317,9 +320,9 @@ def test_multi_add(tmpdir):
         "  a(i+2) = (3/n)*b(j) + c(1)/(2*n) + d(n)\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        "  integer :: i\n  integer :: j\n  integer :: n\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  integer :: i\n  integer :: j\n  integer :: n\n\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n\n"
         "  b(j) = b(j) + (3 / n) * a(i + 2)\n"
         "  c(1) = c(1) + a(i + 2) / (2 * n)\n"
         "  d(n) = d(n) + a(i + 2)\n"
@@ -341,8 +344,9 @@ def test_multi_add_array_elements(tmpdir):
         "  a(i) = a(j) + 3*n*b(j)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  a(j) = a(j) + a(i)\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
@@ -365,8 +369,8 @@ def test_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 3\n"
         "  integer :: i\n"
+        "  integer, parameter :: n = 3\n"
         "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -387,8 +391,8 @@ def test_increment_mult(tmpdir, index_str):
         f"  A({index_str}) = 5*A({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  integer, parameter :: n = 4\n"
         f"  integer :: i\n"
+        f"  integer, parameter :: n = 4\n"
         f"  real, dimension(n) :: a\n\n"
         f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -408,9 +412,9 @@ def test_increment_add(tmpdir, index_str):
         f"  a({index_str}) = A({index_str})+B({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
+        f"  integer :: i\n"
         f"  real, dimension(10) :: a\n"
-        f"  real, dimension(10) :: b\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -433,10 +437,10 @@ def test_increment_add_reorder(tmpdir, index_str):
         f"  a({index_str}) = b({index_str})+k*a({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
-        f"  real, dimension(10) :: b\n"
         f"  integer :: i\n"
-        f"  integer :: k\n\n"
+        f"  integer :: k\n"
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
         f"  a({index_str}) = k * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -460,11 +464,12 @@ def test_increment_multi_add(tmpdir, index_str):
         f"y({index_str})*c({index_str})+d({index_str})*z\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        f"  integer :: i\n"
+        f"  real :: x\n  real :: z\n"
         f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         f"  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        f"  real, dimension(10) :: w\n  real :: x\n"
-        f"  real, dimension(10) :: y\n  real :: z\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: w\n"
+        f"  real, dimension(10) :: y\n\n"
         f"  b({index_str}) = b({index_str}) + x * a({index_str})\n"
         f"  c({index_str}) = c({index_str}) + y({index_str}) * "
         f"a({index_str})\n"
@@ -490,9 +495,9 @@ def test_multi_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})+x*a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
+        f"  integer :: i\n"
         f"  real :: x\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: a\n\n"
         f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -507,9 +512,9 @@ def test_unary_minus(tmpdir):
         "  a = -x * b\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: x\n"
         "  real :: a\n"
-        "  real :: b\n\n"
+        "  real :: b\n"
+        "  real :: x\n\n"
         "  b = b + (-x * a)\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -529,8 +534,8 @@ def test_single_valued_sub(tmpdir):
         "  a(i) = -b(j)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(j) = b(j) + (-a(i))\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -553,9 +558,10 @@ def test_multi_valued_sub(tmpdir):
         "  a(i) = -b(j)-x*(+c(i))+(-d(j))*y\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        "  integer :: i\n  integer :: j\n"
+        "  real :: x\n  real :: y\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n\n"
         "  b(j) = b(j) + (-a(i))\n"
         "  c(i) = c(i) - x * (+a(i))\n"
         "  d(j) = d(j) + (-a(i)) * y\n"
@@ -577,8 +583,8 @@ def test_inc_sub(tmpdir, index_str):
         f"  a({index_str}) = -a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
-        f"  integer :: i\n\n"
+        f"  integer :: i\n"
+        f"  real, dimension(10) :: a\n\n"
         f"  a({index_str}) = -a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -604,9 +610,9 @@ def test_multi_inc_sub(tmpdir, index_str):
         f"b({index_str})+a({index_str})/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         f"  integer :: i\n"
-        f"  real :: x\n  real :: y\n\n"
+        f"  real :: x\n  real :: y\n"
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
         f"  a({index_str}) = -a({index_str}) - x * a({index_str}) "
         f"+ a({index_str}) / y\n\n")
@@ -632,8 +638,8 @@ def test_multi_rhs(tmpdir):
         "  a = b + x*b + b/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: x\n  real :: y\n\n"
+        "  real :: x\n  real :: y\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b = b + a\n"
         "  b = b + x * a\n"
         "  b = b + a / y\n"
@@ -658,8 +664,8 @@ def test_different_indices(tmpdir):
         "  a(i) = a(i+1)+b(i)+b(i-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  a(i + 1) = a(i + 1) + a(i)\n"
         "  b(i) = b(i) + a(i)\n"
         "  b(i - 1) = b(i - 1) + a(i)\n"
@@ -682,8 +688,8 @@ def test_same_indices_ordering(tmpdir):
         "  a(i+1) = a(1+i)+b(i)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(i) = b(i) + a(i + 1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -703,8 +709,8 @@ def test_same_indices_ordering2(tmpdir):
         "  a(2*i) = a(i+i)+b(i)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(i) = b(i) + a(2 * i)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -726,8 +732,8 @@ def test_different_structures(tmpdir):
     active_variables = ["a"]
     ad_fortran = (
         "  use field_mod, only : field_type\n"
-        "  type(field_type) :: a\n"
-        "  integer :: n\n\n"
+        "  integer :: n\n"
+        "  type(field_type) :: a\n\n"
         "  a%data(n + 1) = a%data(n + 1) + a%data(n)\n"
         "  a%atad(n) = a%atad(n) + a%data(n)\n"
         "  a%data(n) = 0.0\n\n")

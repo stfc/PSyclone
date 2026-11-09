@@ -1,3 +1,6 @@
+   83) #3344 for #2202. Updates the generation of Fortran output to respect
+   dependencies in variable declarations.
+
    82) #3668 for #3666. Updates the frontend to correctly process code that
    has a Bind(c) clause on subroutines or functions.
 
