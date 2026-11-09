@@ -319,7 +319,7 @@ def test_any_space_1(tmpdir):
             "basis_as1_a__1_qr" in code)
     assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
             "basis_as2_b__1_qr" in code)
-    assert ("ALLOCATE(basis_as1_a__1_qr(dim_as1_a,ndf_as1_a__1,"
+    assert ("ALLOCATE(basis_as1_a__1_qr(dim_as1,ndf_as1_a__1,"
             "np_xy_qr,np_z_qr))" in code), code
     assert ("ALLOCATE(basis_as2_b__1_qr(dim_as2,ndf_as2_b__1,"
             "np_xy_qr,np_z_qr))" in code), code
@@ -2466,8 +2466,8 @@ def test_halo_exchange_inc(annexed):
         "    end if\n"
         "    if (e_proxy(3)%is_dirty(depth=1)) then\n"
         "      call e_proxy(3)%halo_exchange(depth=1)\n"
-        "    end if\n"
-        "    do cell = loop0_start, loop0_stop, 1\n")
+        "    end if\n\n"
+        "    ! Set-up all of the loop bounds\n")
     output2 = (
         "    if (f_proxy%is_dirty(depth=1)) then\n"
         "      call f_proxy%halo_exchange(depth=1)\n"
@@ -2549,8 +2549,8 @@ def test_halo_exchange_vectors_1(annexed, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
         expected = ("    if (f1_proxy(3)%is_dirty(depth=1)) then\n"
                     "      call f1_proxy(3)%halo_exchange(depth=1)\n"
-                    "    end if\n"
-                    "    do cell = loop0_start, loop0_stop, 1\n")
+                    "    end if\n\n"
+                    "    ! Set-up all of the loop bounds\n")
         assert expected in result
 
 
@@ -2577,8 +2577,8 @@ def test_halo_exchange_vectors(annexed):
                 "depth=f2_extent + 1)" in result)
     expected = ("    if (f2_proxy(4)%is_dirty(depth=f2_extent + 1)) then\n"
                 "      call f2_proxy(4)%halo_exchange(depth=f2_extent + 1)\n"
-                "    end if\n"
-                "    do cell = loop0_start, loop0_stop, 1\n")
+                "    end if\n\n"
+                "    ! Set-up all of the loop bounds\n")
     assert expected in result
 
 
@@ -2603,8 +2603,8 @@ def test_halo_exchange_depths(tmpdir):
                 "    end if\n"
                 "    if (f4_proxy%is_dirty(depth=extent)) then\n"
                 "      call f4_proxy%halo_exchange(depth=extent)\n"
-                "    end if\n"
-                "    do cell = loop0_start, loop0_stop, 1\n")
+                "    end if\n\n"
+                "    ! Set-up all of the loop bounds\n")
     assert expected in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2637,8 +2637,8 @@ def test_halo_exchange_depths_gh_inc(tmpdir, annexed):
         "    end if\n"
         "    if (f4_proxy%is_dirty(depth=f4_extent + 1)) then\n"
         "      call f4_proxy%halo_exchange(depth=f4_extent + 1)\n"
-        "    end if\n"
-        "    do cell = loop0_start, loop0_stop, 1\n")
+        "    end if\n\n"
+        "    ! Set-up all of the loop bounds\n")
     if not annexed:
         assert expected1 in result
     assert expected2 in result
@@ -2661,13 +2661,13 @@ def test_halo_exchange_view():
     assert (sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
             in result)
     expected = (
-        "    25: " + exch + "[field='f1', type='region', depth=1, "
+        "    23: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    26: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
+        "    24: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
-        "    27: " + exch + "[field='f3', type='region', depth=1, "
+        "    25: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    28: " + exch + "[field='f4', type='region', depth=1, "
+        "    26: " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n")
     assert expected in result
 
@@ -2988,10 +2988,6 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "    undf_any_w2 = f1_proxy%vspace%get_undf()\n"
             "\n"
-            "    ! Set-up all of the loop bounds\n"
-            "    loop0_start = 1\n"
-            "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "\n"
             "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -3002,6 +2998,10 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    if (f3_proxy%is_dirty(depth=1)) then\n"
             "      call f3_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
+            "\n"
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
+            "    loop0_stop = mesh%get_last_halo_cell(1)\n"
             "    do cell = loop0_start, loop0_stop, 1\n"
             "      call testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
