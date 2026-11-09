@@ -224,6 +224,12 @@ class RunPsyclone:
         if not api:
             # Transmute
             params.extend(["-o", str(output_path)])
+            # Now rename the input file to .xu90, which the old
+            # PSyclone makefile does, and some scripts need the
+            # .x90 suffix to work correctly
+            xu90 = input_path.with_suffix(".xu90")
+            input_path.rename(xu90)
+            input_path = xu90
         else:
             psy_output = output_path.with_name(f"{output_path.stem}_psy.f90")
             alg_output = output_path.with_suffix(".f90")
