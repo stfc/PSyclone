@@ -90,7 +90,8 @@ jobs:
       - run: cd doc; make linkcheck
   build:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
-    runs-on: ubuntu-latest
+    # TODO #3416 - once Python 3.9 is dropped we can use ubuntu-latest.
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ['3.9', '3.15']
