@@ -10,7 +10,7 @@
 from enum import Enum
 from typing import Any, Union
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
@@ -71,6 +71,16 @@ class TypeGuard(Statement):
         equal = equal and self.comparison_type == other.comparison_type
         equal = equal and self.type_guard_type == other.type_guard_type
         return equal
+
+    def _refine_copy(self, other: "TypeGuard"):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+
+        '''
+        self.comparison_type = other.comparison_type.copy()
+        super()._refine_copy(other)
 
     @property
     def comparison_type(self) -> Union[DataTypeSymbol, DataType, None]:
@@ -201,6 +211,14 @@ class TypeGuard(Statement):
 
         '''
         var_accesses = VariablesAccessMap()
+        # Find all the symbols in the comparison_type. They are CONSTANT
+        # accesses.
+        if self.comparison_type:
+            for symbol in self.comparison_type.get_all_accessed_symbols():
+                var_accesses.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self
+                )
+
         for child in self.children:
             var_accesses.update(child.reference_accesses())
 
@@ -242,6 +260,15 @@ class TypeGuard(Statement):
             )
 
         super().replace_symbols_using(table_or_symbol)
+
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this TypeGuard.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if self.comparison_type:
+            symbols.update(self.comparison_type.get_all_accessed_symbols())
+        return symbols
 
 
 __all__ = ["TypeGuard"]

@@ -9,6 +9,7 @@
 
 import pytest
 
+from psyclone.core import AccessType, Signature
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Reference, Schedule, TypeGuard
 from psyclone.psyir.symbols import (DataTypeSymbol, SymbolTable,
@@ -95,6 +96,36 @@ def test_typeguard_reference_accesses(fortran_reader):
 
     ref_accesses = typeguard.reference_accesses()
     assert len(ref_accesses) == 2
+    assert ref_accesses[i_sig].is_read()
+    assert ref_accesses[i_sig].is_written()
+    assert not ref_accesses[j_sig].is_read()
+    assert ref_accesses[j_sig].is_written()
+
+    # Check that references inside the comparison_type are also correctly
+    # found.
+    code = """subroutine test(a)
+    integer, parameter :: wp = 8
+    class(*), allocatable :: a
+    integer :: i, j
+
+    select type(a)
+        type is(integer(wp))
+            i = 1
+            j = i + 1
+    end select
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    typeguard = psyir.walk(TypeGuard)[0]
+    wp_sig = Signature("wp")
+    i_sig, _ = (typeguard.children[0].children[0].lhs.
+                get_signature_and_indices())
+    j_sig, _ = (typeguard.children[0].children[1].lhs.
+                get_signature_and_indices())
+
+    ref_accesses = typeguard.reference_accesses()
+    assert len(ref_accesses) == 3
+    assert ref_accesses[wp_sig][0].access_type == AccessType.CONSTANT
     assert ref_accesses[i_sig].is_read()
     assert ref_accesses[i_sig].is_written()
     assert not ref_accesses[j_sig].is_read()
@@ -190,3 +221,73 @@ def test_type_guard_eq(fortran_reader):
     assert type_guards[0] != type_guards[2]
     assert type_guards[0] != type_guards[3]
     assert type_guards[0] != type_guards[4]
+
+
+def test_typeguard_get_all_accessed_symbols(fortran_reader):
+    '''Test the get_all_accessed_symbols functionality of TypeGuard.'''
+    code = """subroutine test(a)
+    use some_mod, only: wp
+    class(*), allocatable :: a
+    integer :: i
+
+    select type(a)
+       type is(integer(wp))
+         i = 1
+    end select
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    typeguard = psyir.walk(TypeGuard)[0]
+    symbols = typeguard.get_all_accessed_symbols()
+
+    assert len(symbols) == 2
+    assert psyir.children[0].symbol_table.lookup("i") in symbols
+    assert psyir.children[0].symbol_table.lookup("wp") in symbols
+
+
+def test_typeguard_copy(fortran_reader, fortran_writer):
+    '''Test the refine_copy behaviour is correct for TypeGuard.'''
+    code = """subroutine test(a)
+    integer, parameter :: wp = 8
+    class(*), allocatable :: a
+    integer :: i
+
+    select type(a)
+       type is(integer(wp))
+         i = 1
+    end select
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    original_tg = psyir.walk(TypeGuard)[0]
+
+    copy_psyir = psyir.copy()
+    copy_tg = copy_psyir.walk(TypeGuard)[0]
+
+    # Change wp to x_wp in the original.
+    routine = psyir.children[0]
+    routine.symbol_table.rename_symbol(routine.symbol_table.lookup("wp"),
+                                       "x_wp")
+    assert original_tg.comparison_type.precision.name == "x_wp"
+    assert copy_tg.comparison_type.precision.name == "wp"
+
+    # Rename wp in the copy.
+    routine = copy_psyir.children[0]
+    routine.symbol_table.rename_symbol(routine.symbol_table.lookup("wp"),
+                                       "z_wp")
+    assert original_tg.comparison_type.precision.name == "x_wp"
+    assert copy_tg.comparison_type.precision.name == "z_wp"
+
+    correct = """subroutine test(a)
+  integer, parameter :: z_wp = 8
+  class(*), allocatable :: a
+  integer :: i
+
+  select type(a)
+    type is(integer(kind=z_wp))
+      i = 1
+  end select
+
+end subroutine test"""
+    assert correct in fortran_writer(copy_psyir)
