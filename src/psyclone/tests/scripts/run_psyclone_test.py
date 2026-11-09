@@ -163,6 +163,76 @@ def test_execute_psyclone_uses_psykal_output_suffixes(
     )
 
 
+def test_main_passes_kernel_dirs(tmp_path, monkeypatch, capsys):
+    """Check repeated -d options and their help text."""
+    kernel_dirs = [tmp_path / "kernels-a", tmp_path / "kernels-b"]
+    runner_args = {}
+
+    class RecordRunner:
+        """Record the runner arguments provided by main."""
+
+        def __init__(self, input_path, control_files, *args, **kwargs):
+            runner_args.update(kwargs)
+
+        def run(self):
+            """RecordRunner does not process files."""
+
+    monkeypatch.setattr(run_psyclone, "RunPsyclone", RecordRunner)
+
+    run_psyclone.main([
+        "--input", str(tmp_path),
+        "--output", str(tmp_path / "output"),
+        "-d", str(kernel_dirs[0]),
+        "-d", str(kernel_dirs[1]),
+        str(tmp_path / "control.yaml"),
+    ])
+
+    assert runner_args["kernel_dirs"] == kernel_dirs
+
+    with pytest.raises(SystemExit) as err:
+        run_psyclone.main(["--help"])
+
+    assert err.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert (
+        "Path to a root directory structure containing kernel source code. "
+        "Multiple roots can be specified by using multiple -d arguments. "
+        "These directories will be searched recursively."
+    ) in help_text
+
+
+def test_execute_psyclone_adds_kernel_dirs_only_in_psykal_mode(
+        tmp_path, monkeypatch):
+    """Check -d is repeated for each root only in PSyKAl mode."""
+    kernel_dirs = [tmp_path / "kernels-a", tmp_path / "kernels-b"]
+    psyclone_calls = []
+    monkeypatch.setattr(
+        run_psyclone, "psyclone_main",
+        lambda args: psyclone_calls.append(args),
+    )
+    runner = RunPsyclone(tmp_path, [], kernel_dirs=kernel_dirs)
+
+    runner._execute_psyclone(
+        tmp_path / "input.x90",
+        tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {},
+        api="lfric",
+    )
+    runner._execute_psyclone(
+        tmp_path / "input.x90",
+        tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {},
+    )
+
+    first_dir_option = psyclone_calls[0].index("-d")
+    assert psyclone_calls[0][first_dir_option:first_dir_option + 4] == [
+        "-d", str(kernel_dirs[0]), "-d", str(kernel_dirs[1]),
+    ]
+    assert "-d" not in psyclone_calls[1]
+
+
 def test_run_skips_phase_without_file_pattern(tmp_path, caplog, monkeypatch):
     """Check phases without a file_pattern are skipped with a warning."""
     control_file = tmp_path / "control.yaml"

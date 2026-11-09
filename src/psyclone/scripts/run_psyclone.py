@@ -37,7 +37,8 @@ class RunPsyclone:
             optimisation: Optional[Path] = None,
             output_path: Optional[Path] = None,
             psyclone_options: Optional[str] = None,
-            nprocs: int = 1) -> None:
+            nprocs: int = 1,
+            kernel_dirs: Sequence[Path] = ()) -> None:
         """Configure the input files, directories and PSyclone options.
 
         :param input_path: the root directory containing source files.
@@ -49,6 +50,7 @@ class RunPsyclone:
         :param psyclone_options: whitespace-separated options to pass to
             PSyclone.
         :param nprocs: maximum number of worker processes for each phase.
+        :param kernel_dirs: root directories containing kernel source code.
         """
         if nprocs < 1:
             raise ValueError("nprocs must be at least 1")
@@ -58,6 +60,7 @@ class RunPsyclone:
         self._output_path = (output_path or input_path).resolve()
         self._optimisation = (optimisation or self._input_path).resolve()
         self._control_files = control_files
+        self._kernel_dirs = kernel_dirs
 
     def run(self) -> None:
         """
@@ -226,6 +229,8 @@ class RunPsyclone:
             params.extend(["-api", api,
                            "-opsy", str(psy_output),
                            "-oalg", str(alg_output)])
+            for kernel_dir in self._kernel_dirs:
+                params.extend(["-d", str(kernel_dir)])
         if script_name:
             params.extend(["-s", str(script_name)])
         if script_parameters:
@@ -282,6 +287,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         help="Whitespace-separated options to pass to PSyclone.",
     )
     parser.add_argument(
+        "-d",
+        type=Path,
+        action="append",
+        default=[],
+        help=(
+            "Path to a root directory structure containing kernel source "
+            "code. Multiple roots can be specified by using multiple -d "
+            "arguments. These directories will be searched recursively."
+        ),
+    )
+    parser.add_argument(
         "--nprocs",
         type=int,
         default=1,
@@ -302,6 +318,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         output_path=args.output,
         psyclone_options=args.psyclone_options,
         nprocs=args.nprocs,
+        kernel_dirs=args.d,
     )
     runner.run()
 
