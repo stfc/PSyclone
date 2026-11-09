@@ -196,8 +196,7 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
     assert len(a_before_loop.next_accesses()) == 1
-    # TODO #3486: next_accesses should not return loops
-    assert a_before_loop.next_accesses()[0] is loop
+    assert a_before_loop.next_accesses()[0] is loop.variable_reference
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
 
@@ -376,8 +375,7 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
     assert len(a_2.previous_accesses()) == 1
-    # TODO #3486: previous_accesses should not return loops
-    assert a_2.previous_accesses()[0] is loop
+    assert a_2.previous_accesses()[0] is loop.variable_reference
 
     # Check that a loop with an usused loop variable
     code = '''subroutine my_sub()
