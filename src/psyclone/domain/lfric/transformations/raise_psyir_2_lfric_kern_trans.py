@@ -15,8 +15,8 @@ from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.psyGen import Transformation
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -135,7 +135,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"'{names}'.") from info
 
         try:
-            FortranReader.validate_name(metadata_name)
+            SymbolTable.validate_name(metadata_name)
         except (TypeError, ValueError) as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
