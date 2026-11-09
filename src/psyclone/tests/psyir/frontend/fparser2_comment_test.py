@@ -644,9 +644,9 @@ def test_labels_found_with_comments(fortran_writer):
     # results in errors from flake8, so this is chosen to mitigate those
     # errors.
     correct = """subroutine foo()
+  integer :: a
   integer :: i
   integer :: j
-  integer :: a
   logical :: cond1
   logical :: cond2
 
@@ -702,9 +702,9 @@ end subroutine foo
     # get formatted by PSyclone, but keeps its original
     # formatting from fparser.
     correct = """subroutine foo()
+  integer :: a
   integer :: i
   integer :: j
-  integer :: a
   logical :: cond1
   logical :: cond2
 

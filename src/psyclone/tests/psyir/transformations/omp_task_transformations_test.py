@@ -98,8 +98,8 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   integer :: ji
   integer :: jj
   integer :: n
-  integer, dimension(10,10) :: t
   integer, dimension(10,10) :: s
+  integer, dimension(10,10) :: t
 
   !$omp parallel default(shared) private(ji,jj)
   !$omp single
