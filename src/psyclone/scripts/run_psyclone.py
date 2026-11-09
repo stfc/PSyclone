@@ -15,6 +15,7 @@ from collections import defaultdict
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+import sys
 from typing import Any, Optional, Sequence
 
 from psyclone.generator import main as psyclone_main
@@ -245,8 +246,18 @@ class RunPsyclone:
             params.extend(self._psyclone_options.split())
 
         params.append(str(input_path))
-        LOGGER.info(" ".join(params))
+        LOGGER.info(f"psyclone {' '.join(params)}")
+        if script_name:
+            # Some PSyclone scripts import files from the same
+            # directory using the directory name (import my_dir/help.py
+            # instead of just import help.py). To support this, add the
+            # parent directory to the Python path:
+            sys.path.insert(0, str(script_name.parents[1]))
+
         psyclone_main(params)
+        if script_name:
+            # Clean up Python path
+            del sys.path[0]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
