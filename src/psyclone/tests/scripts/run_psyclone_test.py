@@ -47,7 +47,7 @@ dsl:
     ])
 
     assert psyclone_args[-4:] == [
-        "--verbose", "-l", "all", str(source_file),
+        "--verbose", "-l", "all", str(source_file.with_suffix(".xu90")),
     ]
 
 
@@ -171,7 +171,7 @@ def test_main_passes_kernel_dirs(tmp_path, monkeypatch, capsys):
     class RecordRunner:
         """Record the runner arguments provided by main."""
 
-        def __init__(self, input_path, control_files, *args, **kwargs):
+        def __init__(self, _input_path, _control_files, *_args, **kwargs):
             runner_args.update(kwargs)
 
         def run(self):
@@ -211,6 +211,8 @@ def test_execute_psyclone_adds_kernel_dirs_only_in_psykal_mode(
         lambda args: psyclone_calls.append(args),
     )
     runner = RunPsyclone(tmp_path, [], kernel_dirs=kernel_dirs)
+    # The transmute case renames the input file to .xu90, so it must exist.
+    (tmp_path / "input.x90").touch()
 
     runner._execute_psyclone(
         tmp_path / "input.x90",
