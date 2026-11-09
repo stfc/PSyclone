@@ -15,8 +15,8 @@ from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
 from psyclone.psyGen import Transformation
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -89,7 +89,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         super().__init__()
 
         try:
-            FortranReader.validate_name(metadata_name)
+            SymbolTable.validate_name(metadata_name)
         except (TypeError, ValueError) as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. The "

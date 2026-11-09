@@ -764,10 +764,10 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
     schedule.symbol_table.find_or_create("map_as1_op_a",
-                                         tag="map:as1_op_a__1",
+                                         tag="map:as1:op_a::1",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
-    schedule.symbol_table.find_or_create_tag("undf:as1_op_a__1",
+    schedule.symbol_table.find_or_create_tag("undf:as1:op_a::1",
                                              symbol_type=symbols.DataSymbol,
                                              datatype=symbols.UnresolvedType())
     with pytest.raises(VisitorError,
@@ -792,11 +792,11 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
     schedule.symbol_table.find_or_create("undf_as1_op_a",
-                                         tag="undf:as1_op_a__1",
+                                         tag="undf:as1:op_a::1",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
     schedule.symbol_table.find_or_create("map_as1_op_a",
-                                         tag="map:as1_op_a__1",
+                                         tag="map:as1:op_a::1",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
     # Make the list of arguments invalid by duplicating (a copy of)
