@@ -31,6 +31,7 @@ from psyclone.psyir.symbols import (
     ScalarType,
     DataSymbol,
     SymbolError,
+    SymbolTable,
     UnresolvedType,
     UnsupportedType,
     UnsupportedFortranType,
@@ -127,7 +128,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
               ):
         '''
         Takes the body of the routine that is the target of the supplied
-        call and replaces the call with it.
+        call and replaces the call with it. Identical constant (PARAMETER)
+        symbols already present at the call site are reused. Other symbols
+        are copied and renamed where necessary to avoid name clashes.
 
         :param node: the Call node to inline.
         :param routine: Optional Routine to be inlined. (By default, PSyclone
@@ -194,6 +197,15 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         #     just delete the if statement.
         self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
+        # Reuse proven-identical constants before extracting
+        # the routine body, and exclude those constants from the table merge.
+        extra_skip = self._reuse_identical_parameters(table, routine)
+
+        # Resolve COMMON-block aliases by reusing the caller's symbols at
+        # matching block positions, and exclude the now-unreferenced callee
+        # symbols from the merge.
+        extra_skip += self._resolve_common_block_aliases(table, routine)
+
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
@@ -211,7 +223,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # call site. This preserves any references to them.
         try:
             table.merge(routine_table,
-                        symbols_to_skip=routine_table.argument_list[:])
+                        symbols_to_skip=routine_table.argument_list[:]
+                        + extra_skip)
         except SymbolError as err:
             raise InternalError(
                 f"Error copying routine symbols to call site. This should "
@@ -315,6 +328,207 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 idx += 1
                 parent.addchild(child, idx)
 
+    def _reuse_identical_parameters(
+        self,
+        table,
+        routine: Routine,
+    ) -> list[DataSymbol]:
+        '''
+        Identifies constant (PARAMETER) symbols in ``routine_table`` that
+        are identical to constants already present in ``table`` (same name,
+        same type, and same initial value). For each such symbol, every
+        :py:class:`~psyclone.psyir.nodes.Reference` to it inside ``routine``
+        and inside the datatypes / initial-value expressions of other symbols
+        in ``routine_table`` is updated to reuse the corresponding symbol
+        in ``table``.
+
+        Only constants whose initial value is represented as a PSyIR node
+        (i.e. ``initial_value is not None``) are considered; constants of
+        ``UnsupportedFortranType`` with an embedded value string are left
+        unchanged.
+
+        A constant is only considered a duplicate when every routine-local
+        symbol referenced by its datatype or initial-value expression is a
+        confirmed duplicate.  This prevents false positives for expressions
+        like ``negflag = .NOT. flag`` when ``flag`` has different values in
+        the caller and the callee (the names would match but the semantics
+        would differ).
+
+        :param table: the call-site symbol table.
+        :param routine: the (copy of the) routine being inlined.
+
+        :returns: the list of symbols that are duplicates of
+            call-site constants and should be excluded from the subsequent
+            table merge.
+
+        '''
+        routine_table: SymbolTable = routine.symbol_table
+        # The names of all local data symbols in the routine table (used to
+        # identify references that point to routine-local constants).
+        routine_local_names = {
+            s.name.lower() for s in routine_table.datasymbols
+            if not s.is_automatic
+        }
+
+        # First pass: collect all constants from the routine whose name,
+        # datatype, and initial-value tree match a constant in the call-site
+        # table. The structural comparison uses __eq__, which compares
+        # Reference nodes by symbol name. This is correct for leaf constants
+        # (Literals) and is refined for dependent constants in the second
+        # pass below.
+        candidates: dict = {}
+        for rsym in routine_table.datasymbols:
+            if not rsym.is_constant or rsym.initial_value is None:
+                # Skip constants whose value is not represented as a PSyIR
+                # node (e.g. UnsupportedFortranType with embedded value).
+                continue
+            tsym = table.lookup(rsym.name, otherwise=None)
+            if not isinstance(tsym, DataSymbol):
+                continue
+            if not tsym.is_constant or tsym.initial_value is None:
+                continue
+            if rsym.datatype != tsym.datatype:
+                continue
+            if rsym.initial_value != tsym.initial_value:
+                continue
+            candidates[rsym.name.lower()] = rsym
+
+        # Second pass: iteratively remove candidates whose datatype or
+        # initial value references a routine-local symbol that is NOT itself
+        # a confirmed duplicate. Without this step, an expression like
+        # ``negflag = .NOT. flag`` would compare as equal by name even when
+        # ``flag`` has different values in the two routines.
+        changed = True
+        while changed:
+            changed = False
+            to_remove = [
+                name for name, rsym in candidates.items()
+                if any(
+                    dep.name.lower() in routine_local_names
+                    and dep.name.lower() not in candidates
+                    for dep in rsym.get_all_accessed_symbols()
+                )
+            ]
+            for name in to_remove:
+                del candidates[name]
+            if to_remove:
+                changed = True
+
+        duplicates: list[DataSymbol] = list(candidates.values())
+
+        # Reuse the call-site symbols for all references to identical
+        # constants in the routine.
+        for rsym in duplicates:
+            tsym = table.lookup(rsym.name)
+            # Update all References in the routine body.
+            routine.replace_symbols_using(tsym)
+            # Update any references to rsym embedded in the datatypes or
+            # initial-value expressions of other symbols in routine_table.
+            for sym in routine_table.symbols:
+                if sym is rsym:
+                    continue
+                sym.replace_symbols_using(tsym)
+
+        return duplicates
+
+    def _resolve_common_block_aliases(
+            self,
+            table: SymbolTable,
+            routine: Routine,
+    ) -> list[DataSymbol]:
+        '''Resolve COMMON-block aliases in *routine* by reusing variables in
+        the caller *table* (same block, same position).
+
+        For each such pair the caller's symbol is substituted for the
+        callee's symbol in every :py:class:`~psyclone.psyir.nodes.Reference`
+        inside *routine*, including datatype and initial-value expressions
+        in its symbol tables. The replaced callee symbols are returned so they
+        can be excluded from the subsequent symbol-table merge (they no
+        longer have any live references).
+
+        The types of each aliased pair must already have been verified to be
+        compatible by :py:meth:`validate`.
+
+        :param table: the call-site symbol table.
+        :param routine: the (copy of the) routine being inlined.
+
+        :returns: callee symbols whose aliases have been resolved and
+            that should therefore be skipped during the table merge.
+        '''
+        routine_table = routine.symbol_table
+        caller_blocks = self._common_block_vars(table)
+        callee_blocks = self._common_block_vars(routine_table)
+
+        if not caller_blocks.keys() & callee_blocks.keys():
+            return []
+
+        # Declarations are not children of the Routine. Include references
+        # in their expressions before resolving aliases, since array bounds
+        # may later be used to construct allocation statements.
+        refs = routine.walk(Reference)
+        for scope in routine.walk(ScopingNode):
+            for symbol in scope.symbol_table.datasymbols:
+                expressions = []
+                if symbol.initial_value is not None:
+                    expressions.append(symbol.initial_value)
+                datatype = symbol.datatype
+                if isinstance(datatype, UnsupportedFortranType):
+                    datatype = datatype.partial_datatype
+                if isinstance(datatype, ArrayType):
+                    for bounds in datatype.shape:
+                        if isinstance(bounds, ArrayType.ArrayBounds):
+                            expressions.extend([bounds.lower, bounds.upper])
+                    datatype = datatype.elemental_type
+                if isinstance(datatype, ScalarType):
+                    expressions.append(datatype.precision)
+                    if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                        expressions.append(datatype.length)
+                for expression in expressions:
+                    if isinstance(expression, Node):
+                        refs.extend(expression.walk(Reference))
+
+        symbols_to_skip = []
+        aliases = {}
+        for block_name, callee_vars in callee_blocks.items():
+            if block_name not in caller_blocks:
+                continue
+            caller_vars = caller_blocks[block_name]
+            for caller_var_name, callee_var_name in zip(
+                    caller_vars, callee_vars):
+                # Replace all References to the callee's alias with the
+                # corresponding caller's symbol.
+                caller_sym = table.lookup(caller_var_name)
+                callee_sym = routine_table.lookup(callee_var_name)
+                aliases[callee_sym] = caller_sym
+                symbols_to_skip.append(callee_sym)
+
+        for ref in refs:
+            if ref.symbol in aliases:
+                ref.symbol = aliases[ref.symbol]
+
+        return symbols_to_skip
+
+    @staticmethod
+    def _common_block_vars(table: SymbolTable) -> dict[str, list[str]]:
+        '''Return a dict mapping lower-cased COMMON-block name to the
+        lower-cased list of variable names, ordered by their position in the
+        block, for every COMMON-block variable found in *table*.
+
+        :param table: the symbol table to inspect.
+        :returns: mapping of block name to ordered list of variable names.
+
+        '''
+        blocks: dict[str, list[DataSymbol]] = {}
+        for sym in table.datasymbols:
+            if sym.is_commonblock:
+                blocks.setdefault(
+                    sym.interface.name.lower(), []).append(sym)
+        return {
+            name: [sym.name.lower() for sym in
+                   sorted(members, key=lambda s: s.interface.position)]
+            for name, members in blocks.items()
+        }
+
     @staticmethod
     def _create_allocatable_array(node: Call, symbol: DataSymbol,
                                   shape: List) -> None:
@@ -387,7 +601,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
-                                                 arg_match_list: List = []):
+                                                 arg_match_list: list = []):
         """Replace PRESENT(some_argument) intrinsics in routine with constant
         booleans depending on whether `some_argument` has been provided
         (`True`) or not (`False`).
@@ -496,7 +710,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         self,
         expression: Node,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
@@ -574,7 +788,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     def _create_inlined_idx(
         self,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         local_idx: DataNode,
         decln_start: DataNode,
         actual_start: DataNode,
@@ -677,7 +891,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         actual_arg: ArrayMixin,
         local_ref: Reference,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> List[Node]:
@@ -794,7 +1008,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         actual_arg: Reference,
         ref: Reference,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
@@ -1029,6 +1243,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             does not match that of the corresponding actual argument.
         :raises TransformationError: if one of the declarations in the routine
             depends on an argument that is written to prior to the call.
+        :raises TransformationError: if a COMMON block is declared in both
+            the caller and the routine being inlined with incompatible types.
         :raises InternalError: if an unhandled Node type is returned by
             Reference.previous_accesses().
 
@@ -1180,18 +1396,46 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                             f"because it has a static (Fortran SAVE) "
                             f"interface for Symbol '{sym.name}'.")
 
+        routine_table = routine.symbol_table
+        # Check that COMMON blocks shared between the caller and the callee
+        # are type-compatible, irrespective of their variable names.
+        # Variables at the same block position are memory aliases, provided
+        # their types match (aliases are resolved in apply()).
+        caller_blocks = self._common_block_vars(parent_routine.symbol_table)
+        callee_blocks = self._common_block_vars(routine_table)
+        common_symbols_to_skip = []
+        for block_name, callee_vars in callee_blocks.items():
+            if block_name not in caller_blocks:
+                continue
+            caller_vars = caller_blocks[block_name]
+            for caller_var_name, callee_var_name in zip(
+                    caller_vars, callee_vars):
+                # Check that the types are compatible.
+                caller_sym = parent_routine.symbol_table.lookup(
+                    caller_var_name)
+                callee_sym = routine_table.lookup(callee_var_name)
+                if caller_sym.datatype != callee_sym.datatype:
+                    raise TransformationError(
+                        f"Cannot inline '{routine.name}' because COMMON "
+                        f"block '/{block_name}/' maps '{caller_var_name}' "
+                        f"(type '{caller_sym.datatype}') in the caller to "
+                        f"'{callee_var_name}' (type '{callee_sym.datatype}')"
+                        f" in the routine being inlined - the types are "
+                        f"incompatible.")
+                common_symbols_to_skip.append(callee_sym)
+
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
         try:
-            routine.check_outer_scope_accesses(node, "routine",
-                                               permit_unresolved=False)
+            routine.check_outer_scope_accesses(
+                node, "routine", permit_unresolved=False,
+                symbols_to_skip=common_symbols_to_skip)
         except SymbolError as err:
             raise TransformationError(
                 f"Cannot inline '{routine.name}' because it accesses a "
                 f"variable that is unresolved or declared in an outer scope: "
                 f"{err.value}") from err
 
-        routine_table = routine.symbol_table
         # Create a list of routine arguments that is actually used
         routine_arg_list = [
             routine_table.argument_list[i] for i in arg_match_list
@@ -1201,7 +1445,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             routine_arg_list, node.arguments
         ):
             self._validate_inline_of_call_and_routine_argument_pairs(
-                call_node=node,
                 call_arg=actual_arg,
                 routine_node=routine,
                 routine_arg=routine_arg,
@@ -1213,7 +1456,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     # pylint: disable=too-many-arguments
     def _validate_inline_of_call_and_routine_argument_pairs(
         self,
-        call_node: Call,
         call_arg: DataNode,
         routine_node: Routine,
         routine_arg: DataSymbol,
