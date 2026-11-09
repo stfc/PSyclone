@@ -11,10 +11,9 @@
 import re
 
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Call, Reference, DataNode,
                                   Routine, Container, FileContainer)
-from psyclone.psyir.symbols import DataTypeSymbol
+from psyclone.psyir.symbols import DataTypeSymbol, SymbolTable
 
 
 class AlgorithmInvokeCall(Call):
@@ -55,7 +54,7 @@ class AlgorithmInvokeCall(Call):
                 f"integer but found {index}.")
         try:
             if name:
-                FortranReader.validate_name(name)
+                SymbolTable.validate_name(name)
         except (TypeError, ValueError) as err:
             raise ValueError(
                 f"Error with AlgorithmInvokeCall name argument: "
@@ -107,7 +106,7 @@ class AlgorithmInvokeCall(Call):
         if name:
             # We have to validate it first as that checks (amongst other
             # things) that it is a str.
-            FortranReader.validate_name(name)
+            SymbolTable.validate_name(name)
             lwr_name = name.lower()
         else:
             lwr_name = None
