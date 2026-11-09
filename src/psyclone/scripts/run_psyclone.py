@@ -112,7 +112,7 @@ class RunPsyclone:
                         source_file,
                     )
                     jobs.append(
-                        (source_file, destination, script, params, phase.api)
+                        (source_file, destination, None, params, phase.api)
                     )
                 else:
                     LOGGER.info(
@@ -199,7 +199,7 @@ class RunPsyclone:
             self,
             input_path: Path,
             output_path: Path,
-            script_name: Path,
+            script_name: Optional[Path],
             script_parameters: dict[str, Any],
             api: Optional[str] = None) -> None:
         """
