@@ -15,7 +15,7 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
-from psyclone.psyGen import Invoke, HaloExchange
+from psyclone.psyGen import Invoke, HaloExchange, Kern
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
     ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, ScalarType)
@@ -324,14 +324,10 @@ class LFRicInvoke(Invoke):
 
         # Now that all initialisation is done, add a comment before
         # the start of the kernels/halo exchanges.
-        haloexchs = self.schedule.walk(HaloExchange)
-        if haloexchs:
-            first_haloexch = haloexchs[0]
-            indices = first_haloexch.path_from(self.schedule)
-            first_node = self.schedule.children[indices[0]]
-        else:
-            first_node = self.schedule.walk(LFRicLoop,
-                                            stop_type=LFRicLoop)[0]
+        hexch_or_kern = self.schedule.walk((HaloExchange, Kern))[0]
+        indices = hexch_or_kern.path_from(self.schedule)
+        first_node = self.schedule.children[indices[0]]
+
         # Add the comment.
         if Config.get().distributed_memory:
             first_node.preceding_comment = (

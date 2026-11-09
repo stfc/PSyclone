@@ -2177,5 +2177,5 @@ def test_field_access_info_for_arrays_in_builtins():
         "WRITE, f2_proxy%data: READ, f2_proxy%vspace%get_undf: CALL, "
         "f2_proxy: WRITE, field_proxy_type: CONSTANT, field_type: CONSTANT, "
         "i_def: CONSTANT, loop0_start: WRITE+READ, loop0_stop: WRITE+READ, "
-        "r_def: CONSTANT, undf_as1_f2: WRITE+READ"
+        "r_def: CONSTANT, undf_as1_f2__1: WRITE+READ"
         == str(vam))
