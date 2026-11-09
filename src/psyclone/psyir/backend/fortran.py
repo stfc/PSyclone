@@ -1288,6 +1288,9 @@ class FortranWriter(LanguageWriter):
                     suffix = f" result({node.return_symbol.name})"
             else:
                 routine_type = "subroutine"
+            if node.bind_c is not None:
+                label = f", name={node.bind_c}" if node.bind_c else ""
+                suffix += f" bind(c{label})"
             result = f"{self._nindent}{prefix}{routine_type} {node.name}("
             result += ", ".join(args) + f"){suffix}\n"
 

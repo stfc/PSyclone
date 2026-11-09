@@ -1597,7 +1597,7 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
 
 
 def test_stencil_extent_specified():
-    ''' The function stencil_unique_str() raises an error if a stencil
+    ''' The function tag_name() raises an error if a stencil
     with an extent provided in the metadata is passed in. This is because
     this is not currently supported. This test checks that the appropriate
     error is raised.
@@ -1616,7 +1616,7 @@ def test_stencil_extent_specified():
     stencil_arg.descriptor.stencil['extent'] = 1
     stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
-        stencils.stencil_unique_str(stencil_arg, "")
+        stencils.tag_name(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
             "This is not coded for." in str(err.value))
 
