@@ -11,7 +11,7 @@
 from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Assignment, Reference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
 class LFRicLoopBounds(LFRicCollection):

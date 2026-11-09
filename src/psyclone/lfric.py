@@ -2565,7 +2565,7 @@ class LFRicMeshes():
                         assignment = Assignment.create(
                             lhs=Reference(sym),
                             rhs=Call.create(StructureReference.create(
-                            coarse_mesh, [name])))
+                                coarse_mesh, [name])))
                         root_sched.addchild(assignment, cursor)
                         cursor += 1
                 # Last halo/edge cell per colour and tile.
@@ -2735,7 +2735,6 @@ class LFRicInterGrid():
         '''
         :returns: the symbol storing the number of colours.
         '''
-        #return self._symtab.lookup_with_tag("ncolours")
         return self._ncolours_var_symbol
 
     @property

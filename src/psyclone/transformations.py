@@ -424,7 +424,6 @@ class ColourTrans(LoopTrans):
 
         # remove original loop
         node.detach()
-       
 
     def _create_colours_loop(self, node):
         '''
@@ -588,7 +587,6 @@ class LFRicColourTrans(ColourTrans):
         colours_loop.set_upper_bound("ncolours")
         colours_loop.start_expr = Literal("1", ScalarType.integer_type())
 
-
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
@@ -608,8 +606,6 @@ class LFRicColourTrans(ColourTrans):
         else:
             # No halo access.
             colour_loop.set_upper_bound("ncolour")
-
-        #colour_loop.stop_expr = colour_loop.upper_bound_psyir()
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
