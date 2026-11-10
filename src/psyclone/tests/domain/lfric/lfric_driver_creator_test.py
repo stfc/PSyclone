@@ -480,7 +480,7 @@ def test_lfric_driver_rename_externals():
 
     extract = LFRicExtractTrans()
 
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     _ = psy.gen
