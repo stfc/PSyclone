@@ -1,3 +1,5 @@
+   84) #3669 - update the version of LFRic in the integration tests.
+ 
    83) #3344 for #2202. Updates the generation of Fortran output to respect
    dependencies in variable declarations.
 
