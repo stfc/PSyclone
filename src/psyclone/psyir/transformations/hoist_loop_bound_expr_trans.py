@@ -51,10 +51,10 @@ class HoistLoopBoundExprTrans(LoopTrans):
       use mymod, only : mytype
       integer :: i
       integer :: j
-      integer :: n
-      real, dimension(n) :: a
       integer :: loop_start
       integer :: loop_stop
+      integer :: n
+      real, dimension(n) :: a
     <BLANKLINE>
       loop_stop = UBOUND(a, dim=1)
       loop_start = mytype%start

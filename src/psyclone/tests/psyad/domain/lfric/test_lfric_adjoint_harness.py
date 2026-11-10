@@ -423,11 +423,11 @@ def test_lfric_create_real_comparison(fortran_writer):
     expected = (
         "  use log_mod, only : log_event, log_level_error, log_level_info, "
         "log_scratch_space\n"
-        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: MachineTol\n"
+        "  real :: relative_diff\n"
         "  real :: var1\n"
         "  real :: var2\n"
-        "  real :: MachineTol\n"
-        "  real :: relative_diff\n\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
@@ -465,11 +465,11 @@ def test_lfric_log_write(fortran_writer):
     expected = (
         "  use log_mod, only : log_event, log_level_error, log_level_info, "
         "log_scratch_space\n"
-        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: MachineTol\n"
+        "  real :: relative_diff\n"
         "  real :: var1\n"
         "  real :: var2\n"
-        "  real :: MachineTol\n"
-        "  real :: relative_diff\n\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
@@ -557,10 +557,18 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     # We should have a field, a copy of that field and an inner-product value
     # for that field.
     assert ("    real(kind=r_def) :: ascalar\n"
-            "    type(field_type) :: field\n"
             "    real(kind=r_def) :: ascalar_input\n"
+            "    real(kind=r_def) :: field_field_input_inner_prod\n"
+            "    real(kind=r_def) :: field_inner_prod\n"
+            "    real(kind=r_def) :: inner1\n"
+            "    real(kind=r_def) :: inner2\n"
+            "    real(kind=r_def) :: relative_diff\n"
+            "    real(kind=r_def), parameter :: overall_tolerance = "
+            "1500.0_r_def\n"
+            "    type(field_type) :: field\n"
             "    type(field_type) :: field_input\n"
-            "    real(kind=r_def) :: field_inner_prod\n" in gen)
+            "    type(field_type), dimension(3), intent(in), optional :: chi\n"
+            in gen)
     # The field and its copy must be initialised.
     assert ("call field%initialise(vector_space=vector_space_w3_ptr, "
             "name='field')" in gen)

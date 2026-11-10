@@ -63,11 +63,11 @@ class DotProduct2CodeTrans(Intrinsic2CodeBaseTrans):
     >>> trans.apply(psyir.walk(IntrinsicCall)[0])
     >>> print(FortranWriter()(psyir))
     subroutine dot_product_test(v1, v2)
-      real, dimension(10), intent(in) :: v1
-      real, dimension(10), intent(in) :: v2
-      real :: result
       integer :: i
       real :: res_dot_product
+      real :: result
+      real, dimension(10), intent(in) :: v1
+      real, dimension(10), intent(in) :: v2
     <BLANKLINE>
       res_dot_product = 0.0
       do i = 1, 10, 1

@@ -90,9 +90,9 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     >>> rbartrans.apply(psyir.children[0])
     >>> print(FortranWriter()(psyir))
     subroutine test()
+      integer :: i
       integer, dimension(100) :: a
       integer, dimension(100) :: b
-      integer :: i
     <BLANKLINE>
       !$omp parallel default(shared) private(i)
       !$omp do schedule(auto)

@@ -50,8 +50,8 @@ class HoistTrans(Transformation):
       integer :: i
       integer :: j
       integer :: n
-      real, dimension(n,n) :: a
       real :: value
+      real, dimension(n,n) :: a
     <BLANKLINE>
       value = 1.0
       do i = 1, n, 1
