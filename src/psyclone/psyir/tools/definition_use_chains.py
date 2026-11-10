@@ -924,6 +924,14 @@ class DefinitionUseChain:
                     basic_blocks.append(current_block)
                     control_flow_nodes.append(None)
                     current_block = []
+                # If there is an ancestor ifblock we add the whole block
+                # to the basic block set as any of the references could be
+                # reached as we progress through the loop.
+                if node.ancestor((Loop, WhileLoop)):
+                    for child in node.children[1:]:
+                        basic_blocks.append(child.body.children[:])
+                        control_flow_nodes.append(child)
+                    continue
                 # The reference in self.children[0] is an inquiry, and
                 # the datatypes (and contained symbols) in any TypeGuard
                 # children are constant, so none are needed for the DUC.

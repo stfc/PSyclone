@@ -1644,3 +1644,46 @@ def test_forward_accesses_select_type(fortran_reader):
     next_accesses = references[2].next_accesses()
     assert len(next_accesses) == 1
     assert next_accesses[0] is references[4]
+
+
+def test_forward_accesses_select_type_inside_loop(fortran_reader):
+    '''Test that dependencies for nodes inside a select type node inside
+    a loop can find any of the containing references.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i, loop
+
+    i = 1
+    do loop = 1, 100
+        select type(a)
+            type is(integer)
+               i = 2
+            type is(real)
+               i = 3
+        end select
+    end do
+    i = 4
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+
+    # Test for i = 1 lhs. Should have 3 next accesses to all of the
+    # following accesses to i, unchanged as to when there is no loop.
+    next_accesses = references[0].next_accesses()
+
+    assert len(next_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert next_accesses[0] is references[3]
+    assert next_accesses[1] is references[4]
+    assert next_accesses[2] is references[5]
+
+    # Test for i = 2 lhs. Should have next accesses to any of the references
+    # inside the select type and i = 4.
+    next_accesses = references[3].next_accesses()
+    assert len(next_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert next_accesses[0] is references[3]
+    assert next_accesses[1] is references[4]
+    assert next_accesses[2] is references[5]
