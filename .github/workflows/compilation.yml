@@ -65,7 +65,7 @@ env:
 jobs:
   run_if_on_mirror:
     # Only PSyclone-mirror has the necessary self-hosted runner.
-    if: False
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v7

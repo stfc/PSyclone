@@ -54,7 +54,7 @@ env:
 
 jobs:
   run_if_on_mirror:
-    if: False
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
 
     outputs:
