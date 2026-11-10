@@ -3292,8 +3292,8 @@ end module test_mod
     # 'height' must have been replaced by 'depth' (the caller's alias).
     assert """\
   subroutine caller()
-    real :: depth
     integer :: b
+    real :: depth
     common /ocean/ depth
 
     b = depth
