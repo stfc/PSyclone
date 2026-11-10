@@ -182,8 +182,7 @@ class Routine(Schedule, CommentableMixin):
                                    call: Union["CodedKern", "Call"],
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
-                                   ignore_non_data_accesses: bool = False,
-                                   symbols_to_skip=()):
+                                   ignore_non_data_accesses: bool = False):
         '''
         Check for unresolved symbols or for any declared in the outer scope
         Container of the target routine.
@@ -196,11 +195,6 @@ class Routine(Schedule, CommentableMixin):
             symbols will result in an error being raised.
         :param ignore_non_data_accesses: ignore unresolved symbols if they
             do not represent data accesses (e.g. provide type information).
-
-        :param symbols_to_skip: symbols to exclude from name-clash checks
-            because the caller will handle them separately.
-        :type symbols_to_skip: Iterable[
-            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises SymbolError: if there is an access to an unresolved
             symbol and `permit_unresolved` is False.
@@ -277,8 +271,7 @@ class Routine(Schedule, CommentableMixin):
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
-        symbols_to_skip = (self.symbol_table.argument_list[:] +
-                           list(symbols_to_skip))
+        routine_arg_list = self.symbol_table.argument_list[:]
         callsite_scopes = []
         cursor = call
         while cursor.ancestor(ScopingNode):
@@ -291,7 +284,7 @@ class Routine(Schedule, CommentableMixin):
                 try:
                     table.check_for_clashes(
                         scope_table,
-                        symbols_to_skip=symbols_to_skip)
+                        symbols_to_skip=routine_arg_list)
                 except SymbolError as err:
                     raise SymbolError(
                         f"One or more symbols from routine '{name}' "

@@ -648,10 +648,15 @@ class SymbolTable():
             return (dependencies(symbol, replacements) ==
                     dependencies(existing, {}))
 
-        incoming = [sym for sym in other_table.datasymbols
-                    if sym not in symbols_to_skip]
+        # Only data symbols participating in the merge can be reused.
+        # Excluded symbols (e.g. routine arguments) are handled by the caller.
+        candidates = [sym for sym in other_table.datasymbols
+                      if sym not in symbols_to_skip]
+        # First collect parameters whose declarations appear identical.
+        # Matching names in their expressions are not sufficient: the
+        # dependency checks below establish whether they denote the same data.
         parameters = {}
-        for symbol in incoming:
+        for symbol in candidates:
             if not symbol.is_constant or symbol.initial_value is None:
                 continue
             existing = self._symbols.get(symbol.name.lower())
@@ -673,9 +678,12 @@ class SymbolTable():
         def common_key(symbol):
             return (symbol.interface.name.lower(), symbol.interface.position)
 
+        # COMMON associates storage by block and position, not by the local
+        # names of its members. Build all alias replacements before checking
+        # their declarations so dependencies on other aliases can be matched.
         common_members = {common_key(sym): sym for sym in self.datasymbols
                           if sym.is_commonblock}
-        aliases = {sym: common_members[common_key(sym)] for sym in incoming
+        aliases = {sym: common_members[common_key(sym)] for sym in candidates
                    if sym.is_commonblock and common_key(sym) in common_members}
         replacements = {**parameters, **aliases}
         for symbol, existing in aliases.items():
@@ -1007,6 +1015,9 @@ class SymbolTable():
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
+            # Tables may already share the same Symbol instance. It needs
+            # neither adding nor renaming: treating it as a name clash could
+            # rename the existing declaration in this table as well.
             if self._symbols.get(old_sym.name.lower()) is old_sym:
                 continue
 
