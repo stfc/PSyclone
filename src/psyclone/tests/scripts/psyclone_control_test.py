@@ -8,7 +8,6 @@
 Unit tests for the psyclone_control module.
 """
 
-import os
 from pathlib import Path
 import pytest
 import yaml
@@ -282,7 +281,7 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
     )
 
 
-def test_psyclone_control_template(tmp_path):
+def test_psyclone_control_template(tmp_path, monkeypatch):
     """
     Test handling of templates.
     """
@@ -298,7 +297,8 @@ dsl:
   file_specific:
     files: \\*
 """
-    os.chdir(tmp_path)
+    monkeypatch.setenv("site", "SITE")
+    monkeypatch.setenv("platform", "PLATFORM")
     yaml_file_1 = tmp_path / "psyclone_info.yaml"
     yaml_file_1.write_text(yaml_content_1, encoding="utf-8")
 
@@ -313,9 +313,7 @@ dsl:
     file_specific_path.parent.mkdir(parents=True, exist_ok=True)
     file_specific_path.write_text("PSyclone script\n")
 
-    template_data = {"site": "SITE", "platform": "PLATFORM"}
-    pc = PsycloneControl(script_root=script_root, base_paths=base_paths,
-                         template_data=template_data)
+    pc = PsycloneControl(script_root=script_root, base_paths=base_paths)
     # Read file
     pc.read(yaml_file_1)
 

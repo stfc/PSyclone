@@ -297,6 +297,7 @@ def test_get_phase_files_rejects_missing_pattern(tmp_path):
 def test_run_merges_configs_and_reports_selected_script(
         tmp_path, capsys, caplog, monkeypatch):
     """Check ordered merge, YAML output, phase matching, and script lookup."""
+    monkeypatch.setenv("target", ".")
     source_dir = tmp_path / "source"
     source_dir.mkdir()
     output_dir = tmp_path / "output"

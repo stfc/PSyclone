@@ -73,7 +73,6 @@ class RunPsyclone:
         control = PsycloneControl(
             script_root=self._optimisation,
             base_paths=[self._input_path],
-            template_data={"target": "."},
         )
 
         for control_file in self._control_files:
@@ -98,7 +97,8 @@ class RunPsyclone:
             for source_file in matched_files:
                 script, params = phase.get_script(source_file)
                 destination = (
-                    self._output_path / source_file.relative_to(self._input_path)
+                    self._output_path /
+                    source_file.relative_to(self._input_path)
                 )
                 if script == PsyclonePhase.RESULT_EXCLUDE:
                     LOGGER.info(
@@ -193,7 +193,6 @@ class RunPsyclone:
         for module in self._module_routine_info:
             mod_info = mod_man.get_module_info(module)
             file_path = Path(mod_info.filename)
-
 
     def _execute_psyclone(
             self,
