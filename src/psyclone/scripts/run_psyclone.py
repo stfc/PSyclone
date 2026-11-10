@@ -213,12 +213,7 @@ class RunPsyclone:
         :param api: the API to use for PSyclone.
         """
 
-        params: list[str] = ["-l", "all",
-                             "--config",
-                             "/home/joerg/work/ukmo/core/applications"
-                             "/skeleton/fab-workspace/skeleton-fast-debug-"
-                             "mpif90-gfortran/source/psyclone_config/"
-                             "psyclone.cfg"]
+        params: list[str] = []
         if not api:
             # Transmute
             params.extend(["-o", str(output_path)])
