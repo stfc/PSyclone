@@ -700,6 +700,21 @@ def test_swap_symbol():
     assert symbol1 not in sym_table._symbols
 
 
+def test_swap_symbol_without_node_updates_declarations():
+    '''A standalone table updates references in other symbol declarations.'''
+    table = symbols.SymbolTable()
+    original = symbols.DataTypeSymbol("my_type", symbols.UnresolvedType())
+    replacement = symbols.DataTypeSymbol("my_type", symbols.StructureType())
+    variable = symbols.DataSymbol("var", original)
+    table.add(original)
+    table.add(variable)
+
+    table.swap(original, replacement)
+    assert table.lookup("my_type") is replacement
+    assert table.lookup("var") is variable
+    assert variable.datatype is replacement
+
+
 def test_swap_symbol_preserves_shadowed_symbols(fortran_reader):
     '''Swap updates nested declarations and references to the original symbol
     while preserving references to a same-named local symbol.
