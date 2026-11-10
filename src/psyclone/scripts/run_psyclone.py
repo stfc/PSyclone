@@ -320,6 +320,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s: %(message)s",
+        stream=sys.stdout,
     )
     runner = RunPsyclone(
         args.input,
