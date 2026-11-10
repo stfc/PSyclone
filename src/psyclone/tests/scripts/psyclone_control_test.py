@@ -13,7 +13,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from psyclone.scripts.psyclone_control import PsyclonePhase, PsycloneControl
+from psyclone.scripts.psyclone_control import (
+    PsycloneControl,
+    PsyclonePhase,
+    PsycloneRule,
+)
 
 
 def test_psyclone_info_properties():
@@ -31,6 +35,21 @@ def test_psyclone_info_properties():
     assert info.comment == ""
     assert info.api == ""
     assert info.opt_path == Path()
+
+
+def test_psyclone_rule_validation_and_empty_files():
+    """Test validation and normalisation of rule file definitions."""
+    with pytest.raises(ValueError, match="must have a 'files' attribute"):
+        PsycloneRule("missing_files", {})
+
+    for files in ([], None):
+        rule = PsycloneRule("empty_files", {"files": files})
+        assert rule.get_matching_pattern(Path("file.f90")) is None
+
+    rule = PsycloneRule(
+        "no_params", {"files": [{"file.f90": None}]}
+    )
+    assert rule.get_matching_pattern(Path("file.f90")) == ("file.f90", {})
 
 
 @pytest.mark.parametrize("escaped_wildcard", ["\\*", "'*'", '"*"'])

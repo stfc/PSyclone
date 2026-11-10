@@ -50,6 +50,9 @@ class PsycloneRule:
         # This can't be used to specify
         if isinstance(files, str):
             files = {i: {} for i in files.split()}
+        if not files:
+            # Could be None
+            files = []
         for file in files:
             if isinstance(file, str):
                 params = {}
