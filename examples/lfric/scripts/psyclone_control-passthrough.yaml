@@ -1,0 +1,19 @@
+# This file controls the PSuyclone processing in LFRic. This default
+# script just adds a single DSL phase.
+# First we specify the phases for PSyclone. This allows
+# any apps to run transmute and DSL steps in any order just by
+# changing (or supplying a different) psyclone-info file.
+# In this example, we run a transmute step after the DSL step.
+
+phases:
+  # Define one DSL phase, which runs no script
+  - dsl-passthrough
+
+dsl-passthrough:
+  comment: "PSyclone DSL Passthrough Phase"
+  api: lfric
+  file_pattern: "*x90"
+  script_dir: cpu/psykal
+
+  no_script:
+    files: "*"

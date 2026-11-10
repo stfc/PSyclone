@@ -108,6 +108,7 @@ jobs:
         # export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
+        export PSYCLONE_CONTROL_FILE=${PSYCLONE_LFRIC_DIR}/psyclone_control-passthrough.yaml
         cd ${LFRIC_DIR}
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
@@ -117,6 +118,7 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-passthrough
         ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
+        unset PSYCLONE_CONTROL_FILE
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
