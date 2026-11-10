@@ -115,11 +115,17 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf working-gh-passthrough
+        # DEBUGGING : compare with previous run
+        # rm -rf working-gh-passthrough
+        mv working-gh-passthrough working-gh-passthrough-ok
         export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         export PSYCLONE_CONTROL_FILE=${PSYCLONE_LFRIC_DIR}/psyclone_control-passthrough.yaml
         ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
         unset PSYCLONE_CONTROL_FILE
+        cd working-gh-passthrough
+        for i in $(find . -iname "*90"); do echo $i; diff $i ../working-gh-passthrough-ok/$i; done
+        cd ..
+
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
