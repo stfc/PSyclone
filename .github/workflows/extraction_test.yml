@@ -45,7 +45,7 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: False
     runs-on: self-hosted
     env:
       # For now hard-core the CORE branch, till all the Fab
