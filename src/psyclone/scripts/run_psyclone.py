@@ -184,7 +184,6 @@ class RunPsyclone:
 
             with path.open("r", encoding="utf8") as stream:
                 info = yaml.safe_load(stream)
-            print("INFO", path, info)
 
             for module_name, module_info in info.items():
                 self._module_routine_info[module_name].update(module_info["routines"])
