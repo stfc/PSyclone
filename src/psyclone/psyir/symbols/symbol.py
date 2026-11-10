@@ -516,45 +516,40 @@ class Symbol(CommentableMixin):
 
     def get_replacement(
             self,
-            table_or_symbol: "SymbolTable | Symbol | dict[Symbol, Symbol]"
+            mapping: "SymbolTable | dict[Symbol, Symbol]"
             ) -> "Symbol":
         '''Find this symbol's replacement, returning self if there is none.
 
-        A SymbolTable or a single Symbol matches by name. A dictionary maps
+        A SymbolTable matches by name. A dictionary maps
         Symbol objects by identity, allowing aliases with different names to
         be replaced without affecting symbols that shadow them.
 
-        :param table_or_symbol: a SymbolTable, Symbol, or dictionary mapping
+        :param mapping: a SymbolTable or dictionary mapping
             original Symbols to replacement Symbols.
         :returns: the replacement Symbol, or this Symbol.
         '''
-        if isinstance(table_or_symbol, dict):
-            return table_or_symbol.get(self, self)
-        if isinstance(table_or_symbol, Symbol):
-            if self.name.lower() == table_or_symbol.name.lower():
-                return table_or_symbol
-            return self
-        return table_or_symbol.lookup(self.name, otherwise=self)
+        if isinstance(mapping, dict):
+            return mapping.get(self, self)
+        return mapping.lookup(self.name, otherwise=self)
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol` | dict
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
         if not isinstance(self.interface, ImportInterface):
             return
         orig_name = self.interface.orig_name
         new_container = self.interface.container_symbol.get_replacement(
-            table_or_symbol)
+            mapping)
         if new_container is not self.interface.container_symbol:
             self.interface = ImportInterface(new_container,
                                              orig_name=orig_name)

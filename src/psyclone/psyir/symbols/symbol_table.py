@@ -932,7 +932,7 @@ class SymbolTable():
                             f" as the original dependency '{dep_sym}'.")
                     # Update the definition of this symbol using the
                     # new one we have found.
-                    sym.replace_symbols_using(new_sym)
+                    sym.replace_symbols_using({dep_sym: new_sym})
                 else:
                     # Have looked at all dependencies of this symbol so
                     # remove it from the set.
@@ -1374,11 +1374,14 @@ class SymbolTable():
             if symbol is old_symbol:
                 old_tag = tag
                 break
-        for sym in self.symbols:
-            sym.replace_symbols_using(new_symbol)
+        replacements = {old_symbol: new_symbol}
         if self.node:
-            # Update the PSyIR tree associated with this table.
-            self.node.replace_symbols_using(new_symbol)
+            # Update declarations and references, including nested scopes.
+            self.node.replace_symbols_using(replacements)
+        else:
+            for sym in self.symbols:
+                if sym is not old_symbol and sym is not new_symbol:
+                    sym.replace_symbols_using(replacements)
         self.remove(old_symbol)
         self.add(new_symbol, tag=old_tag)
 
@@ -2042,11 +2045,9 @@ class SymbolTable():
 
             # We want to replace the local symbol with the newly
             # imported one in the outer scope (`symbol`).
-            # Update any references to it within the SymbolTable itself.
-            for sym in symbol_table.symbols:
-                sym.replace_symbols_using(symbol)
-            # Then update any references in the associated PSyIR tree.
-            self.node.replace_symbols_using(symbol)
+            # Update declarations and references by identity so that
+            # unrelated symbols with the same name are left unchanged.
+            self.node.replace_symbols_using({test_symbol: symbol})
             # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
 

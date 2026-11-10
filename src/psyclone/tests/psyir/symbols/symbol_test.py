@@ -455,13 +455,13 @@ def test_symbol_replace_symbols_using(table):
         table.add(cont2)
         bsym.replace_symbols_using(table)
     else:
-        bsym.replace_symbols_using(cont2)
+        bsym.replace_symbols_using({cont: cont2})
     assert bsym.interface is not binterf
     assert bsym.interface.container_symbol is cont2
 
 
 def test_symbol_get_replacement():
-    '''Tables and single symbols match by name; maps match by identity and
+    '''Tables match by name; maps match by identity and
     can replace an alias with a differently named symbol.
     '''
     original = Symbol("name")
@@ -470,8 +470,6 @@ def test_symbol_get_replacement():
     mapping = {original: replacement}
     assert original.get_replacement(mapping) is replacement
     assert shadow.get_replacement(mapping) is shadow
-    assert original.get_replacement(replacement) is original
-    assert original.get_replacement(shadow) is shadow
     table = SymbolTable()
     assert original.get_replacement(table) is original
     table.add(shadow)

@@ -205,27 +205,26 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol` | dict
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
-            self._datatype = self.datatype.get_replacement(table_or_symbol)
+            self._datatype = self.datatype.get_replacement(mapping)
         else:
-            self._datatype.replace_symbols_using(table_or_symbol)
+            self._datatype.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

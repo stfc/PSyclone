@@ -269,27 +269,26 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_values.append((new_sym, info.from_container))
         self.routines = new_values
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
         Before performing any replacement, the supplied symbol is specialised
         to a RoutineSymbol, if necessary.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol` | dict
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
         # Construct a new list of RoutineSymbols.
         new_routines = []
         for routine in self.routines:
-            new_rt = routine.symbol.get_replacement(table_or_symbol)
+            new_rt = routine.symbol.get_replacement(mapping)
             if not isinstance(new_rt, RoutineSymbol):
                 new_rt.specialise(RoutineSymbol)
             new_routines.append((new_rt, routine.from_container))

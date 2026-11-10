@@ -164,13 +164,11 @@ class ScopingNode(Node):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol,
-                                   dict[Symbol, Symbol]]) -> None:
+            mapping: Union[SymbolTable, dict[Symbol, Symbol]]) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
-        those in the supplied table (or just the supplied Symbol instance) if
-        they have matching names. If there is no match for a given Symbol then
-        it is left unchanged.
+        those in the supplied table by name or dictionary by identity. If there
+        is no match for a given Symbol then it is left unchanged.
 
         Since this is a ScopingNode, it is associated with a symbol table.
         Therefore, if the supplied table is the one for the scope containing
@@ -181,21 +179,21 @@ class ScopingNode(Node):
         in this scope. Definitions of the replaced and replacement symbols
         themselves are left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
-        next_table = table_or_symbol
-        if isinstance(table_or_symbol, dict):
+        next_table = mapping
+        if isinstance(mapping, dict):
             for symbol in self.symbol_table.symbols:
-                if (symbol not in table_or_symbol and
-                        symbol not in table_or_symbol.values()):
-                    symbol.replace_symbols_using(table_or_symbol)
-        if self.parent and isinstance(table_or_symbol, SymbolTable):
+                if (symbol not in mapping and
+                        symbol not in mapping.values()):
+                    symbol.replace_symbols_using(mapping)
+        if self.parent and isinstance(mapping, SymbolTable):
             try:
                 # If this node is not within a scope we get a SymbolError
-                if table_or_symbol is self.parent.scope.symbol_table:
+                if mapping is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass

@@ -204,14 +204,15 @@ def test_gis_replace_symbols_using(table):
 
     # Test when the replacement symbol is currently just a Symbol. It should
     # be converted into a RoutineSymbol (in place).
+    old_birch = birch
     birch = Symbol("birch")
     if table is not None:
         table.add(ashling)
         table.add(birch)
         coppice.replace_symbols_using(table)
     else:
-        coppice.replace_symbols_using(ashling)
-        coppice.replace_symbols_using(birch)
+        coppice.replace_symbols_using({ash: ashling})
+        coppice.replace_symbols_using({old_birch: birch})
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, holly, birch]
         assert isinstance(rinfo.symbol, RoutineSymbol)
@@ -220,7 +221,7 @@ def test_gis_replace_symbols_using(table):
         table.add(newholly)
         coppice.replace_symbols_using(table)
     else:
-        coppice.replace_symbols_using(newholly)
+        coppice.replace_symbols_using({holly: newholly})
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, newholly, birch]
 

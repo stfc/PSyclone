@@ -700,6 +700,72 @@ def test_swap_symbol():
     assert symbol1 not in sym_table._symbols
 
 
+def test_swap_symbol_preserves_shadowed_symbols(fortran_reader):
+    '''Swap updates nested declarations and references to the original symbol
+    while preserving references to a same-named local symbol.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+          integer :: n
+        contains
+          subroutine uses_outer()
+            integer :: a(n)
+            a(n) = n
+          end subroutine
+          subroutine uses_local()
+            integer :: n, a(n)
+            a(n) = n
+          end subroutine
+        end module
+    ''')
+    module = psyir.children[0]
+    outer, local = module.walk(Routine)
+    original = module.symbol_table.lookup("n")
+    shadow = local.symbol_table.lookup("n")
+    replacement = original.copy()
+
+    module.symbol_table.swap(original, replacement)
+
+    assert module.symbol_table.lookup("n") is replacement
+    assert local.symbol_table.lookup("n") is shadow
+    for routine, expected in [(outer, replacement), (local, shadow)]:
+        array_type = routine.symbol_table.lookup("a").datatype
+        assert array_type.shape[0].upper.symbol is expected
+        for reference in routine.walk(Reference):
+            if reference.name == "n":
+                assert reference.symbol is expected
+
+
+def test_update_with_resolved_symbol_preserves_shadowing(fortran_reader):
+    '''Resolving an inner unresolved symbol leaves a sibling's local symbol
+    and its uses unchanged.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+        contains
+          subroutine unresolved()
+            n = 1
+          end subroutine
+          subroutine local()
+            integer :: n
+            n = 2
+          end subroutine
+        end module
+    ''')
+    module = psyir.children[0]
+    unresolved, local = module.walk(Routine)
+    shadow = local.symbol_table.lookup("n")
+    replacement = symbols.DataSymbol("n", symbols.ScalarType.integer_type())
+    module.symbol_table.add(replacement)
+
+    module.symbol_table._update_with_resolved_symbol(replacement)
+
+    assert "n" not in unresolved.symbol_table
+    assert unresolved.walk(Reference)[0].symbol is replacement
+    assert local.symbol_table.lookup("n") is shadow
+    assert local.walk(Reference)[0].symbol is shadow
+
+
 def test_swap_symbol_preserves_tag():
     ''' Test that SymbolTable.swap() preserves any tag associated with the
     old symbol by re-associating it with the new symbol. '''

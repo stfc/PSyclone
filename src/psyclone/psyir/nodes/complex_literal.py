@@ -128,21 +128,19 @@ class ComplexLiteral(DataNode):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol,
-                                   dict[Symbol, Symbol]]) -> None:
+            mapping: Union[SymbolTable, dict[Symbol, Symbol]]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
-        self.datatype.replace_symbols_using(table_or_symbol)
-        super().replace_symbols_using(table_or_symbol)
+        self.datatype.replace_symbols_using(mapping)
+        super().replace_symbols_using(mapping)
 
 
 # For AutoAPI documentation generation

@@ -330,28 +330,27 @@ class DataSymbol(TypedSymbol):
         self.preceding_comment = symbol_in.preceding_comment
         self.inline_comment = symbol_in.inline_comment
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols, a single replacement Symbol, or a dictionary mapping
-            original Symbols to replacements by identity.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol` | dict
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import ArrayType
 
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            self.initial_value.replace_symbols_using(table_or_symbol)
+            self.initial_value.replace_symbols_using(mapping)
 
         # Ensure any Symbols referenced in the shape are updated.
         for dim in self.shape:
@@ -360,7 +359,7 @@ class DataSymbol(TypedSymbol):
             for bnd in [dim.lower, dim.upper]:
                 if isinstance(bnd, ArrayType.Extent):
                     continue
-                bnd.replace_symbols_using(table_or_symbol)
+                bnd.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

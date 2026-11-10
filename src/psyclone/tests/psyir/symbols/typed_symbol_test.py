@@ -251,7 +251,7 @@ def test_typed_symbol_replace_symbols_using(table):
         table.add(new_kind)
         sym.replace_symbols_using(table)
     else:
-        sym.replace_symbols_using(new_kind)
+        sym.replace_symbols_using({kind: new_kind})
     assert sym.datatype.precision.symbol is new_kind
     tsym = DataTypeSymbol("a_type", UnresolvedType())
     sym2 = TSymbol("b", tsym)
@@ -263,7 +263,7 @@ def test_typed_symbol_replace_symbols_using(table):
         table.add(new_tsym)
         sym2.replace_symbols_using(table)
     else:
-        sym2.replace_symbols_using(new_tsym)
+        sym2.replace_symbols_using({tsym: new_tsym})
     assert sym2.datatype is new_tsym
 
 
