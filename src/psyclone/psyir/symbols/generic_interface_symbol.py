@@ -285,6 +285,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
             dict
 
         '''
+        super().replace_symbols_using(mapping)
+
         # Construct a new list of RoutineSymbols.
         new_routines = []
         for routine in self.routines:

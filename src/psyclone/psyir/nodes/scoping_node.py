@@ -198,8 +198,7 @@ class ScopingNode(Node):
             except SymbolError:
                 pass
 
-        for child in self.children:
-            child.replace_symbols_using(next_table)
+        super().replace_symbols_using(next_table)
 
     @property
     def symbol_table(self):

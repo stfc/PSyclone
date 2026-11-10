@@ -221,9 +221,11 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super().replace_symbols_using(mapping)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-        if isinstance(self.datatype, DataTypeSymbol):
-            self._datatype = self.datatype.get_replacement(mapping)
-        else:
+        # Only update stored state. Subclasses may compute their datatype
+        # from other symbols and leave _datatype unset.
+        if isinstance(self._datatype, DataTypeSymbol):
+            self._datatype = self._datatype.get_replacement(mapping)
+        elif self._datatype is not None:
             self._datatype.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:

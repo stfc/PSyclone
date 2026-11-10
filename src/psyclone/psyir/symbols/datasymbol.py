@@ -343,23 +343,11 @@ class DataSymbol(TypedSymbol):
             dict
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ArrayType
-
         super().replace_symbols_using(mapping)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
             self.initial_value.replace_symbols_using(mapping)
-
-        # Ensure any Symbols referenced in the shape are updated.
-        for dim in self.shape:
-            if isinstance(dim, ArrayType.Extent):
-                continue
-            for bnd in [dim.lower, dim.upper]:
-                if isinstance(bnd, ArrayType.Extent):
-                    continue
-                bnd.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

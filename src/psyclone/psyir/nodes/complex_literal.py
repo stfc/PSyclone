@@ -15,7 +15,6 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols.symbol import Symbol
-from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType, DataType
 
 
@@ -125,22 +124,6 @@ class ComplexLiteral(DataNode):
                 access_info.add_access(
                     Signature(symbol.name), AccessType.CONSTANT, dt.precision)
         return access_info
-
-    def replace_symbols_using(
-            self,
-            mapping: Union[SymbolTable, dict[Symbol, Symbol]]) -> None:
-        '''
-        Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable by name or dictionary by identity. If there is
-        no match for a given Symbol then it is left unchanged.
-
-        :param mapping: the symbol table from which to get replacement
-            symbols, or a dictionary mapping original Symbols to replacements
-            by identity.
-
-        '''
-        self.datatype.replace_symbols_using(mapping)
-        super().replace_symbols_using(mapping)
 
 
 # For AutoAPI documentation generation
