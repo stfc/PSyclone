@@ -1092,7 +1092,7 @@ def test_merge_parameter_kinds(fortran_reader):
     '''
     declarations = """
   integer, parameter :: wp = kind(1.0d0)
-  real(wp), parameter :: constant = 1.0_wp
+  real(wp), parameter :: constant = min(1.0_wp, 2.0_wp)
   real(wp) :: buffer(wp)
   common /blk/ buffer
 """
@@ -1107,14 +1107,17 @@ subroutine source()
 end subroutine
 """)
     target, source = psyir.walk(Routine)
+    assert len(target.symbol_table.symbols) == 3
     target.symbol_table.merge(source.symbol_table)
-    assert "wp_1" not in target.symbol_table
-    assert "constant_1" not in target.symbol_table
+    # Only the 'initial' symbol has been added (the other 3 are equivalent)
+    assert len(target.symbol_table.symbols) == 4
+    # The 'initial' declaration symbols are consistent with the current symtab
     initial = target.symbol_table.lookup("initial")
     assert (initial.datatype.precision.symbol is
             target.symbol_table.lookup("wp"))
     assert initial.initial_value.symbol is target.symbol_table.lookup(
         "constant")
+    # The statement symbols are consistent witht he current symtab
     literal = source.walk(Literal)[0]
     assert (literal.datatype.precision.symbol is
             target.symbol_table.lookup("wp"))

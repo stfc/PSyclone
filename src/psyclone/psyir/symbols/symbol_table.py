@@ -622,7 +622,8 @@ class SymbolTable():
     def _symbols_to_reuse(
             self, other_table: SymbolTable,
             symbols_to_skip: Iterable[Symbol] = ()) -> dict[Symbol, Symbol]:
-        '''Identify incoming symbols that can use existing declarations.
+        ''' Identify symbols from the given symbol table that can reuse
+        existing symbols in this symbol table..
 
         Parameters must have the same name, datatype and value, including
         equivalent dependencies. COMMON members are matched by block name
@@ -630,31 +631,34 @@ class SymbolTable():
         not modify either table.
 
         :param other_table: the table whose symbols would be merged.
-        :param symbols_to_skip: incoming symbols excluded from the merge.
-        :returns: a dictionary mapping incoming Symbols to existing Symbols.
+        :param symbols_to_skip: symbols excluded from consideration.
+
+        :returns: a dictionary mapping Symbols to existing Symbols.
+
         :raises SymbolError: if corresponding COMMON members have
             incompatible datatypes or datatype dependencies.
         '''
-        def dependencies_match(symbol, existing, replacements):
-            # Structural equality compares references by name. Also require
-            # their symbols to be the same, or proven reusable. Intrinsics
-            # have the same meaning independently of their declaring scope.
-            def dependencies(sym, mapping):
-                return {
-                    dep.name if isinstance(dep, IntrinsicSymbol)
-                    else mapping.get(dep, dep)
-                    for dep in sym.get_all_accessed_symbols()}
+        def dependencies_match(symbol: DataSymbol, existing: DataSymbol,
+                               replacements: dict[Symbol, Symbol]) -> bool:
+            '''
+            :param symbol: the first symbol to compare.
+            :param existing: the second symbol to compare.
+            :param replacements: a map of already validated equivalent symbol.
 
-            return (dependencies(symbol, replacements) ==
-                    dependencies(existing, {}))
+            :returns: whether the dependenent symbols (shape, kind, ...)
+                of the given symbols are equivalent.
+            '''
+            dependencies_symbol = {
+                replacements.get(dep, dep)
+                for dep in symbol.get_all_accessed_symbols()}
+            dependencies_existing = existing.get_all_accessed_symbols()
+            return dependencies_symbol == dependencies_existing
 
         # Only data symbols participating in the merge can be reused.
-        # Excluded symbols (e.g. routine arguments) are handled by the caller.
         candidates = [sym for sym in other_table.datasymbols
                       if sym not in symbols_to_skip]
+
         # First collect parameters whose declarations appear identical.
-        # Matching names in their expressions are not sufficient: the
-        # dependency checks below establish whether they denote the same data.
         parameters = {}
         for symbol in candidates:
             if not symbol.is_constant or symbol.initial_value is None:
@@ -675,6 +679,8 @@ class SymbolTable():
                 break
             parameters = valid
 
+        # A COMMON block variable is identified by the COMMON block name and
+        # the position of the variable on it.
         def common_key(symbol):
             return (symbol.interface.name.lower(), symbol.interface.position)
 
@@ -699,6 +705,7 @@ class SymbolTable():
                     f"declarations: '{existing.name}' (type "
                     f"'{existing.datatype}') and '{symbol.name}' (type "
                     f"'{symbol.datatype}').")
+
         return replacements
 
     def check_for_clashes(self, other_table, symbols_to_skip=()):
