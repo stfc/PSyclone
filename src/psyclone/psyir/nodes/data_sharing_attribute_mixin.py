@@ -39,33 +39,24 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[Symbol, SymbolTable]
+        mapping: Union[SymbolTable, dict[Symbol, Symbol]]
     ):
         '''
         Replace the Symbol referred to by this object's
         `explicitly_private_symbols` set with those in the supplied
-        SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
 
-        for symbol in list(self._explicitly_private_symbols):
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == symbol.name.lower():
-                    self._explicitly_private_symbols.remove(symbol)
-                    self._explicitly_private_symbols.add(table_or_symbol)
-            else:
-                try:
-                    new_sym = table_or_symbol.lookup(symbol.name)
-                    self._explicitly_private_symbols.remove(symbol)
-                    self._explicitly_private_symbols.add(new_sym)
-                except KeyError:
-                    pass
-        super().replace_symbols_using(table_or_symbol)
+        self._explicitly_private_symbols = {
+            symbol.get_replacement(mapping)
+            for symbol in self._explicitly_private_symbols}
+        super().replace_symbols_using(mapping)
 
     def infer_sharing_attributes(self) -> \
             tuple[set[Symbol], set[Symbol], set[Symbol]]:

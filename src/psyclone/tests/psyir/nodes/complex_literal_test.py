@@ -107,3 +107,22 @@ def test_complex_literal_replace_symbols_using():
     table = SymbolTable()
     lit.replace_symbols_using(table)
     assert lit.datatype.precision.symbol is idef
+
+    # Each child owns its type. Replace each kind reference once, without
+    # separately traversing the computed datatype of the complex literal.
+    lit = ComplexLiteral.create(Literal("1.0", stype.copy()),
+                                Literal("2.0", stype.copy()))
+    new_kind = idef.copy()
+    other_kind = idef.copy()
+    lit.replace_symbols_using({idef: new_kind, new_kind: other_kind})
+    assert lit.re_part.datatype.precision.symbol is new_kind
+    assert lit.im_part.datatype.precision.symbol is new_kind
+    assert lit.datatype.precision.symbol is new_kind
+
+    # References used as components are also updated by Node's traversal.
+    real_part = DataSymbol("real_part", stype)
+    new_real_part = real_part.copy()
+    lit = ComplexLiteral.create(Reference(real_part), Reference(real_part))
+    lit.replace_symbols_using({real_part: new_real_part})
+    assert lit.re_part.symbol is new_real_part
+    assert lit.im_part.symbol is new_real_part

@@ -223,6 +223,19 @@ class StructureReference(StructureAccessorMixin, Reference):
             result += "\n" + str(entity)
         return result
 
+    def replace_symbols_using(self, mapping):
+        '''Update symbols in the explicit datatype override, if present,
+        before updating the referenced symbol and child nodes.
+
+        :param mapping: the symbol table from which to get replacement
+            symbols by name, or a dictionary mapping original Symbols to
+            replacements by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` | dict
+        '''
+        if self._overwrite_datatype is not None:
+            self._overwrite_datatype.replace_symbols_using(mapping)
+        super().replace_symbols_using(mapping)
+
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \

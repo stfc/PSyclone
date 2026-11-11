@@ -274,9 +274,9 @@ class DataSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        N.B. any other Symbols referenced in either the datatype or the
-        initial_value properties of the original symbol will remain unchanged
-        in the copied object. See the `replace_symbols_using` method.
+        N.B. we also copy the datatype and initial value expressions (so that
+        if we alter them the change is not reflected in the original), but the
+        referenced symbols are still the same.
 
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -290,15 +290,14 @@ class DataSymbol(TypedSymbol):
         else:
             new_init_value = None
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
-        if self.is_array or isinstance(self.datatype, UnsupportedFortranType):
-            # Ensure any References in the shape definition of an ArrayType
-            # or in the partial datatype of an UnsupportedFortranType are also
-            # copied. They will still point to the same Symbols as the
-            # original.
-            new_datatype = self.datatype.copy()
-        else:
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            # Preserve the identity of an existing type declaration.
             new_datatype = self.datatype
+        else:
+            # Copy datatype expressions. Any Symbols that are referenced will
+            # be the same objects as in the original
+            new_datatype = self.datatype.copy()
         copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
@@ -331,36 +330,24 @@ class DataSymbol(TypedSymbol):
         self.preceding_comment = symbol_in.preceding_comment
         self.inline_comment = symbol_in.inline_comment
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ArrayType
-
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            self.initial_value.replace_symbols_using(table_or_symbol)
-
-        # Ensure any Symbols referenced in the shape are updated.
-        for dim in self.shape:
-            if isinstance(dim, ArrayType.Extent):
-                continue
-            for bnd in [dim.lower, dim.upper]:
-                if isinstance(bnd, ArrayType.Extent):
-                    continue
-                bnd.replace_symbols_using(table_or_symbol)
+            self.initial_value.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

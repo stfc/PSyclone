@@ -384,30 +384,22 @@ class Loop(Statement):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[SymbolTable, Symbol]
+        mapping: Union[SymbolTable, dict[Symbol, Symbol]]
     ):
         '''
         Replace the Symbol referred to by this object's `variable` with those
-        in the supplied SymbolTable (or just the supplied Symbol instance) if
-        they have matching names. If there is no match for a given Symbol then
-        it is left unchanged.
+        in the supplied SymbolTable by name or dictionary by identity. If there
+        is no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
         if self.variable:
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.variable.name.lower():
-                    self.variable = table_or_symbol
-            else:
-                try:
-                    new_sym = table_or_symbol.lookup(self.variable.name)
-                    self.variable = new_sym
-                except KeyError:
-                    pass
+            self.variable = self.variable.get_replacement(mapping)
 
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name

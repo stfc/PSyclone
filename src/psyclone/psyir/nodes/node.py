@@ -1786,23 +1786,23 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
         This base implementation simply propagates the call to any child Nodes.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
         for child in self.children:
-            child.replace_symbols_using(table_or_symbol)
+            child.replace_symbols_using(mapping)
 
     def update_parent_symbol_table(self, new_parent):
         '''

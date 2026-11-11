@@ -12,7 +12,8 @@ import pytest
 from psyclone.psyir.symbols import (
     AutomaticInterface, ContainerSymbol, GenericInterfaceSymbol,
     ImportInterface, ScalarType, RoutineSymbol, SymbolTable, Symbol,
-    UnresolvedInterface)
+    UnresolvedInterface, DataSymbol, DataTypeSymbol, UnresolvedType)
+from psyclone.psyir.nodes import Reference
 
 
 def test_gis_constructor():
@@ -204,14 +205,15 @@ def test_gis_replace_symbols_using(table):
 
     # Test when the replacement symbol is currently just a Symbol. It should
     # be converted into a RoutineSymbol (in place).
+    old_birch = birch
     birch = Symbol("birch")
     if table is not None:
         table.add(ashling)
         table.add(birch)
         coppice.replace_symbols_using(table)
     else:
-        coppice.replace_symbols_using(ashling)
-        coppice.replace_symbols_using(birch)
+        coppice.replace_symbols_using({ash: ashling})
+        coppice.replace_symbols_using({old_birch: birch})
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, holly, birch]
         assert isinstance(rinfo.symbol, RoutineSymbol)
@@ -220,9 +222,46 @@ def test_gis_replace_symbols_using(table):
         table.add(newholly)
         coppice.replace_symbols_using(table)
     else:
-        coppice.replace_symbols_using(newholly)
+        coppice.replace_symbols_using({holly: newholly})
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, newholly, birch]
+
+
+@pytest.mark.parametrize("derived_type", [False, True])
+def test_gis_replace_symbols_import_and_computed_type(derived_type):
+    '''Update an interface's own import and routine references without
+    mutating the datatype belonging to a constituent routine.
+    '''
+    container = ContainerSymbol("source")
+    new_container = container.copy()
+    if derived_type:
+        dependency = DataTypeSymbol("result_type", UnresolvedType())
+        datatype = dependency
+    else:
+        dependency = DataSymbol("kind", ScalarType.integer_type())
+        datatype = ScalarType(ScalarType.Intrinsic.REAL, Reference(dependency))
+    replacement = dependency.copy()
+    routine = RoutineSymbol("specific", datatype=datatype)
+    new_routine = RoutineSymbol("specific", datatype=datatype)
+    interface = GenericInterfaceSymbol(
+        "generic", [(routine, True)],
+        interface=ImportInterface(container, orig_name="original"))
+
+    interface.replace_symbols_using({container: new_container,
+                                     dependency: replacement,
+                                     routine: new_routine})
+
+    assert interface.interface.container_symbol is new_container
+    assert interface.interface.orig_name == "original"
+    assert interface.routines[0].symbol is new_routine
+    assert interface.datatype is new_routine.datatype
+    assert interface._datatype is None
+    if derived_type:
+        assert routine.datatype is dependency
+        assert new_routine.datatype is dependency
+    else:
+        assert routine.datatype.precision.symbol is dependency
+        assert new_routine.datatype.precision.symbol is dependency
 
 
 def test_gis_get_all_accessed_symbols():

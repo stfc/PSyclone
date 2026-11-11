@@ -405,30 +405,23 @@ class Reference(DataNode):
 
         return False
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(self, mapping):
         '''
         Update any Symbols referenced by this Node with those in the
-        supplied table (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given
-        Symbol then it is left unchanged.
+        supplied table by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
+        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            dict
 
         '''
-        if isinstance(table_or_symbol, Symbol):
-            if self.symbol.name.lower() == table_or_symbol.name.lower():
-                self.symbol = table_or_symbol
-        else:
-            try:
-                self.symbol = table_or_symbol.lookup(self.symbol.name)
-            except KeyError:
-                pass
+        self.symbol = self.symbol.get_replacement(mapping)
 
         # Walk on down the tree.
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
     def component_indices(self) -> tuple[tuple[Node]]:
         '''

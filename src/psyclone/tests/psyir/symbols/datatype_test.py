@@ -834,7 +834,7 @@ def test_arraytype_copy():
 def test_arraytype_replace_symbols_using(table):
     '''Test that the replace_symbols_using method updates any symbol referred
     to by an ArrayType. We test when the new symbol(s) are supplied in a
-    SymbolTable or directly.
+    SymbolTable or identity mapping.
 
     '''
     sym1 = DataSymbol("alimit", ScalarType.integer_type())
@@ -852,7 +852,7 @@ def test_arraytype_replace_symbols_using(table):
         table.add(sym1_new)
         atype.replace_symbols_using(table)
     else:
-        atype.replace_symbols_using(sym1_new)
+        atype.replace_symbols_using({sym1: sym1_new})
     assert atype.shape[0].upper.symbol is sym1_new
     assert atype.shape[1].lower.symbol is sym1_new
     assert atype.shape[1].upper.symbol is sym1_new
@@ -863,14 +863,14 @@ def test_arraytype_replace_symbols_using(table):
     if table is not None:
         btype.replace_symbols_using(table)
     else:
-        btype.replace_symbols_using(sym1_new)
+        btype.replace_symbols_using({sym1: sym1_new})
     assert btype.shape[0].upper.symbol is sym1_new
     newtypesim = DataTypeSymbol("grid", UnresolvedType())
     if table is not None:
         table.add(newtypesim)
         btype.replace_symbols_using(table)
     else:
-        btype.replace_symbols_using(newtypesim)
+        btype.replace_symbols_using({typesym: newtypesim})
     assert btype.intrinsic is newtypesim
 
     # Test when the precision of the intrinsic type of the array is given
@@ -881,7 +881,7 @@ def test_arraytype_replace_symbols_using(table):
     if table is not None:
         ctype.replace_symbols_using(table)
     else:
-        ctype.replace_symbols_using(sym1_new)
+        ctype.replace_symbols_using({sym1: sym1_new})
     assert ctype.precision.symbol is rdef
     assert ctype.shape[0].upper.symbol is sym1_new
     newrdef = DataSymbol("rdef", ScalarType.integer_type())
@@ -889,7 +889,7 @@ def test_arraytype_replace_symbols_using(table):
         table.add(newrdef)
         ctype.replace_symbols_using(table)
     else:
-        ctype.replace_symbols_using(newrdef)
+        ctype.replace_symbols_using({rdef: newrdef})
     assert ctype.precision.symbol is newrdef
 
     # Check that having an array dimension of unknown size is OK.
@@ -911,7 +911,7 @@ def test_arraytype_replace_symbols_using(table):
         table.add(newidef)
         etype.replace_symbols_using(table)
     else:
-        etype.replace_symbols_using(newidef)
+        etype.replace_symbols_using({idef: newidef})
     assert etype.shape[0].upper.datatype.precision.symbol is newidef
 
 
@@ -1559,11 +1559,10 @@ def test_structuretype_replace_symbols(table):
         table.add(newtsymbol)
         stype.replace_symbols_using(table)
     else:
-        stype.replace_symbols_using(newtsymbol)
-        # Supplying a Symbol that doesn't match any components doesn't do
-        # anything.
-        stype.replace_symbols_using(DataTypeSymbol("not_used",
-                                                   UnresolvedType()))
+        stype.replace_symbols_using({tsymbol: newtsymbol})
+        # An identity mapping for an unrelated symbol does nothing.
+        unrelated = DataTypeSymbol("not_used", UnresolvedType())
+        stype.replace_symbols_using({unrelated: unrelated.copy()})
     assert stype.components["barry"].datatype is newtsymbol
 
 
@@ -1590,13 +1589,13 @@ def test_structuretype_replace_procedure_and_extends(use_table):
         extends=original,
     )
 
-    # A non-matching Symbol or an empty table must leave all references to the
-    # original symbol unchanged.
+    # A non-matching identity mapping or an empty table must leave all
+    # references to the original symbol unchanged.
     if use_table:
         empty_table = SymbolTable()
         stype.replace_symbols_using(empty_table)
     else:
-        stype.replace_symbols_using(Symbol("unrelated"))
+        stype.replace_symbols_using({Symbol("unrelated"): original})
     proc = stype.procedure_components["proc"]
     assert proc.datatype.shape[0].upper.symbol is original
     assert proc.initial_value.symbol is original
@@ -1610,7 +1609,7 @@ def test_structuretype_replace_procedure_and_extends(use_table):
         table.add(replacement)
         stype.replace_symbols_using(table)
     else:
-        stype.replace_symbols_using(replacement)
+        stype.replace_symbols_using({original: replacement})
 
     proc = stype.procedure_components["proc"]
     assert proc.datatype.shape[0].upper.symbol is replacement
