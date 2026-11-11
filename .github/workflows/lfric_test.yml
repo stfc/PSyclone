@@ -142,10 +142,7 @@ jobs:
         export OMP_NUM_THREADS=1
         export START_TIME=$SECONDS
         mpirun -n 12 ../bin/gungho_model configuration.nml
-        echo "DISABLE KGO TEST"
-        # diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-12r-1t.txt gungho_model-checksums.txt
-        cat ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-12r-1t.txt
-        cat gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-12r-1t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
