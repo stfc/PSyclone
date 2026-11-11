@@ -79,7 +79,8 @@ class TypeGuard(Statement):
         :param other: object we are copying from.
 
         '''
-        self.comparison_type = other.comparison_type.copy()
+        if self.comparison_type is not None:
+            self.comparison_type = other.comparison_type.copy()
         super()._refine_copy(other)
 
     @property

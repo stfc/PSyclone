@@ -280,9 +280,9 @@ def test_typeguard_copy(fortran_reader, fortran_writer):
     assert copy_tg.comparison_type.precision.name == "z_wp"
 
     correct = """subroutine test(a)
-  integer, parameter :: z_wp = 8
   class(*), allocatable :: a
   integer :: i
+  integer, parameter :: z_wp = 8
 
   select type(a)
     type is(integer(kind=z_wp))

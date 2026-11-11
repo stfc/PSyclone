@@ -1,3 +1,13 @@
+   84) #3669 - update the version of LFRic in the integration tests.
+ 
+   83) #3344 for #2202. Updates the generation of Fortran output to respect
+   dependencies in variable declarations.
+
+   82) #3668 for #3666. Updates the frontend to correctly process code that
+   has a Bind(c) clause on subroutines or functions.
+
+   81) #3663 for #868. Use unique tags to prevent LFRic name conflicts.
+
    80) #3657. Reverts Python version for the readthedocs build as 3.15 is
    not yet supported.
 

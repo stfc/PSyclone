@@ -179,19 +179,19 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     correct = """  subroutine select_type(type)
     class(*), pointer :: type
+    integer :: branch0
+    integer :: branch1
+    integer :: branch2
+    integer :: branch3
+    integer :: iinfo
     type :: type2
       integer :: scalar
     end type type2
     type :: type3
       integer :: field
     end type type3
-    integer :: branch0
-    integer :: branch1
-    integer :: branch2
-    integer :: branch3
     type(type2) :: my_type2
     type(type3) :: my_type3
-    integer :: iinfo
 
     select type(type)
       class is(type2)
@@ -257,19 +257,19 @@ def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     correct = """  subroutine select_type(type)
     class(*) :: type
+    integer :: branch0
+    integer :: branch1
+    integer :: branch2
+    integer :: branch3
+    integer :: iinfo
     type :: type2
       integer :: scalar
     end type type2
     type :: type3
       integer :: field
     end type type3
-    integer :: branch0
-    integer :: branch1
-    integer :: branch2
-    integer :: branch3
     type(type2) :: my_type2
     type(type3) :: my_type3
-    integer :: iinfo
 
     select type(type)
       class is(type2)
@@ -417,32 +417,32 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type(type)\n"
-        "  class(*), target :: type\n"
+        "subroutine select_type(atype)\n"
+        "  class(*), target :: atype\n"
         "  type field_type\n"
         "    integer :: x\n"
         "  end type\n"
         "  type(field_type) :: field_type_info\n"
         "  integer :: branch1\n"
-        "  SELECT TYPE (type)\n"
+        "  SELECT TYPE (atype)\n"
         "    TYPE IS (field_type)\n"
         "      branch1 = 1\n"
-        "      field_type_info = type\n"
+        "      field_type_info = atype\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    correct = """  subroutine select_type(type)
-    class(*), target :: type
+    correct = """  subroutine select_type(atype)
+    class(*), target :: atype
+    integer :: branch1
     type :: field_type
       integer :: x
     end type field_type
     type(field_type) :: field_type_info
-    integer :: branch1
 
-    select type(type)
+    select type(atype)
       type is(field_type)
         branch1 = 1
-        field_type_info = type
+        field_type_info = atype
     end select
 
   end subroutine select_type"""
@@ -483,13 +483,13 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     correct = """  subroutine select_type(type_selector)
+    character(len=256) :: character_type
     class(*), target :: type_selector
+    complex :: complex_type
     integer :: branch1
     integer :: branch2
     integer :: branch3
     logical :: logical_type
-    character(len=256) :: character_type
-    complex :: complex_type
 
     select type(type_selector)
       type is(logical)
@@ -536,8 +536,8 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"end subroutine\n"
         f"end module\n")
     correct = f"""subroutine select_type(type_selector)
-    class(*), target :: type_selector
     character{char_type_out} :: character_type
+    class(*), target :: type_selector
 
     select type(type_selector)
       type is(character(len=*))
@@ -573,8 +573,8 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"end subroutine\n"
         f"end module\n")
     correct = f"""subroutine select_type(type_selector)
-    class(*), target :: type_selector
     character{char_type_out}, pointer :: character_type => null()
+    class(*), target :: type_selector
 
     select type(type_selector)
       type is(character(len=*))
@@ -624,8 +624,8 @@ def test_character_kind(
         f"  end subroutine select_type\n"
         f"end module select_mod\n")
     correct = f"""  subroutine select_type(type_selector, character_type)
-    class(*), target :: type_selector
     character{char_type_out}{pointer} :: character_type
+    class(*), target :: type_selector
 
     select type(type_selector)
       type is(character(len=*))
@@ -663,8 +663,8 @@ def test_class_target(
         f"  end subroutine select_type\n"
         f"end module select_mod\n")
     correct = f"""subroutine select_type(type_selector, character_type)
-    class(*), {post_attribute} :: type_selector
     character(len=*) :: character_type
+    class(*), {post_attribute} :: type_selector
 
     select type(type_selector)
       type is(character(len=*))

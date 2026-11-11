@@ -2943,30 +2943,27 @@ class Fparser2Reader():
                     f"declarations are not supported.") from err
 
     @staticmethod
-    def _process_data_statements(nodes, psyir_parent):
+    def _process_data_statements(nodes: list[Base],
+                                 psyir_parent: ScopingNode) -> None:
         '''Limited support for data statements: they will be converted
         to UnsupportedFortranTypes, and added to the symbol table
         using an internal PSyclone name. The complexity of data
         statements come from implicit loops, e.g.:
         DATA (es(ies),ies = 0, 5) / 0.966483e-02,... /
 
+        The UnsupportedFortranType that is created is given a fake
+        partial_datatype as a way of capturing the Symbols that the DATA
+        statement depends upon.
+
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the data statements and update the interfaces of the symbols
             used in the data statement.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
-        '''
 
+        '''
         # Traverse the tree, and find all Data_Stmt_Object_Lists, which
         # contain the variables defined in the data statement.
         for data_stmt in walk(nodes, Fortran2003.Data_Stmt):
-            # Add the data statement as a special symbol to the symbol
-            # table, so the backend can recreate the data statement
-            psyir_parent.symbol_table.new_symbol(
-                root_name="_PSYCLONE_INTERNAL_DATA_STMT",
-                symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(str(data_stmt)))
             # Each Data_Stmt_Object_List contains either a variable
             # (which is a Name or PartRef), or a (potentially nested)
             # implied do loop ... which at the end will have an array_element
@@ -2991,7 +2988,10 @@ class Fparser2Reader():
                         all_vars.add(str(name))
 
             # Variables in a data statement have an implied static attribute.
-            # Add this explicit:
+            # Add this explicitly and also construct the components of a fake
+            # StructureType that we will use to capture the dependencies of
+            # this statement.
+            fake_components = []
             for var_name in all_vars:
                 try:
                     sym = psyir_parent.symbol_table.lookup(var_name)
@@ -3000,6 +3000,28 @@ class Fparser2Reader():
                         psyir_parent, var_name, symbol_type=DataSymbol,
                         datatype=UnresolvedType())
                 sym.interface = StaticInterface()
+
+                # Make a ComponentType to capture a Reference to this Symbol.
+                fake_components.append(
+                    StructureType.ComponentType(f"fake_{sym.name}",
+                                                ScalarType.integer_type(),
+                                                Symbol.Visibility.PRIVATE,
+                                                initial_value=Reference(sym)))
+
+            # Combine the ComponentTypes into a StructureType.
+            fake_type = StructureType.create(fake_components)
+
+            # Finally, make the UnsupportedFortranType and supply the
+            # StructureType as its partial_datatype.
+            utype = UnsupportedFortranType(
+                str(data_stmt), partial_datatype=fake_type)
+
+            # Add the data statement as a special symbol to the symbol
+            # table, so the backend can recreate the data statement
+            psyir_parent.symbol_table.new_symbol(
+                root_name="_PSYCLONE_INTERNAL_DATA_STMT",
+                symbol_type=DataSymbol,
+                datatype=utype)
 
     @staticmethod
     def _process_common_blocks(nodes: list[Base], psyir_parent: ScopingNode):
@@ -5603,16 +5625,30 @@ class Fparser2Reader():
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
+            # A subroutine-stmt has no suffix, so its stmt.children[3] is
+            # either bind(c) or None. In a function-stmt, stmt.children[3]
+            # is the suffix: a Language_Binding_Spec if the suffix is only
+            # BIND(C), otherwise a Suffix (handled below).
+            binding = stmt.children[3]
+            # BIND(C[, NAME=...]) is a Language_Binding_Spec
+            if isinstance(binding, Fortran2003.Language_Binding_Spec):
+                label = binding.children[0]
+                routine.bind_c = "" if label is None else str(label)
+
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RESULT'
+                # 'RESULT', which occurs if stmt.children[3] is a Suffix.
                 suffix = stmt.children[3]
-                if suffix:
-                    # Although the suffix can, in principle, contain a proc-
-                    # language-binding-spec (e.g. BIND(C, "some_name")), this
-                    # is only valid in an interface block and we are dealing
-                    # with a function-subprogram here.
+                if isinstance(suffix, Fortran2003.Suffix):
+                    # A Suffix is always [Result_Name, Language_Binding_Spec],
+                    # regardless of the order of RESULT and BIND(C) in the
+                    # source.
+                    # The Language_Binding_Spec is None if there is no BIND(C).
                     return_name = suffix.children[0].string
+                    binding = suffix.children[1]
+                    if binding is not None:
+                        label = binding.children[0]
+                        routine.bind_c = "" if label is None else str(label)
                 else:
                     # Otherwise, the return value of the function is given by
                     # a symbol of the same name.
