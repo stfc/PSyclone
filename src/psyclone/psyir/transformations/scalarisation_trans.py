@@ -10,7 +10,7 @@
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
 from psyclone.psyir.nodes import (
     Literal, IfBlock, Loop, Node, Range, Reference, Routine,
-    StructureReference)
+    SelectType, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -68,6 +68,8 @@ class ScalarisationTrans(LoopTrans):
     end program test
     <BLANKLINE>
     '''
+
+    excluded_node_types = (SelectType, )
 
     @staticmethod
     def _is_local_array(signature: Signature,

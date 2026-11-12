@@ -20,6 +20,7 @@ from psyclone.psyir.nodes import (
     Routine,
     Node,
     OMPParallelDirective,
+    TypeGuard,
     WhileLoop,
 )
 from psyclone.psyir.transformations import OMPParallelTrans
@@ -195,6 +196,22 @@ end subroutine foo"""
     reference = psyir.walk(Reference)[0]
     parallel = psyir.walk(OMPParallelDirective)[0]
     duc = DefinitionUseChain([reference], control_flow_region=[parallel])
+    assert not duc.is_basic_block
+
+    # Test that SelectType nodes disqualify basic blocks.
+    code = """subroutine x(a)
+    class(*) :: a
+    integer :: i
+
+    i = 1
+    select type(a)
+       type is(integer)
+          i = 1
+    end select
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    reference = psyir.walk(Reference)[0]
+    duc = DefinitionUseChain([reference])
     assert not duc.is_basic_block
 
 
@@ -457,6 +474,54 @@ def test_definition_use_chain_find_basic_blocks_inside_loops(fortran_reader):
     assert cfn.count(ifblock) == 2
     assert blocks.count(ifblock.if_body.children[:]) == 1
     assert blocks.count(ifblock.else_body.children[:]) == 1
+
+
+def test_definition_use_chains_select_type_basic_blocks(fortran_reader):
+    '''Test that the _find_basic_blocks code works correctly when there are
+    select type nodes.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i
+
+    i = 1
+    select type(a)
+        type is(integer)
+           i = 2
+        type is(real)
+           i = 3
+    end select
+    i = 4
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    duc = DefinitionUseChain(
+        [routine.walk(Reference)[0]], control_flow_region=[routine]
+    )
+    # Find the basic blocks.
+    cfn, blocks = duc._find_basic_blocks(routine.children[:])
+    assigns = routine.walk(Assignment)
+    type_guards = routine.walk(TypeGuard)
+    assert len(blocks) == 4
+    # First block is the i = 1 before the Select type.
+    assert len(blocks[0]) == 1
+    assert blocks[0][0] is assigns[0]
+    assert cfn[0] is None
+
+    # Second block is the first TypeGuard's body (the single assignment).
+    assert len(blocks[1]) == 1
+    assert blocks[1][0] is assigns[1]
+    assert cfn[1] is type_guards[0]
+
+    # Third block is the second TypeGuard's body (the single assignment).
+    assert len(blocks[2]) == 1
+    assert blocks[2][0] is assigns[2]
+    assert cfn[2] is type_guards[1]
+
+    # Last block is the i = 4 after the Select type.
+    assert len(blocks[3]) == 1
+    assert blocks[3][0] is assigns[3]
+    assert cfn[3] is None
 
 
 def test_definition_use_chain_find_forward_accesses_basic_example(
@@ -1541,3 +1606,84 @@ def test_if_else_behaviour(fortran_reader):
     assert len(next_accesses) == 2
     assert next_accesses[0] is references[6]
     assert next_accesses[1] is references[7]
+
+
+def test_forward_accesses_select_type(fortran_reader):
+    '''Test that dependencies pass through a select type node as
+    PSyclone doesn't know which code might be accessed.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i
+
+    i = 1
+    select type(a)
+        type is(integer)
+           i = 2
+        type is(real)
+           i = 3
+    end select
+    i = 4
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+
+    # Test for i = 1 lhs. Should have 3 next accesses to all of the
+    # following accesses to i
+    next_accesses = references[0].next_accesses()
+
+    assert len(next_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert next_accesses[0] is references[2]
+    assert next_accesses[1] is references[3]
+    assert next_accesses[2] is references[4]
+
+    # Test for i = 2 lhs. Should only have one next access to
+    # the i = 4.
+    next_accesses = references[2].next_accesses()
+    assert len(next_accesses) == 1
+    assert next_accesses[0] is references[4]
+
+
+def test_forward_accesses_select_type_inside_loop(fortran_reader):
+    '''Test that dependencies for nodes inside a select type node inside
+    a loop can find any of the containing references.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i, loop
+
+    i = 1
+    do loop = 1, 100
+        select type(a)
+            type is(integer)
+               i = 2
+            type is(real)
+               i = 3
+        end select
+    end do
+    i = 4
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+
+    # Test for i = 1 lhs. Should have 3 next accesses to all of the
+    # following accesses to i, unchanged as to when there is no loop.
+    next_accesses = references[0].next_accesses()
+
+    assert len(next_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert next_accesses[0] is references[3]
+    assert next_accesses[1] is references[4]
+    assert next_accesses[2] is references[5]
+
+    # Test for i = 2 lhs. Should have next accesses to any of the references
+    # inside the select type and i = 4.
+    next_accesses = references[3].next_accesses()
+    assert len(next_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert next_accesses[0] is references[3]
+    assert next_accesses[1] is references[4]
+    assert next_accesses[2] is references[5]

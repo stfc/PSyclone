@@ -424,3 +424,53 @@ def test_if_update_device(fortran_reader, fortran_writer):
             "    zftv(1,:,:) = 1.0d0\n"
             "    !$acc update if_present device(zftv)\n"
             "  end if\n") in code
+
+
+def test_selectype_update_device(fortran_reader, fortran_writer):
+    ''' Test the placement of update device directives when a SelectType
+    contains a host statement writing the same variable as a preceding
+    kernel. '''
+    psyir = fortran_reader.psyir_from_source(
+        """subroutine test(a)
+        INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+        class(*) :: a
+        REAL, DIMENSION(jpi,jpj,jpk) :: zftv
+
+        select type(a)
+            type is(integer)
+              zftv(:,:,:) = 0.0d0
+              zftv(1,:,:) = 1.0d0
+            type is(real)
+              zftv(:,:,:) = 0.0d0
+              zftv(1,:,:) = 1.0d0
+              zftv(2,:,:) = 2.0d0
+        end select
+    end subroutine""")
+    schedule = psyir.children[0]
+    acc_update = ACCUpdateTrans()
+    acc_kernels = ACCKernelsTrans()
+    acc_kernels.apply(schedule[0].children[1].body[0])
+    acc_kernels.apply(schedule[0].children[2].body[0])
+    acc_kernels.apply(schedule[0].children[2].body[2])
+    acc_update.apply(schedule)
+    code = fortran_writer(schedule)
+    correct = """  select type(a)
+    type is(integer)
+      !$acc kernels
+      zftv(:,:,:) = 0.0d0
+      !$acc end kernels
+      !$acc update if_present host(zftv)
+      zftv(1,:,:) = 1.0d0
+      !$acc update if_present device(zftv)
+    type is(real)
+      !$acc kernels
+      zftv(:,:,:) = 0.0d0
+      !$acc end kernels
+      !$acc update if_present host(zftv)
+      zftv(1,:,:) = 1.0d0
+      !$acc update if_present device(zftv)
+      !$acc kernels
+      zftv(2,:,:) = 2.0d0
+      !$acc end kernels
+  end select"""
+    assert correct in code

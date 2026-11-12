@@ -24,6 +24,7 @@ from psyclone.psyir.nodes import (
     Return,
     Routine,
     Schedule,
+    SelectType,
     Statement,
     WhileLoop,
     PSyDataNode,
@@ -198,7 +199,7 @@ class DefinitionUseChain:
         # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
             if node.has_descendant(
-                    (IfBlock, Loop, WhileLoop, RegionDirective)):
+                    (IfBlock, Loop, WhileLoop, RegionDirective, SelectType)):
                 return False
         return True
 
@@ -917,6 +918,45 @@ class DefinitionUseChain:
                     current_block = []
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.psy_data_body])
+            elif isinstance(node, SelectType):
+                # Add any current block to the list of blocks.
+                if len(current_block) > 0:
+                    basic_blocks.append(current_block)
+                    control_flow_nodes.append(None)
+                    current_block = []
+                # If there is an ancestor ifblock we add the whole block
+                # to the basic block set as any of the references could be
+                # reached as we progress through the loop.
+                if node.ancestor((Loop, WhileLoop)):
+                    for child in node.children[1:]:
+                        basic_blocks.append(child.body.children[:])
+                        control_flow_nodes.append(child)
+                    continue
+                # The reference in self.children[0] is an inquiry, and
+                # the datatypes (and contained symbols) in any TypeGuard
+                # children are constant, so none are needed for the DUC.
+                in_child = None
+                for i, child in enumerate(node.children[1:]):
+                    refs = child.walk(Reference)
+                    for ref in refs:
+                        # If it's in a TypeGuard we don't add any others.
+                        for ref2 in self._references:
+                            if ref is ref2:
+                                in_child = i+1
+                                break
+                        if in_child:
+                            break
+                    if in_child:
+                        break
+                # If the _references were in any of the TypeGuards we only
+                # add that one to the basic_blocks to search through.
+                if in_child is not None:
+                    basic_blocks.append(node.children[in_child].body.children)
+                    control_flow_nodes.append(node.children[in_child])
+                else:
+                    for child in node.children[1:]:
+                        basic_blocks.append(child.body.children[:])
+                        control_flow_nodes.append(child)
             else:
                 # This is a basic node, add it to the current block
                 current_block.append(node)

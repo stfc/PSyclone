@@ -767,3 +767,38 @@ def test_if_else_dependencies(fortran_reader, fortran_writer):
     rtrans.apply(routine)
     # We should keep the omp taskwait before the IfBlock.
     assert isinstance(routine.children[1], OMPTaskwaitDirective)
+
+
+def test_select_type_dependencies(fortran_reader, fortran_writer):
+    '''Test the behaviour when there is a SelectType node in the tree.'''
+    code = """
+    subroutine test
+    class(*) :: some_obj
+    integer, dimension(100) :: a
+    integer, dimension(100) :: b
+    integer :: j
+
+    do j = 1, 100
+        a(j) = j + 1
+    end do
+
+    select type(some_obj)
+        type is(integer)
+            a(:) = 0
+        type is(real)
+            b(:) = 1
+    end select
+
+    do j = 1, 100
+       a(j) = j ** 3
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    loops = psyir.walk(Loop)
+    targettrans.apply(loops[0], nowait=True)
+    targettrans.apply(loops[1], nowait=True)
+    # Should have a taskwait before the select type and at the end.
+    assert isinstance(routine.children[1], OMPTaskwaitDirective)
+    assert isinstance(routine.children[4], OMPTaskwaitDirective)

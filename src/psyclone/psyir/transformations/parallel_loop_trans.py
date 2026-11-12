@@ -143,7 +143,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 following = inside_conditional.following_node()
                 if not following:
                     break
-                # Skip al references in the condition that we already checked
+                # Skip all references in the condition that we already checked
                 refs_in_loop = list(filter(
                     lambda x: x.abs_position > following.abs_position,
                     refs_in_loop
