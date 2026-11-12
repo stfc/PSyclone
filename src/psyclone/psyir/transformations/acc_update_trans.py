@@ -17,7 +17,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule, ACCEnterDataDirective,
                                   ACCKernelsDirective, ACCParallelDirective,
-                                  Node, IntrinsicCall, ACCUpdateDirective)
+                                  Node, IntrinsicCall, ACCUpdateDirective,
+                                  SelectType, TypeGuard)
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
@@ -191,6 +192,10 @@ class ACCUpdateTrans(Transformation):
                                                  child.step_expr])
                     # Recurse down into the loop body
                     self._add_updates_to_schedule(child.loop_body)
+                elif isinstance(child, SelectType):
+                    # Recurse to all of the type_guard bodies.
+                    for type_guard in child.children[1:]:
+                        self._add_updates_to_schedule(type_guard.body)
 
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the host?
@@ -329,8 +334,9 @@ class ACCUpdateTrans(Transformation):
                 # of this host region which are inputs of any textually
                 # preceding kernels but, even though these might not need to
                 # be updated here, i.e. conditionally, they can safely be.
-                if isinstance(sched.parent, Loop) or \
-                   isinstance(sched.parent, IfBlock) and mode == OUT:
+                if (isinstance(sched.parent, Loop) or
+                    isinstance(sched.parent, IfBlock) and mode == OUT or
+                        isinstance(sched.parent, TypeGuard) and mode == OUT):
                     self._place_update(sched, update_pos, loop_sync, mode)
                     host_sig.difference_update(loop_sync)
 
