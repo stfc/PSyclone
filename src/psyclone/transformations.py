@@ -413,6 +413,8 @@ class ColourTrans(LoopTrans):
         colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
+        # Remove the symbols used for the loop bounds.
+        # TODO should check they aren't used in other loops?
         inv_sched = node.ancestor(InvokeSchedule)
         if inv_sched:
             assigns = inv_sched.walk(Assignment)

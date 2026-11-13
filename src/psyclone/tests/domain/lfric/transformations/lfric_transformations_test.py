@@ -25,7 +25,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Loop, Schedule, Literal, Directive, OMPDoDirective,
+    Loop, Schedule, Literal, Directive, OMPDirective, OMPDoDirective,
     ACCEnterDataDirective, Assignment, Reference)
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
@@ -63,13 +63,11 @@ def test_colour_trans_create_colours_loop(dist_mem):
                            name="invoke_0_testkern_type", dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
-    loop = schedule.walk(Loop)[0]
-    orig_posn = loop.position
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
 
     ctrans.apply(loop)
-    new_loop = schedule[orig_posn]
-    assert isinstance(new_loop, LFRicLoop)
+    new_loop = schedule.walk(LFRicLoop)[0]
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
     assert isinstance(colour_loop, LFRicLoop)
@@ -95,9 +93,11 @@ def test_colour_trans_create_colours_loop(dist_mem):
     kernel.args[2]._access = AccessType.WRITE
     new_loop1 = LFRicLoop(parent=schedule)
     schedule.addchild(new_loop1)
-    new_loop1.load(kernel)
+    new_kern = kernel.copy()
+    new_loop1.load(new_kern)
+    new_loop1.loop_body.addchild(new_kern)
     ctrans.apply(new_loop1)
-    colour_loop = kernel.ancestor(Loop)
+    colour_loop = new_kern.ancestor(Loop)
     if dist_mem:
         assert colour_loop._upper_bound_name == "colour_halo"
     else:
@@ -173,24 +173,19 @@ def test_colour_trans(tmpdir, dist_mem):
               "    cmap => mesh%get_colour_map()\n")
     assert output in gen
 
-    assert "loop0_start = 1" in gen
-    assert "loop0_stop = ncolour" in gen
-    assert "loop1_start = 1" in gen
-
     if dist_mem:
         assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
                 "colours()" in gen)
         output = (
-            "    do colour = loop0_start, loop0_stop, 1\n"
-            "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
+            "    do colour = 1, ncolour, 1\n"
+            "      do cell = 1, last_halo_cell_all_colours(colour,"
             "1), 1\n")
     else:  # not dist_mem
         assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
-            "    do colour = loop0_start, loop0_stop, 1\n"
-            "      do cell = loop1_start, "
-            "last_edge_cell_all_colours(colour), 1\n")
+            "    do colour = 1, ncolour, 1\n"
+            "      do cell = 1, last_edge_cell_all_colours(colour), 1\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
@@ -270,8 +265,8 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        f"    do colour = loop0_start, loop0_stop, 1\n"
-        f"      do cell = loop1_start, {lookup}, 1\n"
+        f"    do colour = 1, ncolour, 1\n"
+        f"      do cell = 1, {lookup}, 1\n"
         f"        call columnwise_op_asm_field_kernel_code("
         f"cmap(colour,") in gen
 
@@ -369,7 +364,7 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
     # enabled.
     assert ("last_edge_cell_all_colours = "
             "mesh%get_last_edge_cell_all_colours()" in gen)
-    assert "do cell = loop1_start, last_edge_cell_all_colours(colour)" in gen
+    assert "do cell = 1, last_edge_cell_all_colours(colour)" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -384,7 +379,7 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     '''
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
-    loop = invoke.schedule[0]
+    loop = invoke.schedule.walk(LFRicLoop)[0]
     ctrans = LFRicColourTrans()
     ctrans.apply(loop)
     result = str(psy.gen).lower()
@@ -397,8 +392,8 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     # Usage. Since there is no need to loop into the halo, the upper loop
     # bound should be independent of whether or not DM is enabled.
     upper_bound = "last_edge_cell_all_colours_field1(colour)"
-    assert (f"    do colour = loop0_start, loop0_stop, 1\n"
-            f"      do cell = loop1_start, {upper_bound}, 1\n"
+    assert (f"    do colour = 1, ncolour_field1, 1\n"
+            f"      do cell = 1, {upper_bound}, 1\n"
             f"        call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -430,7 +425,7 @@ def test_no_colour_dofs(dist_mem):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ctrans.apply(schedule.children[0])
+        ctrans.apply(schedule.walk(LFRicLoop)[0])
     val = str(excinfo.value)
     assert "Error in LFRicColour transformation" in val
     assert ("Only loops over cells may be coloured but this loop is over "
@@ -499,16 +494,11 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
-    # Then apply OpenMP to the inner loop
-    otrans.apply(schedule.children[index].loop_body[0])
+    # Then apply OpenMP to the inner loop of the new loop.
+    otrans.apply(schedule.walk(LFRicLoop)[0].loop_body[0])
 
     code = str(psy.gen)
 
@@ -519,10 +509,10 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     else:
         lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        f"    do colour = loop0_start, loop0_stop, 1\n"
+        f"    do colour = 1, ncolour, 1\n"
         f"      !$omp parallel do default(shared) private(cell) "
         f"schedule(static)\n"
-        f"      do cell = loop1_start, {lookup}, 1\n")
+        f"      do cell = 1, {lookup}, 1\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -539,18 +529,12 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
-    if dist_mem:
-        if annexed:
-            index = 4
-        else:
-            index = 5
-    else:
-        index = 0
+
     schedule = invoke.schedule
     otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP to the loop
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
+        otrans.apply(schedule.walk(LFRicLoop)[0])
     assert "Error in LFRicOMPParallelLoopTrans" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
@@ -570,19 +554,12 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
-    if dist_mem:
-        if annexed:
-            index = 4
-        else:
-            index = 5
-    else:
-        index = 0
     schedule = invoke.schedule
 
     otrans = LFRicOMPLoopTrans()
     # Apply OpenMP to the loop
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
+        otrans.apply(schedule.walk(LFRicLoop)[0])
     assert "Error in LFRicOMPLoopTrans transfo" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
@@ -603,24 +580,17 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
                              name="invoke_0_testkern_qr_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 3
-        else:
-            index = 4
-    else:
-        index = 0
 
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     # Then erroneously attempt to apply OpenMP to the loop over
     # colours
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
+        otrans.apply(schedule.walk(LFRicLoop)[0])
 
     assert "Error in LFRicOMPLoopTrans" in str(excinfo.value)
     assert "target loop is over colours" in str(excinfo.value)
@@ -650,24 +620,20 @@ def test_colouring_after_openmp(dist_mem, monkeypatch):
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
-
     # Apply OpenMP to the loop
-    otrans.apply(schedule[index])
+    otrans.apply(schedule.walk(LFRicLoop)[0])
 
     # Monkeypatch the loop argument to "INC" access and a continuous function
     # space so colouring can be applied
-    write_arg = schedule[index].dir_body[0].loop_body[0].arguments.args[4]
+    directive = schedule.walk(OMPDoDirective)[0]
+    write_arg = directive.dir_body[0].loop_body[0].arguments.args[4]
     fspace = write_arg.function_space
     monkeypatch.setattr(write_arg, "access", AccessType.INC)
     monkeypatch.setattr(fspace, "_orig_name", "w1")
 
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError) as excinfo:
-        ctrans.apply(schedule[index].dir_body[0])
+        ctrans.apply(directive.dir_body[0])
     assert "Cannot have a loop over colours" in str(excinfo.value)
     assert "within an OpenMP parallel region" in str(excinfo.value)
 
@@ -703,12 +669,14 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
         index = 0
 
     # colour each loop
-    ctrans.apply(schedule[index])
-    ctrans.apply(schedule[index+1])
+    loops = schedule.walk(LFRicLoop)
+    ctrans.apply(loops[0])
+    ctrans.apply(loops[1])
 
     # Apply OpenMP to each of the colour loops
-    otrans.apply(schedule[index].loop_body[0])
-    otrans.apply(schedule[index+1].loop_body[0])
+    for loop in schedule.walk(LFRicLoop):
+        if loop.loop_type != "colours":
+            otrans.apply(loop)
 
     gen = str(psy.gen)
 
@@ -718,7 +686,7 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     assert gen.count("private(cell)") == 2
 
 
-def test_omp_region_omp_do(dist_mem):
+def test_omp_region_omp_do(dist_mem, tmp_path):
     ''' Test that we correctly generate code for the case of a single OMP
     DO within an OMP PARALLEL region without colouring. We test when
     distributed memory is on or off.
@@ -733,48 +701,36 @@ def test_omp_region_omp_do(dist_mem):
     olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
-
-    # Put an OMP PARALLEL around this loop
-    child = schedule[index]
+    # Put an OMP PARALLEL around the loop
+    child = schedule.walk(LFRicLoop)[0]
     ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    olooptrans.apply(schedule[index].dir_body[0])
+    directive = schedule.walk(OMPDirective)[0]
+    olooptrans.apply(directive.dir_body[0])
 
     # Store the results of applying this code transformation as
     # a string
     code = str(psy.gen)
 
-    omp_do_idx = -1
-    omp_para_idx = -1
-    cell_loop_idx = -1
-    omp_enddo_idx = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
-    for idx, line in enumerate(code.split('\n')):
-        if "do cell = loop0_start, loop0_stop" in line:
-            cell_loop_idx = idx
-        if "!$omp do" in line:
-            omp_do_idx = idx
-        if "!$omp parallel default" in line:
-            omp_para_idx = idx
-        if "!$omp end do" in line:
-            omp_enddo_idx = idx
-        if "enddo" in line:
-            cell_end_loop_idx = idx
 
-    assert (omp_do_idx - omp_para_idx) == 1
-    assert (cell_loop_idx - omp_do_idx) == 1
-    assert (omp_enddo_idx - cell_end_loop_idx) == 1
+    assert """\
+    !$omp parallel default(shared) private(cell)
+    !$omp do schedule(static)
+    do cell = 1, loop0_stop, 1
+      call testkern_w3_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
+    enddo
+    !$omp end do
+    !$omp end parallel""" in code
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
-def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
+def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem, tmp_path):
     ''' Test that we correctly generate code for the case of a single
     OMP DO within an OMP PARALLEL region without colouring when a
     discontinuous field has readwrite access. We test when distributed
@@ -789,50 +745,35 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
-    # Put an OMP PARALLEL around this loop
-    if dist_mem and not annexed:
-        # there are 2 halo exchange calls
-        index = 2
-    else:
-        # there are no halo exchange calls
-        index = 0
-    child = schedule[index]
+    # Put an OMP PARALLEL around the loop
+    child = schedule.walk(LFRicLoop)[0]
     ptrans.apply(child)
 
     # Put an OMP DO around this loop
-    olooptrans.apply(schedule[index].dir_body[0])
+    olooptrans.apply(schedule.walk(OMPDirective)[0].dir_body[0])
 
     # Store the results of applying this code transformation as
     # a string
     code = str(psy.gen)
 
-    omp_do_idx = -1
-    omp_para_idx = -1
-    cell_loop_idx = -1
-    omp_enddo_idx = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(code.split('\n')):
-        if loop_str in line:
-            cell_loop_idx = idx
-        if "!$omp do" in line:
-            omp_do_idx = idx
-        if "!$omp parallel default" in line:
-            omp_para_idx = idx
-        if "!$omp end do" in line:
-            omp_enddo_idx = idx
-        if "enddo" in line:
-            cell_end_loop_idx = idx
 
-    assert (omp_do_idx - omp_para_idx) == 1
-    assert (cell_loop_idx - omp_do_idx) == 1
-    assert (omp_enddo_idx - cell_end_loop_idx) == 1
+    assert """\
+    !$omp parallel default(shared) private(cell)
+    !$omp do schedule(static)
+    do cell = 1, loop0_stop, 1
+      call testkern_anyd_any_space_code(nlayers_f1, f1_data, f2_data, f3_data, ndf_ads1_f1__1, undf_ads1_f1__1, map_ads1_f1__1(:,cell), ndf_as1_f2__1, undf_as1_f2__1, map_as1_f2__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+    enddo
+    !$omp end do
+    !$omp end parallel""" in code
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
-def test_multi_kernel_single_omp_region(dist_mem):
+def test_multi_kernel_single_omp_region(dist_mem, tmp_path):
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
     within a single OMP region.
@@ -845,52 +786,38 @@ def test_multi_kernel_single_omp_region(dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
-
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
 
     # Apply OpenMP to each of the loops
-    otrans.apply(schedule.children[index])
-    otrans.apply(schedule.children[index+1])
+    for loop in schedule.walk(LFRicLoop):
+        otrans.apply(loop)
 
     # Enclose all of these OpenMP'd loops within a single region
-    rtrans.apply(schedule.children[index:index+2])
+    directives = schedule.walk(OMPDirective)
+    rtrans.apply(directives)
 
     code = str(psy.gen)
 
-    omp_do_idx = -1
-    omp_end_do_idx = -1
-    omp_para_idx = -1
-    omp_end_para_idx = -1
-    cell_loop_idx = -1
-    end_do_idx = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(code.split('\n')):
-        if (cell_loop_idx == -1) and (loop_str in line):
-            cell_loop_idx = idx
-        if (omp_do_idx == -1) and ("!$omp do" in line):
-            omp_do_idx = idx
-        if "!$omp end do" in line:
-            omp_end_do_idx = idx
-        if "!$omp parallel default(shared) private(cell)" in line:
-            omp_para_idx = idx
-        if "enddo" in line:
-            end_do_idx = idx
-        if "!$omp end parallel" in line:
-            omp_end_para_idx = idx
+    assert """\
+    !$omp parallel default(shared) private(cell)
+    !$omp do schedule(static)
+    do cell = 1, loop0_stop, 1
+      call testkern_w3_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
+    enddo
+    !$omp end do
+    !$omp do schedule(static)
+    do cell = 1, loop1_stop, 1
+      call testkern_anyd_any_space_code(nlayers_m3, m3_data, f1_data, m1_data, ndf_ads1_m3__1, undf_ads1_m3__1, map_ads1_m3__1(:,cell), ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+    enddo
+    !$omp end do
+    !$omp end parallel""" in code
 
-    assert (omp_do_idx - omp_para_idx) == 1
-    assert (cell_loop_idx - omp_do_idx) == 1
-    assert (omp_end_para_idx - omp_end_do_idx) > 0
-    assert (omp_end_do_idx - end_do_idx) == 1
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_multi_different_kernel_omp(
@@ -910,27 +837,17 @@ def test_multi_different_kernel_omp(
                              dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    if dist_mem:
-        if annexed:
-            index1 = 5
-            index2 = 8
-        else:
-            index1 = 6
-            index2 = 10
-    else:
-        index1 = 0
-        index2 = 1
-
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
     # Colour each loop
-    ctrans.apply(schedule.children[index1])
-    ctrans.apply(schedule.children[index2])
+    for loop in schedule.walk(LFRicLoop):
+        ctrans.apply(loop)
 
     # Apply OpenMP to each of the colour loops
-    otrans.apply(schedule.children[index1].loop_body[0])
-    otrans.apply(schedule.children[index2].loop_body[0])
+    for loop in schedule.walk(LFRicLoop):
+        if loop.loop_type == "cells_in_colour":
+            otrans.apply(loop)
 
     code = str(psy.gen)
 
@@ -939,7 +856,7 @@ def test_multi_different_kernel_omp(
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_omp(dist_mem):
+def test_loop_fuse_omp(dist_mem, tmp_path):
     ''' Test that we can loop-fuse two loop nests and enclose them in an
     OpenMP parallel region.
     Note: this test does not apply colouring so the loops must be over
@@ -953,45 +870,28 @@ def test_loop_fuse_omp(dist_mem):
     ftrans = LFRicLoopFuseTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    loops = schedule.walk(LFRicLoop)
+    ftrans.apply(loops[0:2])
 
-    otrans.apply(schedule.children[0])
+    otrans.apply(schedule.walk(LFRicLoop)[0])
 
     code = str(psy.gen)
 
     # Check generated code
-    omp_para_idx = -1
-    omp_endpara_idx = -1
-    cell_do_idx = -1
-    cell_enddo_idx = -1
-    call1_idx = -1
-    call2_idx = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(code.split('\n')):
-        if loop_str in line:
-            cell_do_idx = idx
-        if ("!$omp parallel do default(shared) private(cell) "
-                "schedule(static)" in line):
-            omp_para_idx = idx
-        if "call testkern_w2v_code" in line:
-            if call1_idx == -1:
-                call1_idx = idx
-            else:
-                call2_idx = idx
-        if "enddo" in line:
-            cell_enddo_idx = idx
-        if "!$omp end parallel do" in line:
-            omp_endpara_idx = idx
 
-    assert cell_do_idx - omp_para_idx == 1
-    assert call1_idx > cell_do_idx
-    assert call2_idx > call1_idx
-    assert cell_enddo_idx > call2_idx
-    assert omp_endpara_idx - cell_enddo_idx == 1
+    assert """\
+    !$omp parallel do default(shared) private(cell) schedule(static)
+    do cell = 1, loop0_stop, 1
+      call testkern_w2v_code(nlayers_f1, f1_data, f2_data, ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell))
+      call testkern_w2v_code(nlayers_f3, f3_data, f1_data, ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell))
+    enddo
+    !$omp end parallel do""" in code
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1013,50 +913,26 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     ftrans = LFRicLoopFuseTrans()
     otrans = LFRicOMPParallelLoopTrans()
 
-    if dist_mem and not annexed:
-        # there are 3 halo exchange calls
-        index = 3
-    else:
-        # there are no halo exchange calls
-        index = 0
-    ftrans.apply((schedule.children[index], schedule.children[index+1]))
+    loops = schedule.walk(LFRicLoop)
+    ftrans.apply(loops[0:2])
 
-    otrans.apply(schedule.children[index])
+    otrans.apply(loops[0])
 
     code = str(psy.gen)
 
     # Check generated code
-    omp_para_idx = -1
-    omp_endpara_idx = -1
-    cell_do_idx = -1
-    cell_enddo_idx = -1
-    call1_idx = -1
-    call2_idx = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(code.split('\n')):
-        if loop_str in line:
-            cell_do_idx = idx
-        if "!$omp parallel do default(shared) " +\
-           "private(cell) schedule(static)" in line:
-            omp_para_idx = idx
-        if "call testkern_w3_code" in line:
-            call1_idx = idx
-        if "call testkern_anyd_any_space_code" in line:
-            call2_idx = idx
-        if "enddo" in line:
-            cell_enddo_idx = idx
-        if "!$omp end parallel do" in line:
-            omp_endpara_idx = idx
 
-    assert cell_do_idx - omp_para_idx == 1
-    assert call1_idx > cell_do_idx
-    assert call2_idx > call1_idx
-    assert cell_enddo_idx > call2_idx
-    assert omp_endpara_idx - cell_enddo_idx == 1
+    assert """\
+    !$omp parallel do default(shared) private(cell) schedule(static)
+    do cell = 1, loop0_stop, 1
+      call testkern_w3_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
+      call testkern_anyd_any_space_code(nlayers_m3, m3_data, f1_data, m1_data, ndf_ads1_m3__1, undf_ads1_m3__1, map_ads1_m3__1(:,cell), ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+    enddo
+    !$omp end parallel do""" in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1082,34 +958,34 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     ftrans = LFRicLoopFuseTrans()
     mtrans = MoveTrans()
 
-    if dist_mem:
-        if annexed:
-            index = 5
-        else:
-            # f is required but can be moved before the first loop
-            mtrans.apply(schedule.children[7], schedule.children[6])
-            index = 7
-    else:
-        index = 0
+    loops = schedule.walk(LFRicLoop)
+
+    if dist_mem and not annexed:
+        # f is required but can be moved before the first loop
+        for hexch in schedule.walk(LFRicHaloExchange):
+            if hexch.field.name == "f":
+                mtrans.apply(hexch, loops[0])
 
     # colour each loop
-    ctrans.apply(schedule[index])
-    ctrans.apply(schedule[index+1])
+    for loop in loops:
+        ctrans.apply(loop)
 
     # fuse the sequential colours loop
-    ftrans.apply((schedule[index], schedule[index+1]))
+    for loop in schedule.walk(LFRicLoop):
+        if loop.loop_type == "colours":
+            ftrans.apply((loop, schedule[loop.position+1]))
+            break
 
     # Enclose the colour loops within an OMP parallel region
-    rtrans.apply(schedule[index].loop_body.children)
+    rtrans.apply(loop.loop_body.children)
 
     # Put an OMP DO around each of the colour loops
-    for loop in schedule[index].loop_body[0].dir_body[:]:
-        otrans.apply(loop)
+    for cloop in loop.loop_body[0].dir_body[:]:
+        otrans.apply(cloop)
 
     code = str(psy.gen)
     assert "ncolour = mesh%get_ncolours()" in code
     assert "cmap => mesh%get_colour_map()\n" in code
-    assert "loop0_stop = ncolour" in code
 
     if dist_mem:
         lookup = "last_halo_cell_all_colours(colour,1)"
@@ -1117,10 +993,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        f"    do colour = loop0_start, loop0_stop, 1\n"
+        f"    do colour = 1, ncolour, 1\n"
         f"      !$omp parallel default(shared) private(cell)\n"
         f"      !$omp do schedule(static)\n"
-        f"      do cell = loop1_start, {lookup}, 1\n"
+        f"      do cell = 1, {lookup}, 1\n"
         f"        call ru_code(nlayers_a, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
@@ -1131,7 +1007,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"      enddo\n"
         f"      !$omp end do\n"
         f"      !$omp do schedule(static)\n"
-        f"      do cell = loop2_start, {lookup}, 1\n"
+        f"      do cell = 1, {lookup}, 1\n"
         f"        call ru_code(nlayers_f, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"

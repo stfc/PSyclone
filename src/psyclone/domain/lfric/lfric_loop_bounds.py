@@ -10,7 +10,7 @@
 
 from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.nodes import Assignment, Literal, Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -46,8 +46,7 @@ class LFRicLoopBounds(LFRicCollection):
         else:
             cursor = 0
 
-        loops = filter(lambda x: isinstance(x, LFRicLoop),
-                       self._invoke.schedule.loops())
+        loops = self._invoke.schedule.walk(LFRicLoop)
         first = True
         for idx, loop in enumerate(loops):
 
@@ -60,37 +59,47 @@ class LFRicLoopBounds(LFRicCollection):
                 continue
 
             # Set the lower bound
-            root_name = f"loop{idx}_start"
-            lbound = self.symtab.new_symbol(
-                root_name, symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            assignment = Assignment.create(
-                    lhs=Reference(lbound),
-                    rhs=loop.lower_bound_psyir())
-            loop.start_expr = Reference(lbound)
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
-            if first:
-                assignment.preceding_comment = (
-                    "Set-up all of the loop bounds")
-                first = False
+            bound_psyir = loop.lower_bound_psyir()
+            if isinstance(bound_psyir, Literal):
+                loop.start_expr = bound_psyir
+            else:
+                root_name = f"loop{idx}_start"
+                lbound = self.symtab.new_symbol(
+                    root_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                assignment = Assignment.create(
+                        lhs=Reference(lbound),
+                        rhs=bound_psyir)
+                loop.start_expr = Reference(lbound)
+                self._invoke.schedule.addchild(assignment, cursor)
+
+                cursor += 1
+                if first:
+                    assignment.preceding_comment = (
+                        "Set-up all of the loop bounds")
+                    first = False
 
             # Set the upper bound
             if loop.loop_type not in ("cells_in_colour", "tiles_in_colour",
                                       "cells_in_tile"):
-                root_name = f"loop{idx}_stop"
-                ubound = self.symtab.new_symbol(
-                    root_name, symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                self._invoke.schedule.addchild(
-                    Assignment.create(
-                        lhs=Reference(ubound),
-                        rhs=loop.upper_bound_psyir()
-                    ), cursor)
-                cursor += 1
-                loop.stop_expr = Reference(ubound)
+                bnd_psyir = loop.upper_bound_psyir()
+                if (isinstance(bnd_psyir, Reference) and
+                        bnd_psyir.symbol.is_scalar):
+                    loop.stop_expr = bnd_psyir
+                else:
+                    root_name = f"loop{idx}_stop"
+                    ubound = self.symtab.new_symbol(
+                        root_name, symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(ubound),
+                            rhs=loop.upper_bound_psyir()
+                        ), cursor)
+                    cursor += 1
+                    loop.stop_expr = Reference(ubound)
             else:
-                # If it needs a color look-up, it has to be in-place
+                # If it needs a colour look-up, it has to be in-place
                 loop.stop_expr = loop.upper_bound_psyir()
 
         return cursor
