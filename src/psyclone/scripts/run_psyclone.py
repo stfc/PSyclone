@@ -102,7 +102,7 @@ class RunPsyclone:
                 )
                 if script == PsyclonePhase.RESULT_EXCLUDE:
                     LOGGER.info(
-                        "Phase %s: excluding %s (no matching script rule)",
+                        "Phase %s: expliclitly excluding %s",
                         phase_name,
                         source_file,
                     )
