@@ -11,9 +11,10 @@
 import pytest
 
 from psyclone.psyir.nodes import (
-    DataNode, Reference, BinaryOperation, Loop, Call, ArrayReference, Range)
+    DataNode, Reference, BinaryOperation, Loop, Call, ArrayReference, Range,
+    Assignment)
 from psyclone.psyir.symbols import (
-    DataSymbol, UnresolvedType, RoutineSymbol, ScalarType)
+    DataSymbol, DataTypeSymbol, UnresolvedType, RoutineSymbol, ScalarType)
 
 
 def test_datanode_datatype():
@@ -55,6 +56,30 @@ def test_datanode_datatype():
             ScalarType.integer_type())
     assert (arrayref.indices[1].children[1].datatype ==
             ScalarType.integer_type())
+
+
+def test_datanode_datatype_overloaded_addition(fortran_reader):
+    '''An overloaded derived-type expression has an unresolved result type.
+
+    BinaryOperation is a DataNode subclass. An imported derived type has a
+    DataTypeSymbol, even when operator(+) is also imported. Accessing the
+    expression's datatype must not assume that this has an intrinsic type.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine example(b, c, d)
+          use types_mod, only: my_type, operator(+)
+          implicit none
+          type(my_type), intent(out) :: b
+          type(my_type), intent(in) :: c, d
+          b = c + d
+        end subroutine example
+    ''')
+    rhs = psyir.walk(Assignment)[0].rhs
+    assert isinstance(rhs, DataNode)
+    assert isinstance(rhs, BinaryOperation)
+    assert isinstance(rhs.children[0].datatype, DataTypeSymbol)
+
+    assert isinstance(rhs.datatype, UnresolvedType)
 
 
 def test_datanode_is_character():

@@ -18,8 +18,8 @@ from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, UnresolvedType, ScalarType, Symbol, StructureType,
-    UnsupportedFortranType)
+    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType, Symbol,
+    StructureType, UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 from psyclone.utils import colored
 
@@ -411,6 +411,32 @@ def test_binaryop_unresolved_datatype():
     air = Reference(DataSymbol("air", arrtype))
     binop4 = BinaryOperation.create(oper, air, sea.copy())
     assert isinstance(binop4.datatype, UnresolvedType)
+
+
+@pytest.mark.parametrize("operator", [BinaryOperation.Operator.ADD,
+                                      BinaryOperation.Operator.EQ])
+@pytest.mark.parametrize("is_array", [False, True])
+@pytest.mark.parametrize("resolved", [False, True])
+def test_binaryop_derived_datatype(operator, is_array, resolved):
+    '''Derived-type operands cannot determine an overloaded operator's type.
+
+    This applies to scalars and arrays, even when the type definition is
+    available, and regardless of which operand has the derived type.
+    '''
+    dtype = DataTypeSymbol("my_type", StructureType() if resolved
+                           else UnresolvedType())
+    if is_array:
+        dtype = ArrayType(dtype, [10])
+    derived = Reference(DataSymbol("derived", dtype))
+    intrinsic = Reference(DataSymbol("intrinsic", ScalarType.real_type()))
+    for lhs, rhs in [(derived, intrinsic), (intrinsic, derived),
+                     (derived, derived)]:
+        operation = BinaryOperation.create(operator, lhs.copy(), rhs.copy())
+        assert isinstance(operation.datatype, UnresolvedType)
+        # An unresolved inner operation also makes the outer type unresolved.
+        outer = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                       intrinsic.copy(), operation)
+        assert isinstance(outer.datatype, UnresolvedType)
 
 
 def test_binaryop_partial_datatype():

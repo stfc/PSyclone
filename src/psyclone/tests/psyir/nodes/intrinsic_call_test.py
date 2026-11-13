@@ -142,6 +142,34 @@ def test_intrinsiccall_datatype(fortran_reader):
     assert isinstance(call.datatype, UnresolvedType)
 
 
+@pytest.mark.parametrize("expression", [
+    "abs(a)", "real(a)", "transpose(a)", "sum(a, dim=1)",
+    "lbound(a)", "matmul(a, b)", "dot_product(a, b)"])
+def test_intrinsiccall_datatype_unknown_arguments(fortran_reader, expression):
+    '''Unavailable imported declarations must not cause inference to fail.'''
+    psyir = fortran_reader.psyir_from_source(f'''
+        subroutine example
+          use missing_mod
+          result = {expression}
+        end subroutine example
+    ''')
+    call = psyir.walk(Assignment)[0].rhs
+    assert isinstance(call.datatype, UnresolvedType)
+
+
+def test_intrinsiccall_datatype_invalid_scalar_array_argument(fortran_reader):
+    '''A known scalar passed to TRANSPOSE is invalid, not unresolved.'''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine example
+          real :: a, result
+          result = transpose(a)
+        end subroutine example
+    ''')
+    call = psyir.walk(Assignment)[0].rhs
+    with pytest.raises(InternalError, match="Failed to compute the datatype"):
+        _ = call.datatype
+
+
 def test_intrinsiccall_datatype_typeerr_paths(
     fortran_reader, monkeypatch
 ):

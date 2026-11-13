@@ -363,10 +363,6 @@ class BinaryOperation(Operation):
                     dtype = dtype.partial_datatype
                 else:
                     return UnresolvedType()
-            if isinstance(dtype, UnresolvedType):
-                # If either operand is of UnresolvedType then we can't do
-                # any better.
-                return UnresolvedType()
             if isinstance(dtype, ArrayType):
                 # We know this is an array but do we know its intrinsic type?
                 if isinstance(dtype.intrinsic, UnresolvedType):
@@ -378,6 +374,13 @@ class BinaryOperation(Operation):
                                           shape=dtype.shape)
                     else:
                         dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
+
+            if (not isinstance(dtype, (ScalarType, ArrayType)) or
+                    not isinstance(dtype.intrinsic, ScalarType.Intrinsic)):
+                # We can only infer results for intrinsic operand types.
+                # Derived types may use overloaded operators whose result
+                # type cannot be inferred from the operands alone.
+                return UnresolvedType()
 
             optypes.append(dtype)
         # Determine the base (scalar) type of the result.

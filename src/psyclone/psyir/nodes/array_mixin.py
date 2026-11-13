@@ -578,6 +578,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import ArrayReference
             if (isinstance(self, ArrayReference) and
+                isinstance(self.symbol, DataSymbol) and
                 len(self.symbol.shape) > idx and
                 isinstance(self.symbol.shape[idx], ArrayType.ArrayBounds) and
                 isinstance(self.symbol.shape[idx].lower, Literal) and
