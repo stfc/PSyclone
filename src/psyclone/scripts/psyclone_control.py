@@ -27,6 +27,9 @@ class PsycloneRule:
     :param rule: the name of the rule  the script name, or a
         special term like `exclude` or `file_specific`.
     :param file_list: the list of files to which to apply the rule to.
+
+    :raises ValueError: if a file-specific parameter is not one of the
+        parameters declared for the rule.
     """
 
     def __init__(self, name: str,
@@ -62,6 +65,13 @@ class PsycloneRule:
                 file, params = next(iter(file.items()))
                 if params is None:
                     params = {}
+            unknown = set(params) - set(self._default_params)
+            if unknown:
+                raise ValueError(
+                    f"Rule '{name}': file '{file}' specifies parameter(s) "
+                    f"{sorted(unknown)} which are not listed in the "
+                    f"'params' of this rule "
+                    f"({sorted(self._default_params)}).")
             if file in ["\\*", "'*'", '"*"']:
                 file = "*"
             self._file_list.append((file, params))

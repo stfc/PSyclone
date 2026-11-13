@@ -327,3 +327,18 @@ dsl:
     assert script == (global_path, {})
     script = info.get_script(tmp_path / "src" / "file.f90")
     assert script == (file_specific_path, {})
+
+
+def test_rule_rejects_undeclared_file_parameter():
+    """
+    Check that file-specific parameters must be declared in 'params'.
+    """
+    info = {"params": {"offload": True},
+            "files": ["*", {"test3.f90": {"offloadX": False}}]}
+    with pytest.raises(ValueError) as err:
+        PsycloneRule("global.py", info)
+    assert ("Rule 'global.py': file 'test3.f90' specifies parameter(s) "
+            "['offloadX'] which are not listed" in str(err.value))
+    # A declared parameter is accepted.
+    info["files"][1] = {"test3.f90": {"offload": False}}
+    PsycloneRule("global.py", info)
