@@ -50,9 +50,9 @@ class OMPDeclareTargetTrans(Transformation,
     >>> omptargettrans.apply(tree.walk(Routine)[0])
     >>> print(FortranWriter()(tree))
     subroutine my_subroutine(a)
-      integer, dimension(10,10), intent(inout) :: a
       integer :: i
       integer :: j
+      integer, dimension(10,10), intent(inout) :: a
     <BLANKLINE>
       !$omp declare target
       do i = 1, 10, 1

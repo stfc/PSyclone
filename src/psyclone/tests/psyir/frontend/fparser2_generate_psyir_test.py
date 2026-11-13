@@ -74,8 +74,8 @@ FUNCTION_IN = (
     "end function tmp")
 FUNCTION_OUT = (
     "function tmp(a)\n"
-    "  real :: a\n"
-    "  integer :: tmp\n\n"
+    "  integer :: tmp\n"
+    "  real :: a\n\n"
     "  a = 0.0\n"
     "  tmp = a\n\n"
     "end function tmp\n")

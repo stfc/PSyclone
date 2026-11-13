@@ -207,6 +207,7 @@ def test_two_grid_types(monkeypatch):
     supported for inter-grid kernels is not two. '''
     # Change LFRicConstants.VALID_MESH_TYPES so that it contains
     # three values
+    LFRicConstants()
     monkeypatch.setattr(
         target=LFRicConstants, name="VALID_MESH_TYPES",
         value=["gh_coarse", "gh_fine", "gh_medium"])
@@ -262,14 +263,14 @@ def test_field_prolong(tmpdir, dist_mem):
         "    use mesh_mod, only : mesh_type\n"
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    use constants_mod, only : i_def\n"
-        "    type(field_type), intent(in) :: field1\n"
-        "    type(field_type), intent(in) :: field2\n"
         "    integer(kind=i_def) :: cell\n")
     assert expected in code
+    assert ("    type(field_type), intent(in) :: field1\n"
+            "    type(field_type), intent(in) :: field2\n" in code)
 
-    assert "integer(kind=i_def) :: ncell_field1" in code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_x" in code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_y" in code
+    assert ("    integer(kind=i_def) :: ncell_field1\n"
+            "    integer(kind=i_def) :: ncpc_field1_field2_x\n"
+            "    integer(kind=i_def) :: ncpc_field1_field2_y\n" in code)
     assert ("type(mesh_map_type), pointer :: mmap_field1_field2 => null()\n"
             in code)
 
@@ -369,9 +370,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "    use mesh_mod, only : mesh_type\n"
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    use constants_mod, only : i_def\n"
-        "    type(field_type), intent(in) :: field1\n"
-        "    type(field_type), intent(in) :: field2\n")
+        "    integer(kind=i_def) :: cell\n")
     assert defs in output
+    assert "type(field_type), intent(in) :: field1\n" in output
+    assert "type(field_type), intent(in) :: field2\n" in output
 
     assert "integer(kind=i_def) :: nlayers_field1\n" in output
     assert ("real(kind=r_def), pointer, dimension(:) :: field2_data => "

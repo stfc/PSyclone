@@ -533,11 +533,11 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine test()\n"
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real :: x\n"
         "  integer :: idx\n"
-        "  real :: reduction_var\n\n"
+        "  real :: reduction_var\n"
+        "  real :: x\n"
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n\n"
         "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    reduction_var = MAX(reduction_var, a(idx) + b(idx))\n"
@@ -567,12 +567,12 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine test()\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  real :: x\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n"
         "  integer :: idx_2\n"
-        "  real :: reduction_var\n\n"
+        "  real :: reduction_var\n"
+        "  real :: x\n"
+        "  real, dimension(10,10,10) :: a\n\n"
         "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
