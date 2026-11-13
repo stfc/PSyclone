@@ -368,9 +368,9 @@ end module
             in str(err.value))
 
 
-def test_irla_assignment_to_range_array_with_call_on_rhs(fortran_reader):
-    '''Reject if assignment to range of array on l.h.s
-    and call on r.h.s.'''
+def test_irla_array_assignment_with_unknown_rhs(fortran_reader):
+    '''Reject if it is an array assignment but we can't prove the rhs is scalar
+    '''
     psyir = fortran_reader.psyir_from_source("""
 module dummy_module
     use dummy
@@ -404,10 +404,7 @@ end module
             "'a(1,:) = 1 + dummy_func()' is of type 'UnresolvedType'."
             in str(err.value))
 
-
-def test_irla_assignment_to_full_array_with_call_on_rhs(fortran_reader):
-    '''Reject if assignment to range of array on l.h.s
-    and call on r.h.s.'''
+    # Same case but the array assignment does not have an explicit range
     psyir = fortran_reader.psyir_from_source("""
 module dummy_module
     use dummy

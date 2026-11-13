@@ -204,17 +204,17 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if (isinstance(check.parent, Assignment) and
                         check is check.parent.lhs):
                     assign = check.parent
-                    rhs_type = assign.rhs.datatype
-                    if (check.symbol in array_symbols_to_increase and
-                            not isinstance(rhs_type, ScalarType)):
-                        # The LHS is a reference to one of the target array
-                        # symbols. We can't transform this if the RHS of the
-                        # assignment is not a scalar.
-                        raise TransformationError(
-                            f"{self.name} the RHS of an assignment to an array"
-                            " range must be of scalar type but the RHS of "
-                            f"'{assign.debug_string().strip()}' is of type "
-                            f"'{rhs_type}'.")
+                    if check.symbol in array_symbols_to_increase:
+                        rhs_type = assign.rhs.datatype
+                        if not isinstance(rhs_type, ScalarType):
+                            # The LHS is a reference to one of the target array
+                            # symbols. We can't transform this if the RHS of
+                            # the assignment is not a scalar.
+                            raise TransformationError(
+                                f"{self.name} the RHS of an assignment to an "
+                                f"array range must be of scalar type but the "
+                                f"RHS of '{assign.debug_string().strip()}' is "
+                                f"of type '{rhs_type}'.")
 
                     # Other assignments to the variable are fine, because the
                     # value will be repeated to each index of the new rank.
