@@ -4887,6 +4887,12 @@ class IntrinsicCall(Call):
                 # precision or shape. Only handle errors on those datatype
                 # objects; errors on known types or missing arguments indicate
                 # invalid or incomplete PSyIR and must still be reported.
+                # TODO #3416: Python 3.9 does not provide AttributeError.obj
+                if not hasattr(err, "obj") and str(err).startswith(tuple(
+                        f"'{dtype.__name__}' object has no attribute "
+                        for dtype in (UnresolvedType, UnsupportedFortranType,
+                                      DataTypeSymbol))):  # pragma: no cover
+                    return UnresolvedType()
                 if isinstance(err.obj, (UnresolvedType, UnsupportedType,
                                         DataTypeSymbol)):
                     return UnresolvedType()
