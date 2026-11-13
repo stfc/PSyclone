@@ -563,7 +563,7 @@ def test_rc_dofs_depth():
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     for field in ["f1", "f2"]:
@@ -587,7 +587,7 @@ def test_rc_dofs_no_depth():
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -612,11 +612,7 @@ def test_rc_dofs_depth_prev_dep(annexed, tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    if annexed:
-        index = 4
-    else:
-        index = 5
-    loop = schedule.children[index]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
 
@@ -657,7 +653,8 @@ def test_rc_dofs_no_depth_prev_dep():
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[5]
+    # We want the second loop.
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -730,7 +727,7 @@ def test_rc_vector_depth(tmpdir):
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[5]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
 
@@ -756,7 +753,7 @@ def test_rc_vector_no_depth(tmpdir):
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[5]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -825,14 +822,14 @@ def test_rc_updated_dependence_analysis():
     _, invoke = get_invoke("1_single_invoke_wtheta.f90", TEST_API, idx=0,
                            dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     f2_field = kernel.args[1]
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
     # introduces a new halo exchange
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=2)
     previous_field = f2_field.backward_dependence()
     previous_node = previous_field.call
@@ -855,12 +852,11 @@ def test_rc_no_loop_decrease():
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=2)
     # now try to reduce the redundant computation to the level 1 halo
     # f1 and f2 have read accesses (readwrite and read) so there
     # is one halo exchange for each before the loop
-    loop = schedule.children[2]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
     assert ("supplied depth (1) must be greater than the existing halo depth "
@@ -1203,7 +1199,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     _, invoke = get_invoke("19.1_single_stencil.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule[4]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
@@ -1212,7 +1208,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
 
-    halo_exchange = schedule[1]
+    halo_exchange = schedule.walk(LFRicHaloExchange)[1]
     monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
     with pytest.raises(GenerationError) as excinfo:
         _ = halo_exchange._compute_halo_read_info()
@@ -1234,17 +1230,18 @@ def test_rc_no_directive():
 
     # Create a colouring transformation and apply this to the loop
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule[4])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     # Create an openmp transformation and apply this to the loop
     otrans = LFRicOMPParallelLoopTrans()
-    otrans.apply(schedule[4].loop_body[0])
+    loop = schedule.walk(LFRicLoop)[0]
+    otrans.apply(loop.loop_body[0])
 
     # Create a redundant computation transformation and apply this to the loop
     rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(
-            schedule[4].loop_body[0].dir_body[0], {"depth": 1})
+            loop.loop_body[0].dir_body[0], {"depth": 1})
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
@@ -1261,12 +1258,13 @@ def test_rc_wrong_parent(monkeypatch):
     schedule = invoke.schedule
 
     # Make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
+    loop = schedule.walk(LFRicLoop)[0]
+    monkeypatch.setattr(loop, "_parent", schedule.walk(LFRicHaloExchange)[0])
 
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4], {"depth": 1})
+        rc_trans.apply(loop, {"depth": 1})
     assert ("the parent of the supplied loop must be the LFRicInvokeSchedule, "
             "or a Loop") in str(excinfo.value)
 
@@ -1296,16 +1294,20 @@ def test_rc_parent_loop_colour(monkeypatch):
     # Create colour transformation
     ctrans = LFRicColourTrans()
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    loop = schedule.walk(LFRicLoop)[0]
+    ctrans.apply(loop)
+    # A new outer loop (plus other assignments) will have been added.
+    loop = schedule.walk(LFRicLoop)[0]
 
     # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
+    monkeypatch.setattr(loop, "_parent",
+                        schedule.walk(LFRicHaloExchange)[0])
 
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(loop.loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the LFRicInvokeSchedule"
             in str(excinfo.value))
@@ -1313,25 +1315,24 @@ def test_rc_parent_loop_colour(monkeypatch):
     # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
     # exception is encountered before the previous one.
-    monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
+    monkeypatch.setattr(loop, "_loop_type", "cells")
 
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(loop.loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
     # Make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
-                        "cells")
+    monkeypatch.setattr(loop.loop_body[0], "_loop_type", "cells")
 
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(loop.loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'cells_in_colour'"
             in str(excinfo.value))
@@ -1353,11 +1354,11 @@ def test_rc_unsupported_loop_type(monkeypatch):
     # Create colour transformation
     ctrans = LFRicColourTrans()
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     # Make the loop type invalid
-    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
-                        "invalid")
+    loop = schedule.walk(LFRicLoop)[0]
+    monkeypatch.setattr(loop.loop_body[0], "_loop_type", "invalid")
 
     rc_trans = LFRicRedundantComputationTrans()
 
@@ -1367,7 +1368,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(loop.loop_body[0], {"depth": 1})
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
@@ -1387,11 +1388,11 @@ def test_rc_colour_no_loop_decrease():
     # Create our colour transformation
     ctrans = LFRicColourTrans()
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     rc_trans = LFRicRedundantComputationTrans()
     # First set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[4].loop_body[0]
+    loop = schedule.walk(LFRicLoop)[0].loop_body[0]
     rc_trans.apply(loop, {"depth": 2})
     # Now try to reduce the redundant computation to the level 1 halo
     with pytest.raises(TransformationError) as excinfo:
@@ -1423,12 +1424,13 @@ def test_rc_colour(tmpdir):
     # Create our colour transformation
     ctrans = LFRicColourTrans()
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
+    loop = schedule.walk(LFRicLoop)[0]
 
     # Create our redundant computation transformation
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop
-    rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 2})
+    rc_trans.apply(loop.loop_body[0], {"depth": 2})
 
     result = str(psy.gen)
 
@@ -1472,13 +1474,14 @@ def test_rc_max_colour(tmpdir):
     # Create our colour transformation
     ctrans = LFRicColourTrans()
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
+    cloop = schedule.walk(LFRicLoop)[0]
 
     # Create our redundant computation transformation
     rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(schedule.children[4].loop_body[0])
+    rc_trans.apply(cloop.loop_body[0])
 
     result = str(psy.gen)
     assert (
