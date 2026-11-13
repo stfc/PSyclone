@@ -14,7 +14,8 @@ import fparser
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.lfric import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -323,7 +324,10 @@ def test_field_prolong(tmpdir, dist_mem):
         expected = (
             "    if (field2_proxy%is_dirty(depth=1)) then\n"
             "      call field2_proxy%halo_exchange(depth=1)\n"
-            "    end if\n"
+            "    end if\n\n"
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
+            "    loop0_stop = mesh_field2%get_last_halo_cell(1)\n"
             "    do cell = loop0_start, loop0_stop, 1\n")
         assert expected in code
     else:
@@ -446,15 +450,15 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "    end if\n"
                 "    if (field2_proxy%is_dirty(depth=2)) then\n"
                 "      call field2_proxy%halo_exchange(depth=2)\n"
-                "    end if\n"
-                "    do cell = loop0_start, loop0_stop, 1\n")
+                "    end if\n\n"
+                "    ! Set-up all of the loop bounds\n")
         else:
             halo_exchs = (
                 "    ! Call kernels and communication routines\n"
                 "    if (field2_proxy%is_dirty(depth=2)) then\n"
                 "      call field2_proxy%halo_exchange(depth=2)\n"
-                "    end if\n"
-                "    do cell = loop0_start, loop0_stop, 1\n")
+                "    end if\n\n"
+                "    ! Set-up all of the loop bounds\n")
         assert halo_exchs in output
 
     # We pass the whole dofmap for the fine mesh (we are reading from).
@@ -582,8 +586,8 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "    end if\n"
             "    if (cmap_fld_c_proxy%is_dirty(depth=1)) then\n"
             "      call cmap_fld_c_proxy%halo_exchange(depth=1)\n"
-            "    end if\n"
-            "    do cell = loop0_start, loop0_stop, 1")
+            "    end if\n\n"
+            "    ! Set-up all of the loop bounds\n")
         assert expected in output
         assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
@@ -668,10 +672,9 @@ def test_fine_halo_read():
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    hexch = schedule.children[5]
-    assert isinstance(hexch, LFRicHaloExchange)
+    hexch = schedule.walk(LFRicHaloExchange)[3]
     assert hexch._compute_halo_depth().value == '2'
-    call = schedule.children[6]
+    call = hexch.following_node()
     field = call.args[1]
     hra = HaloReadAccess(field, schedule)
     assert hra._var_depth.debug_string() == "2 * 1"
@@ -760,7 +763,6 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     assert expected in output
     # Check an example of restrict loop and all upper loop bounds
     expected = (
-        "    ! Call kernels and communication routines\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call restrict_kernel_code(nlayers_fld_m, "
         "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
@@ -782,10 +784,14 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     otrans = LFRicOMPParallelLoopTrans()
     ctrans = LFRicColourTrans()
     # Apply OMP to the first restrict kernel.
-    otrans.apply(schedule[0])
+    kerns = schedule.walk(LFRicKern)
+    outer_loop = kerns[0].ancestor(LFRicLoop)
+    otrans.apply(outer_loop)
     # Apply colouring and OMP to the first prolong kernel
-    ctrans.apply(schedule[4])
-    otrans.apply(schedule[4].loop_body[0])
+    outer_loop = kerns[2].ancestor(LFRicLoop)
+    ctrans.apply(outer_loop)
+    inner_loop = kerns[2].ancestor(LFRicLoop)
+    otrans.apply(inner_loop)
     output = str(psy.gen)
     expected = (
         "    !$omp parallel do default(shared) private(cell) "
@@ -798,7 +804,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "    do colour = loop2_start, loop2_stop, 1\n"
         "      !$omp parallel do default(shared) private(cell) "
         "schedule(static)\n"
-        "      do cell = loop3_start, "
+        "      do cell = loop3_start_1, "
         "last_halo_cell_all_colours_fld_c(colour,1), 1\n"
         "        call prolong_test_kernel_code")
     assert expected in output

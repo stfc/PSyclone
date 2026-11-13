@@ -245,8 +245,8 @@ def test_field_deref(tmpdir, dist_mem):
             "    end if\n"
             "    if (est_m2_proxy%is_dirty(depth=1)) then\n"
             "      call est_m2_proxy%halo_exchange(depth=1)\n"
-            "    end if\n"
-            "    do cell = loop0_start, loop0_stop, 1\n"
+            "    end if\n\n"
+            "    ! Set-up all of the loop bounds\n"
         )
         assert output in generated_code
     else:
@@ -487,10 +487,6 @@ f6, m5, m6, m7)
         "    ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
         "    undf_any_w2 = m7_proxy%vspace%get_undf()\n"
         "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
-        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "\n"
         "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -528,6 +524,10 @@ f6, m5, m6, m7)
         "    if (m7_proxy%is_dirty(depth=1)) then\n"
         "      call m7_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
+        "\n"
+        "    ! Set-up all of the loop bounds\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
@@ -910,14 +910,20 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert "type(quadrature_face_type), intent(in) :: qr_face\n" in code
 
     expected = """
-    real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_wchi_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_wchi_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_ads1_f3__1_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_ads1_f3__1_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_ads1_f3__1_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_ads1_f3__1_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w2_qr_xyoz
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w2_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+diff_basis_wchi_qr_xyoz
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+diff_basis_wchi_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+basis_ads1_f3__1_qr_xyoz
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+diff_basis_ads1_f3__1_qr_xyoz
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+basis_ads1_f3__1_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: \
+diff_basis_ads1_f3__1_qr_face
 """
     for line in expected.split("\n"):
         assert line in code, line

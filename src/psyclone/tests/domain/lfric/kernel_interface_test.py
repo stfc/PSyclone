@@ -63,7 +63,7 @@ def test_generate(var_accesses):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel0 = schedule[0].loop_body[0]
+    kernel0 = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel0)
     kernel_interface.generate(var_accesses=var_accesses)
     # Check symbols
@@ -244,7 +244,7 @@ def test_field_vector(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     vector_arg = kernel.args[1]
     kernel_interface.field_vector(vector_arg)
 
@@ -293,7 +293,7 @@ def test_field(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     field_arg = kernel.args[1]
     kernel_interface.field(field_arg)
 
@@ -372,7 +372,7 @@ def test_operator():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     operator_arg = kernel.args[0]
     kernel_interface.operator(operator_arg)
 
@@ -447,7 +447,7 @@ def test_scalar(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     scalar_arg = kernel.args[1]
     kernel_interface = KernelInterface(None)
     kernel_interface.scalar(scalar_arg)
@@ -563,7 +563,7 @@ def test_basis_xyoz():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
 
     # "w1" requires a basis function and is the first entry in the
     # unique function spaces list
@@ -624,7 +624,7 @@ def test_basis_face():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
 
     # "w1" requires a basis function and is the first entry in the
     # unique function spaces list
@@ -683,7 +683,7 @@ def test_basis_edge():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
 
     # "w1" requires a basis function and is the first entry in the
     # unique function spaces list
@@ -744,7 +744,7 @@ def test_diff_basis():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
 
     # "w2" requires a diff basis function and is the second entry in the
     # unique function spaces list
@@ -805,7 +805,7 @@ def test_field_bcs_kernel(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     kernel_interface.field_bcs_kernel(None)
     fld_name = kernel.arguments.args[0].name
@@ -842,7 +842,7 @@ def test_field_bcs_kernel_errors(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     with pytest.raises(InternalError) as err:
         kernel_interface.field_bcs_kernel(None)
@@ -855,7 +855,7 @@ def test_field_bcs_kernel_errors(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     # Monkeypatch the argument so that it appears to be on the wrong space.
     monkeypatch.setattr(
         kernel.arguments._args[0]._function_spaces[0],
@@ -917,7 +917,7 @@ def test_quad_rule_xyoz():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     kernel_interface.quad_rule()
 
@@ -972,7 +972,7 @@ def test_quad_rule_face():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     kernel_interface.quad_rule()
 
@@ -1015,7 +1015,7 @@ def test_quad_rule_edge():
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     kernel_interface.quad_rule()
 
@@ -1059,7 +1059,7 @@ def test_quad_rule_error(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
     # Force an unsupported shape
     monkeypatch.setattr(kernel, "_qr_rules", ["invalid_shape"])
@@ -1081,7 +1081,7 @@ def test_create_basis_errors(monkeypatch):
     psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule[0].loop_body[0]
+    kernel = schedule.kernels()[0]
     kernel_interface = KernelInterface(kernel)
 
     # "w1" requires a basis function and is the first entry in the

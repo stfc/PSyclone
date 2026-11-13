@@ -20,7 +20,7 @@ from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
-from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 
 
@@ -174,10 +174,6 @@ def test_field_xyoz(tmpdir):
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
-        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "\n"
         "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -191,6 +187,10 @@ def test_field_xyoz(tmpdir):
         "    if (m2_proxy%is_dirty(depth=1)) then\n"
         "      call m2_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
+        "\n"
+        "    ! Set-up all of the loop bounds\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
@@ -390,13 +390,9 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n")
+        "\n")
     if dist_mem:
         init_output2 += (
-            "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "\n"
             "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
@@ -409,9 +405,15 @@ def test_face_qr(tmpdir, dist_mem):
             "    end if\n"
             "    if (m2_proxy%is_dirty(depth=1)) then\n"
             "      call m2_proxy%halo_exchange(depth=1)\n"
-            "    end if\n")
+            "    end if\n"
+            "\n"
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
+            "    loop0_stop = mesh%get_last_halo_cell(1)\n")
     else:
         init_output2 += (
+            "    ! Set-up all of the loop bounds\n"
+            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "\n"
             "    ! Call kernels\n")
@@ -456,14 +458,14 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     assert "type(quadrature_face_type), intent(in) :: qr_face\n" in code
     assert "type(quadrature_edge_type), intent(in) :: qr_edge\n" in code
     assert """
-    real(kind=r_def), allocatable :: basis_w1_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w1_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr_edge
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr_edge
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr_edge
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr_face
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr_edge
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr_face
 """ in code
 
     assert """
@@ -605,8 +607,7 @@ def test_lfricbasisfunctions(monkeypatch):
     # a shape it doesn't recognise
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
-    call = sched.children[0].loop_body[0]
-    assert isinstance(call, LFRicKern)
+    call = sched.walk(LFRicKern)[0]
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
         _ = LFRicBasisFunctions(invoke)
@@ -622,8 +623,7 @@ def test_lfricbasisfns_setup(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    call = sched.children[0].loop_body[0]
-    assert isinstance(call, LFRicKern)
+    call = sched.walk(LFRicKern)[0]
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created an LFRicBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
@@ -671,9 +671,6 @@ def test_lfricbasisfns_compute(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
-    # Add an expected symbol to the internal table.
-    dinf.symtab.add(DataSymbol("dim1", ScalarType.integer_type()),
-                    tag="dim:w1")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -699,9 +696,6 @@ def test_lfricbasisfns_dealloc(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    call = sched.children[0].loop_body[0]
-    assert isinstance(call, LFRicKern)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
@@ -720,7 +714,7 @@ def test_lfrickern_setup(monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     # Get hold of an LFRicKern object
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[4].loop_body[0]
+    kern = schedule.walk(LFRicKern)[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
     monkeypatch.setattr(CodedKern, "__init__",

@@ -10,10 +10,9 @@
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import FunctionSpace, LFRicConstants
+from psyclone.domain.lfric import FunctionSpace, LFRicConstants, LFRicLoop
 from psyclone.domain.lfric.lfric_global_reductions import (
     LFRicGlobalMax, LFRicGlobalSum)
-from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
@@ -115,10 +114,10 @@ def test_lfricinvoke_global_reductions():
     '''
     _, invoke = get_invoke("15.9.2_X_innerproduct_X_builtin.f90", idx=0,
                            api=TEST_API, dist_mem=True)
-    assert isinstance(invoke.schedule[1], LFRicGlobalSum)
+    assert isinstance(invoke.schedule[-1], LFRicGlobalSum)
     _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", idx=0,
                            api=TEST_API, dist_mem=True)
-    assert isinstance(invoke.schedule[4], LFRicGlobalMax)
+    assert isinstance(invoke.schedule[-1], LFRicGlobalMax)
 
 
 def test_lfricinvoke_setup_psy_layer_symbols(monkeypatch, dist_mem):
@@ -134,7 +133,7 @@ def test_lfricinvoke_setup_psy_layer_symbols(monkeypatch, dist_mem):
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
-        if isinstance(child, Loop):
+        if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
     # Apply an OpenMP Parallel for all loops
     rtrans.apply(schedule.children[0:2])

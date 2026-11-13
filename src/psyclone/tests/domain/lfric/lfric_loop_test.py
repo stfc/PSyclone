@@ -129,7 +129,7 @@ def test_lower_bound_psyir_1():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    my_loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     my_loop.set_lower_bound("inner", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop.lower_bound_psyir()
@@ -145,7 +145,7 @@ def test_lower_bound_psyir_2(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    my_loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     # We can not use the standard set_lower_bound function as that
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value="invalid")
@@ -164,10 +164,9 @@ def test_lower_bound_psyir_3(monkeypatch, name, index, output):
     ''' Test 'lower_bound_psyir()' with multiple valid iteration spaces.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, dist_mem=True,
+                           idx=0)
+    my_loop = invoke.schedule.walk(LFRicLoop)[0]
     # We can not use the standard set_lower_bound function as that
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
@@ -209,36 +208,29 @@ def test_mesh_name_intergrid():
 def test_lower_to_language_normal_loop():
     ''' Test that we can call lower_to_language_level on a normal
     (i.e. not a domain) LFRicLoop. The new loop type should not be a
-    LFRicLoop anymore, but a Loop. Additionally, also test that
-    without lowering the symbols (for start and stop expressions)
-    will change if the loop order is modified, but after lowering
-    the symbols should not change anymore.
+    LFRicLoop anymore, but a Loop.
+
     '''
-
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
                            dist_mem=False, idx=0)
     sched = invoke.schedule
-    loop1 = sched.children[1]
-    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
-
-    # The same test with the lowered schedule should not change the
-    # symbol anymore:
-    _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
-                           dist_mem=False, idx=0)
-    # Now lower the loop:
-    sched = invoke.schedule
-    # Verify that we have the right node:
-    assert isinstance(sched.children[1], LFRicLoop)
+    loop1 = sched.walk(LFRicLoop)[1]
+    assert loop1.start_expr.symbol.name == "loop1_start"
+    all_loops = sched.walk(Loop)
+    for idx, loop in enumerate(all_loops):
+        if loop1 is loop:
+            break
     sched.lower_to_language_level()
-    loop1 = sched.children[1]
-    assert not isinstance(loop1, LFRicLoop)
-    assert isinstance(loop1, Loop)
+    # After lowering, there should be no LFRicLoop nodes.
+    assert not sched.walk(LFRicLoop)
+    lowered_loops = sched.walk(Loop)
+    assert len(all_loops) == len(lowered_loops)
 
     # Verify that after lowering the symbol name does not change
-    # anymore if a previous loop is removed:
-    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
-    sched.children.pop(0)
-    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
+    # if a previous loop is removed:
+    assert lowered_loops[idx].start_expr.symbol.name == "loop1_start"
+    lowered_loops[0].detach()
+    assert lowered_loops[idx].start_expr.symbol.name == "loop1_start"
 
 
 def test_lower_to_language_domain_loops():
@@ -250,11 +242,13 @@ def test_lower_to_language_domain_loops():
     sched = invoke.schedule
 
     # The lowering converts the loops into a single calls
-    assert isinstance(sched.children[0], LFRicLoop)
-    assert isinstance(sched.children[1], LFRicLoop)
+    loop_indices = [idx for idx, loop in enumerate(sched.children)
+                    if isinstance(loop, LFRicLoop)]
+    assert len(loop_indices) == 2
     sched.lower_to_language_level()
-    assert isinstance(sched.children[0], Call)
-    assert isinstance(sched.children[1], Call)
+    assert not sched.walk(LFRicLoop)
+    assert isinstance(sched.children[loop_indices[0]], Call)
+    assert isinstance(sched.children[loop_indices[1]], Call)
 
 
 def test_lower_to_language_domain_loops_multiple_statements():
@@ -264,12 +258,12 @@ def test_lower_to_language_domain_loops_multiple_statements():
                            dist_mem=False)
     sched = invoke.schedule
     # Force the two statements to be inside the same loop
-    loop1 = sched.children[1].detach()
+    loops = sched.walk(LFRicLoop)
+    loop1 = loops[1].detach()
     kern = loop1.loop_body.children[0].detach()
-    sched.children[0].loop_body.children.insert(1, kern)
+    loops[0].loop_body.children.insert(1, kern)
     sched.lower_to_language_level()
-    assert len(sched.children) == 2
-    assert all(isinstance(child, Call) for child in sched.children)
+    assert all(isinstance(child, Call) for child in sched.children[-2:])
 
 
 def test_lfricloop_load_unexpected_func_space():
@@ -288,7 +282,7 @@ def test_lfricloop_load_unexpected_func_space():
     # now get access to the LFRicLoop class, the associated kernel class
     # and the associated field.
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     field = kernel.arguments.iteration_space_arg()
     # break the fields function space
@@ -427,7 +421,7 @@ def test_unsupported_halo_read_access():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # get access to the LFRicLoop object
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     # access to the argument that has a stencil access in the kernel
     kernel = loop.loop_body[0]
     stencil_arg = kernel.arguments.args[1]
@@ -694,7 +688,7 @@ def test_lfricloop_halo_read_access_error1(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule[4]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     field = kernel.arguments.args[1]
     monkeypatch.setattr(field, "_access", "unsupported")
@@ -713,7 +707,7 @@ def test_lfricloop_halo_read_access_error2(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule[4]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     field = kernel.arguments.args[1]
     monkeypatch.setattr(field, "_argument_type", "unsupported")
@@ -864,7 +858,7 @@ def test_upper_bound_psyir_invalid_bound():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    my_loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     for option in ["cell_halo", "dof_halo", "inner"]:
         my_loop.set_upper_bound(option, halo_depth=1)
         with pytest.raises(GenerationError) as excinfo:
@@ -882,7 +876,7 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    my_loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop.upper_bound_psyir()
@@ -948,7 +942,7 @@ def test_upper_bound_psyir_inner(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    my_loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
     ubound = my_loop.upper_bound_psyir()
     assert "mesh%get_last_inner_cell(1)" in ubound.debug_string()

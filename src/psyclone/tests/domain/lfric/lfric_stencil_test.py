@@ -14,7 +14,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicStencils)
+                                   LFRicKernMetadata, LFRicLoop, LFRicStencils)
 from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -1610,7 +1610,7 @@ def test_stencil_extent_specified():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[4].loop_body[0]
+    kernel = schedule.walk(LFRicLoop)[0].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1

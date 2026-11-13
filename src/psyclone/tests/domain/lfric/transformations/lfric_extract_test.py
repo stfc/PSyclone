@@ -12,9 +12,11 @@ import re
 
 import pytest
 
+from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import ExtractNode, Loop
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicLoop
+from psyclone.psyGen import BuiltIn, HaloExchange
+from psyclone.psyir.nodes import Directive, ExtractNode, Loop
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -96,10 +98,10 @@ def test_distmem_error():
     _, invoke = get_invoke("1_single_invoke.f90", LFRIC_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-
+    hexch_posn = schedule.walk(HaloExchange)[0].position
     # Try applying Extract transformation to Node(s) containing HaloExchange
     with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(schedule.children[2:4])
+        etrans.apply(schedule.children[hexch_posn:])
     assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
@@ -107,7 +109,7 @@ def test_distmem_error():
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            LFRIC_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    glob_sum = schedule.children[2]
+    glob_sum = schedule.walk(GlobalReduction)[0]
 
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(glob_sum)
@@ -144,7 +146,7 @@ def test_kern_builtin_no_loop():
                            LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Test Built-in call
-    builtin_call = schedule.children[1].loop_body[0]
+    builtin_call = schedule.walk(BuiltIn)[1]
     with pytest.raises(TransformationError) as excinfo:
         lfricetrans.apply(builtin_call)
     assert "Error in LFRicExtractTrans: Application to a Kernel or a " \
@@ -164,11 +166,11 @@ def test_loop_no_directive_lfric():
     schedule = invoke.schedule
     # Apply LFRicOMPParallelLoopTrans to the second Loop
     otrans = LFRicOMPParallelLoopTrans()
-    otrans.apply(schedule[1])
-    loop = schedule.children[1].dir_body[0]
+    loop2 = schedule.walk(LFRicLoop)[1]
+    otrans.apply(loop2)
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(loop)
+        etrans.apply(loop2)
     assert "Error in LFRicExtractTrans: Application to a Loop without its " \
            "parent Directive is not allowed." in str(excinfo.value)
 
@@ -188,11 +190,12 @@ def test_no_colours_loop_lfric():
 
     # Colour first loop that calls testkern_code (loop is over cells and
     # is not on a discontinuous space)
-    ctrans.apply(schedule.children[0])
-    colour_loop = schedule.children[0].loop_body[0]
+    loop = schedule.walk(LFRicLoop)[0]
+    ctrans.apply(loop)
+    colour_loop = schedule.walk(Loop)[0].loop_body[0]
     # Apply OMP Parallel DO Directive to the colour Loop
     otrans.apply(colour_loop)
-    directive = schedule[0].loop_body
+    directive = colour_loop.ancestor(Directive)
     # Try to extract the region between the Loop over cells in a colour
     # and the exterior Loop over colours
     with pytest.raises(TransformationError) as excinfo:
@@ -219,7 +222,7 @@ def test_extract_node_position():
     # Apply Extract transformation to the first three Nodes and assert that
     # position and the absolute position of the ExtractNode are the same as
     # respective positions of the first Node before the transformation.
-    pos = 0
+    pos = schedule.walk(LFRicLoop)[0].position
     children = schedule.children[pos:pos+3]
     abspos = children[0].abs_position
     dpth = children[0].depth
@@ -239,7 +242,8 @@ def test_extract_node_representation():
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", LFRIC_API,
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    children = schedule.children[1:3]
+    loop_idx = schedule.walk(LFRicLoop)[1].position
+    children = schedule.children[loop_idx:loop_idx+2]
     etrans.apply(children)
 
     # Test view() method
@@ -271,7 +275,7 @@ def test_single_node_lfric():
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    etrans.apply(schedule.children[0])
+    etrans.apply(schedule.walk(LFRicLoop)[0])
     code = str(psy.gen)
     output = '''\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
@@ -375,8 +379,8 @@ def test_node_list_lfric():
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-
-    etrans.apply(schedule.children[0:3])
+    pos = schedule.walk(LFRicLoop)[0].position
+    etrans.apply(schedule.children[pos:pos+3])
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
@@ -459,8 +463,8 @@ def test_lfric_builtin():
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-
-    etrans.apply(schedule.children[0:3])
+    pos = schedule.walk(LFRicLoop)[0].position
+    etrans.apply(schedule.children[pos:pos+3])
     code = str(psy.gen)
 
     output = """
@@ -549,7 +553,7 @@ def test_extract_single_builtin_lfric():
                              LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    etrans.apply(schedule.children[1])
+    etrans.apply(schedule.walk(LFRicLoop)[1])
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
@@ -584,8 +588,10 @@ def test_extract_single_builtin_lfric():
                              LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    otrans.apply(schedule.children[1])
-    etrans.apply(schedule.children[1])
+    loop1 = schedule.walk(LFRicLoop)[1]
+    pos = loop1.position
+    otrans.apply(loop1)
+    etrans.apply(schedule.children[pos])
     code_omp = str(psy.gen)
     expected = """\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
@@ -625,8 +631,8 @@ def test_extract_kernel_and_builtin_lfric():
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              LFRIC_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-
-    etrans.apply(schedule.children[1:3])
+    loop_pos = schedule.walk(LFRicLoop)[1].position
+    etrans.apply(schedule.children[loop_pos:loop_pos+2])
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy",\
@@ -707,23 +713,29 @@ def test_extract_colouring_omp_lfric():
 
     # First colour all of the loops over cells unless they are on
     # discontinuous spaces
-    for child in schedule.children:
+    for child in schedule.children[:]:
         if (isinstance(child, Loop) and child.field_space.orig_name
             not in const.VALID_DISCONTINUOUS_NAMES and
                 child.iteration_space.endswith("cell_column")):
             ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
-    for child in schedule.children:
+    for child in schedule.children[:]:
         if isinstance(child, Loop):
             if child.loop_type == "colours":
                 otrans.apply(child.loop_body[0])
             else:
                 otrans.apply(child)
 
-    # Extract the second instance of ru_kernel_type after colouring
+    # Extract the first instance of ru_kernel_type after colouring
     # and OpenMP are applied
-    child = schedule.children[2]
-    etrans.apply(child)
+    for child in schedule.walk(LFRicKern):
+        if child.name == "ru_code":
+            indices = child.path_from(schedule)
+#    child = schedule.children[2]
+            etrans.apply(schedule.children[indices[0]])
+            break
+    else:
+        assert 0
 
     code = str(psy.gen)
     output = """
@@ -746,8 +758,8 @@ diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("istp", istp)
     CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
 last_edge_cell_all_colours)
-    CALL extract_psy_data % PreDeclareVariable("loop4_start", loop4_start)
-    CALL extract_psy_data % PreDeclareVariable("loop4_stop", loop4_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop4_start_1", loop4_start_1)
+    CALL extract_psy_data % PreDeclareVariable("loop4_stop_1", loop4_stop_1)
     CALL extract_psy_data % PreDeclareVariable("loop5_start", loop5_start)
     CALL extract_psy_data % PreDeclareVariable("map_w0", map_w0)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
@@ -813,8 +825,8 @@ diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("istp", istp)
     CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
 last_edge_cell_all_colours)
-    CALL extract_psy_data % ProvideVariable("loop4_start", loop4_start)
-    CALL extract_psy_data % ProvideVariable("loop4_stop", loop4_stop)
+    CALL extract_psy_data % ProvideVariable("loop4_start_1", loop4_start_1)
+    CALL extract_psy_data % ProvideVariable("loop4_stop_1", loop4_stop_1)
     CALL extract_psy_data % ProvideVariable("loop5_start", loop5_start)
     CALL extract_psy_data % ProvideVariable("map_w0", map_w0)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
@@ -832,7 +844,7 @@ last_edge_cell_all_colours)
     CALL extract_psy_data % ProvideVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr", weights_z_qr)
     CALL extract_psy_data % PreEnd
-    do colour = loop4_start, loop4_stop, 1
+    do colour = loop4_start_1, loop4_stop_1, 1
       !$omp parallel do default(shared) private(cell) schedule(static)
       do cell = loop5_start, last_edge_cell_all_colours(colour), 1
         call ru_code(nlayers_b, b_data, a_data, istp, rdt, c_data, e_1_data, \

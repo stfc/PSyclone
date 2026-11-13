@@ -87,10 +87,9 @@ def test_scalar_kernel_load_meta_err():
 
 def test_kern_getter_errors():
     ''' Tests for error conditions in the getter properties of LFRicKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, dist_mem=True,
+                           idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
@@ -120,7 +119,7 @@ def test_kern_get_callees(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
-    kernel = schedule[2].loop_body[0]
+    kernel = schedule.walk(LFRicKern)[0]
 
     assert kernel._schedules is None
 
@@ -251,7 +250,7 @@ def test_validate_kernel_code_args(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
-    kernel = schedule[2].loop_body[0]
+    kernel = schedule.walk(LFRicKern)[0]
     schedules = kernel.get_callees()
     sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
