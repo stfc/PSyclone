@@ -549,14 +549,15 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
-    loop = nodes[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rtrans = LFRicRedundantComputationTrans()
     rtrans.apply(loop, options={"depth": 1})
-    f1_field = loop.field
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f1_field = nodes[0].field
+    # Delete the first halo exchange (for f1)
     del schedule.children[nodes[0].position]
-    nodes[1].field._name = "f1"
     nodes[2].field._name = "f1"
+    nodes[3].field._name = "f1"
     with pytest.raises(InternalError) as info:
         loop._add_field_component_halo_exchange(f1_field)
     assert ("When replacing a halo exchange with another one for field f1, "
@@ -583,7 +584,8 @@ def test_gh_readinc(tmpdir):
     # and after a GH_INC access to a field (f1).
     # Also check that 'check_dirty == False' and 'depth == 1' in the
     # halo exchange.
-    f1_hex = schedule[3]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f1_hex = nodes[3]
     assert isinstance(f1_hex, LFRicHaloExchange)
     assert f1_hex.field.name == "f1"
     _, known = f1_hex.required()
@@ -608,7 +610,8 @@ def test_stencil_then_w3_read(tmpdir):
                     api=API)
     psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    f4_hex = schedule.children[1]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f4_hex = nodes[1]
     assert isinstance(f4_hex, LFRicHaloExchange)
     assert f4_hex.field.name == "f4"
 

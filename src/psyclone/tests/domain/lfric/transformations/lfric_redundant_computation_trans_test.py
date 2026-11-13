@@ -43,9 +43,10 @@ def test_rc_node_not_loop():
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
+    hexch = schedule.walk(LFRicHaloExchange)[0]
     rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[0])
+        rc_trans.apply(hexch)
     assert ("Target of LFRicRedundantComputationTrans transformation must "
             "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
@@ -58,7 +59,7 @@ def test_rc_invalid_loop(monkeypatch):
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
@@ -75,7 +76,7 @@ def test_rc_nodm():
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the LFRicRedundantComputation transformation apply method "
@@ -134,7 +135,7 @@ def test_rc_invalid_depth():
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     # TODO #2668: remove options dictionary.
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
@@ -155,7 +156,7 @@ def test_rc_invalid_depth_type():
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans = LFRicRedundantComputationTrans()
     # TODO #2668: Deprecate options dictionary
     with pytest.raises(TypeError) as excinfo:
@@ -183,7 +184,7 @@ def test_rc_invalid_depth_continuous():
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     # TODO #2668: Deprecate options dictionary.
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 1})
@@ -210,7 +211,7 @@ def test_rc_continuous_depth():
     for do_test in (1, 2):
         psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                                  idx=0, dist_mem=True)
-        loop = invoke.schedule.children[4]
+        loop = invoke.schedule.walk(LFRicLoop)[0]
         if do_test == 1:
             # TODO #2668: Deprecate options dictionary
             rc_trans.apply(loop, {"depth": 3})
@@ -240,7 +241,7 @@ def test_rc_continuous_no_depth():
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -272,13 +273,7 @@ def test_rc_discontinuous_depth(tmpdir, annexed):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    if annexed:
-        # there are no halo exchange calls
-        index = 0
-    else:
-        # there are 3 halo exchange calls
-        index = 3
-    loop = schedule.children[index]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     for field_name in ["f1", "f2", "m1"]:
@@ -306,13 +301,7 @@ def test_rc_discontinuous_no_depth(annexed):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    if annexed:
-        # there are no halo exchange calls
-        index = 0
-    else:
-        # there are 3 halo exchange calls
-        index = 3
-    loop = schedule.children[index]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -337,7 +326,7 @@ def test_rc_all_discontinuous_depth(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
@@ -360,7 +349,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -383,7 +372,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
 
@@ -409,7 +398,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
     for idx in range(1, 4):
@@ -437,7 +426,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[1]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     assert "if (f1_proxy%is_dirty(depth=3)) then" not in result
