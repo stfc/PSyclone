@@ -1,4 +1,6 @@
-   84) #3669 - update the version of LFRic in the integration tests.
+   85) #3620. Harden the validation of IncreaseRankLoopArrayTrans.
+
+   84) #3669. Update the version of LFRic in the integration tests.
  
    83) #3344 for #2202. Updates the generation of Fortran output to respect
    dependencies in variable declarations.
