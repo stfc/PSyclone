@@ -11,7 +11,6 @@ processes.
 """
 
 import argparse
-from collections import defaultdict
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -177,22 +176,7 @@ class RunPsyclone:
         return matched_files
 
     def _get_files_from_calling_yaml(self, matched_files):
-        self._module_routine_info = defaultdict(set)
-        self._module_symbol_info = defaultdict(set)
-
-        for path in self._input_path.rglob(f"*{suffix}"):
-
-            with path.open("r", encoding="utf8") as stream:
-                info = yaml.safe_load(stream)
-
-            for module_name, module_info in info.items():
-                self._module_routine_info[module_name].update(module_info["routines"])
-                self._module_symbol_info[module_name].update(module_info["symbols"])
-
-        mod_man = ModuleManager()
-        for module in self._module_routine_info:
-            mod_info = mod_man.get_module_info(module)
-            file_path = Path(mod_info.filename)
+        pass
 
     def _execute_psyclone(
             self,
