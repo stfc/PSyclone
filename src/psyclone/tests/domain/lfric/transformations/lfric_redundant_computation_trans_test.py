@@ -241,7 +241,7 @@ def test_rc_continuous_no_depth():
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.walk(LFRicLoop)[4]
+    loop = schedule.walk(LFRicLoop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -426,7 +426,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.walk(LFRicLoop)[0]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     assert "if (f1_proxy%is_dirty(depth=3)) then" not in result
@@ -451,7 +451,7 @@ def test_rc_all_disc_prev_depend_no_depth():
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[1]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
     assert "call f1_proxy%set_dirty()" in result
@@ -475,7 +475,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[1]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     for idx in range(1, 4):
@@ -502,7 +502,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[1]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
     assert "is_dirty" not in result
@@ -529,7 +529,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule[1]
+    loop = schedule.walk(LFRicLoop)[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
     # f3 has readwrite access so need to check the halos
