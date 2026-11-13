@@ -1,0 +1,402 @@
+"""Tests for the PSyclone control-file discovery script."""
+
+import sys
+
+import pytest
+
+from psyclone.scripts import run_psyclone
+from psyclone.scripts.psyclone_control import PsyclonePhase
+from psyclone.scripts.run_psyclone import RunPsyclone
+
+
+def test_init_rejects_invalid_nprocs(tmp_path):
+    """Check the runner requires at least one worker process."""
+    with pytest.raises(ValueError, match="nprocs must be at least 1"):
+        RunPsyclone(tmp_path, [], nprocs=0)
+
+
+def test_main_passes_psyclone_options(tmp_path, monkeypatch):
+    """Check whitespace-separated CLI options reach psyclone_main."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source_file = source_dir / "input.x90"
+    source_file.touch()
+    output_dir = tmp_path / "output"
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  file_pattern: "*.x90"
+  no_script:
+    files: "*"
+""",
+        encoding="utf-8",
+    )
+    psyclone_args = []
+    # pylint: disable=unnecessary-lambda
+    monkeypatch.setattr(
+        run_psyclone, "psyclone_main",
+        lambda args: psyclone_args.extend(args),
+    )
+
+    run_psyclone.main([
+        "--input", str(source_dir),
+        "--output", str(output_dir),
+        "--psyclone-options=--verbose -l all",
+        str(control_file),
+    ])
+
+    assert psyclone_args[-4:] == [
+        "--verbose", "-l", "all", str(source_file.with_suffix(".xu90")),
+    ]
+
+
+def test_main_rejects_invalid_nprocs(tmp_path, capsys):
+    """Check the command-line parser rejects a non-positive worker count."""
+    with pytest.raises(SystemExit) as err:
+        run_psyclone.main([
+            "--input", str(tmp_path),
+            "--output", str(tmp_path / "output"),
+            "--nprocs", "0",
+            str(tmp_path / "control.yaml"),
+        ])
+
+    assert err.value.code == 2
+    assert "--nprocs must be at least 1" in capsys.readouterr().err
+
+
+def test_main_uses_nprocs_for_phase_workers(tmp_path, monkeypatch):
+    """Check --nprocs sets the process limit for each phase."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source_files = [source_dir / f"input{index}.x90" for index in range(3)]
+    for source_file in source_files:
+        source_file.touch()
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  file_pattern: "*.x90"
+  no_script:
+    files: "*"
+""",
+        encoding="utf-8",
+    )
+    process_limits = []
+    processed_files = []
+
+    # The runner calls result() on each returned future.
+    class CompletedFuture:
+        """
+        Represent a completed submission, required for ImmediateExecutor.
+        """
+
+        @staticmethod
+        def result():
+            """Pretend the submitted work has completed."""
+            return None
+
+    class RecordSubmissions:
+        """Run submitted work inline while recording executor usage."""
+
+        def __init__(self, max_workers):
+            process_limits.append(max_workers)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def submit(self, function, *args):
+            """
+            Simple submit implementation that just records the submitted jobs.
+            """
+            function(*args)
+            processed_files.append(args[0])
+            return CompletedFuture()
+
+    monkeypatch.setattr(
+        run_psyclone, "ProcessPoolExecutor", RecordSubmissions,
+    )
+    monkeypatch.setattr(run_psyclone, "psyclone_main", lambda args: None)
+
+    run_psyclone.main([
+        "--input", str(source_dir),
+        "--output", str(tmp_path / "output"),
+        "--nprocs", "2",
+        str(control_file),
+    ])
+
+    assert process_limits == [2]
+    assert set(processed_files) == set(source_files)
+
+
+def test_execute_psyclone_uses_psykal_output_suffixes(
+        tmp_path, caplog, monkeypatch):
+    """Check PSy and algorithm output filenames derived from output_path."""
+    output_path = tmp_path / "file.x90"
+    caplog.set_level("INFO", logger="psyclone.scripts.run_psyclone")
+    psyclone_args = []
+    # pylint: disable=unnecessary-lambda
+    monkeypatch.setattr(
+        run_psyclone, "psyclone_main",
+        lambda args: psyclone_args.extend(args),
+    )
+
+    runner = RunPsyclone(tmp_path, [])
+    runner._execute_psyclone(
+        tmp_path / "input.x90",
+        output_path,
+        tmp_path / "script.py",
+        {},
+        api="lfric",
+    )
+
+    assert psyclone_args[psyclone_args.index("-opsy") + 1] == str(
+        tmp_path / "file_psy.f90"
+    )
+    assert psyclone_args[psyclone_args.index("-oalg") + 1] == str(
+        tmp_path / "file.f90"
+    )
+
+
+def test_main_passes_kernel_dirs(tmp_path, monkeypatch, capsys):
+    """Check repeated -d options and their help text."""
+    kernel_dirs = [tmp_path / "kernels-a", tmp_path / "kernels-b"]
+    runner_args = {}
+
+    class RecordRunner:
+        """Record the runner arguments provided by main."""
+
+        def __init__(self, _input_path, _control_files, *_args, **kwargs):
+            runner_args.update(kwargs)
+
+        def run(self):
+            """RecordRunner does not process files."""
+
+    monkeypatch.setattr(run_psyclone, "RunPsyclone", RecordRunner)
+
+    run_psyclone.main([
+        "--input", str(tmp_path),
+        "--output", str(tmp_path / "output"),
+        "-d", str(kernel_dirs[0]),
+        "-d", str(kernel_dirs[1]),
+        str(tmp_path / "control.yaml"),
+    ])
+
+    assert runner_args["kernel_dirs"] == kernel_dirs
+
+    with pytest.raises(SystemExit) as err:
+        run_psyclone.main(["--help"])
+
+    assert err.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert (
+        "Path to a root directory structure containing kernel source code. "
+        "Multiple roots can be specified by using multiple -d arguments. "
+        "These directories will be searched recursively."
+    ) in help_text
+
+
+def test_execute_psyclone_adds_kernel_dirs_only_in_psykal_mode(
+        tmp_path, monkeypatch):
+    """Check -d is repeated for each root only in PSyKAl mode."""
+    kernel_dirs = [tmp_path / "kernels-a", tmp_path / "kernels-b"]
+    psyclone_calls = []
+    paths_during_call = []
+
+    def fake_main(args):
+        psyclone_calls.append(args)
+        paths_during_call.append(list(sys.path))
+
+    monkeypatch.setattr(run_psyclone, "psyclone_main", fake_main)
+    runner = RunPsyclone(tmp_path, [], kernel_dirs=kernel_dirs)
+    original_path = list(sys.path)
+    # The transmute case renames the input file to .xu90, so it must exist.
+    (tmp_path / "input.x90").touch()
+
+    runner._execute_psyclone(
+        tmp_path / "input.x90",
+        tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {},
+        api="lfric",
+    )
+    runner._execute_psyclone(
+        tmp_path / "input.x90",
+        tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {},
+    )
+
+    first_dir_option = psyclone_calls[0].index("-d")
+    assert psyclone_calls[0][first_dir_option:first_dir_option + 4] == [
+        "-d", str(kernel_dirs[0]), "-d", str(kernel_dirs[1]),
+    ]
+    assert "-d" not in psyclone_calls[1]
+    # The script's grandparent directory is on sys.path only during each call.
+    for path in paths_during_call:
+        assert path[0] == str(tmp_path)
+        assert path[1:] == original_path
+    assert sys.path == original_path
+
+    # Without a script, sys.path is not modified.
+    (tmp_path / "input.x90").touch()
+    runner._execute_psyclone(tmp_path / "input.x90", tmp_path / "out.x90",
+                             None, {})
+    assert paths_during_call[2] == original_path
+    assert sys.path == original_path
+
+
+def test_run_skips_phase_without_file_pattern(tmp_path, caplog, monkeypatch):
+    """Check phases without a file_pattern are skipped with a warning."""
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  comment: No file pattern
+""",
+        encoding="utf-8",
+    )
+    psyclone_calls = []
+    # pylint: disable=unnecessary-lambda
+    monkeypatch.setattr(
+        run_psyclone, "psyclone_main",
+        lambda args: psyclone_calls.append(args),
+    )
+    caplog.set_level("WARNING", logger="psyclone.scripts.run_psyclone")
+
+    runner = RunPsyclone(tmp_path, [control_file])
+    runner.run()
+
+    assert (
+        "Skipping phase dsl: no file_pattern is configured"
+        in caplog.text
+    )
+    assert not psyclone_calls
+
+
+def test_get_phase_files_rejects_missing_pattern(tmp_path):
+    """Check file discovery requires a configured phase pattern."""
+    phase = PsyclonePhase("dsl", [], tmp_path)
+    runner = RunPsyclone(tmp_path, [])
+
+    with pytest.raises(
+            ValueError,
+            match="Cannot find phase files without a file_pattern"):
+        runner.get_phase_files(phase)
+
+
+def test_run_merges_configs_and_reports_selected_script(
+        tmp_path, capsys, caplog, monkeypatch):
+    """Check ordered merge, YAML output, phase matching, and script lookup."""
+    monkeypatch.setenv("target", ".")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    output_dir = tmp_path / "output"
+    optimisation_dir = tmp_path / "optimisation"
+    (source_dir / "nested").mkdir()
+    (source_dir / "nested" / "file.x90").touch()
+    (source_dir / "nested" / "plain.x90").touch()
+    (source_dir / "nested" / "skip.x90").touch()
+    (source_dir / "ignore.f90").touch()
+    script_path = optimisation_dir / "psykal" / "global.py"
+    script_path.parent.mkdir(parents=True)
+    script_path.touch()
+
+    first_config = tmp_path / "first.yaml"
+    first_config.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  comment: First
+  file_pattern: "*x90"
+  script_dir: "${target}/psykal"
+  global.py:
+    params:
+      offload: true
+    files: "*"
+  no_script:
+      files: "plain.x90"
+  exclude:
+      files: "skip.x90"
+""",
+        encoding="utf-8",
+    )
+    second_config = tmp_path / "second.yaml"
+    second_config.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  comment: Merged
+  api: lfric
+""",
+        encoding="utf-8",
+    )
+
+    caplog.set_level("INFO", logger="psyclone.scripts.run_psyclone")
+    psyclone_calls = []
+    # pylint: disable=unnecessary-lambda
+    monkeypatch.setattr(
+        run_psyclone, "psyclone_main",
+        lambda args: psyclone_calls.append(args),
+    )
+    runner = RunPsyclone(
+        source_dir,
+        [first_config, second_config],
+        optimisation=optimisation_dir,
+        output_path=output_dir,
+    )
+    runner.run()
+
+    stdout = capsys.readouterr().out
+    assert "comment: Merged" in stdout
+    assert "file_pattern: '*x90'" in stdout
+    assert f"Reading control file {first_config}" in caplog.text
+    assert "Phase dsl: found 3 files matching '*x90'" in caplog.text
+    assert f"file.x90 uses script {script_path}" in caplog.text
+    assert "'offload': True" in caplog.text
+    assert "processing" in caplog.text
+    assert "excluding" in caplog.text
+    assert len(psyclone_calls) == 2
+    assert all(
+        call[call.index("-api") + 1] == "lfric"
+        for call in psyclone_calls
+    )
+    assert {call[-1] for call in psyclone_calls} == {
+        str(source_dir / "nested" / "file.x90"),
+        str(source_dir / "nested" / "plain.x90"),
+    }
+    assert any(str(script_path) in call for call in psyclone_calls)
+
+
+def test_execute_psyclone_passes_script_kwargs(tmp_path, monkeypatch):
+    """Check --script-kwargs gets the dictionary content without braces
+    and without additional quotes."""
+    psyclone_args = []
+    monkeypatch.setattr(run_psyclone, "psyclone_main",
+                        lambda args: psyclone_args.extend(args))
+    runner = RunPsyclone(tmp_path, [])
+    runner._execute_psyclone(
+        tmp_path / "input.x90", tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {"key": "value", "num": 2}, api="lfric")
+
+    index = psyclone_args.index("--script-kwargs")
+    assert psyclone_args[index + 1] == "'key': 'value', 'num': 2"
+
+    # No script parameters: the option is not added.
+    psyclone_args.clear()
+    runner._execute_psyclone(
+        tmp_path / "input.x90", tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py", {}, api="lfric")
+    assert "--script-kwargs" not in psyclone_args
