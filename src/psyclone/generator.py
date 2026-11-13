@@ -1006,4 +1006,6 @@ def code_transformation_mode(input_file: str,
                   "FILES_TO_SKIP.", file=sys.stdout)
 
     # TODO #3514: proper cleanup using with
-    del sys.path[0]
+    if script_name:
+        # sys.path was only modified if a script was actually specified.
+        del sys.path[0]

@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import sys
 from typing import Optional
 import pytest
 
@@ -2118,3 +2119,17 @@ def test_script_args_with_no_script(capsys):
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
             "specified using the '--script' option" in err)
+
+
+def test_code_transformation_no_script_keeps_sys_path(tmp_path):
+    '''Test that code_transformation_mode() does not modify sys.path
+    if no script is specified.
+
+    '''
+    inputfile = tmp_path / "input.f90"
+    inputfile.write_text("program test\nend program test\n",
+                         encoding="utf-8")
+    original_path = list(sys.path)
+    code_transformation_mode(str(inputfile), None, str(tmp_path / "out.f90"),
+                             False, False, False)
+    assert sys.path == original_path
