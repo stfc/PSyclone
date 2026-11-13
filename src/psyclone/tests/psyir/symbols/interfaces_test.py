@@ -11,8 +11,9 @@ import pytest
 
 from psyclone.psyir.symbols.interfaces import (
      AutomaticInterface, ArgumentInterface, CommonBlockInterface,
-     DefaultModuleInterface, ImportInterface, PreprocessorInterface,
-     StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
+     DefaultModuleInterface, ExternalInterface, IntrinsicInterface,
+     ImportInterface, PreprocessorInterface, StaticInterface,
+     SymbolInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols import ContainerSymbol
 
 
@@ -264,3 +265,15 @@ def test_preprocessorinterface():
     ''' Test the PreprocessorInterface method.'''
     interface = PreprocessorInterface()
     assert str(interface) == "Preprocessor"
+
+
+def test_intrinsicinterface():
+    ''' Test the IntrinsicInterface method.'''
+    interface = IntrinsicInterface()
+    assert str(interface) == "Intrinsic"
+
+
+def test_externalinterface():
+    ''' Test the ExternalInterface method.'''
+    interface = ExternalInterface()
+    assert str(interface) == "External"

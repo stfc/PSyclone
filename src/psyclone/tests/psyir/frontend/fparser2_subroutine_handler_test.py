@@ -739,3 +739,41 @@ END MODULE test_mod"""
     if "subsub" in psyir.children[0].symbol_table:
         pytest.xfail("TODO #2205: When support for Routines inside Routines"
                      " is added, the symbol will not be propagated")
+
+
+def test_subroutine_contains_intrinsic_decalaration(
+        fortran_reader, fortran_writer
+):
+    '''Test that we get the correct processed nodes when the code contains
+    intrinsic symbols.'''
+    code = """subroutine x
+    intrinsic :: sin, cos
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sin").datatype,
+                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("cos").datatype,
+                      UnsupportedFortranType)
+    assert "intrinsic :: sin" in fortran_writer(psyir)
+    assert "intrinsic :: cos" in fortran_writer(psyir)
+
+
+def test_subroutine_contains_external_declaration(
+        fortran_reader, fortran_writer
+):
+    '''Test that we get the correct processed nodes when the code contains
+    external symbols.'''
+    code = """subroutine y
+    external :: AMPI_INIT_NT, MPI_INIT
+end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("ampi_init_nt").datatype,
+                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("mpi_init").datatype,
+                      UnsupportedFortranType)
+    assert "external :: AMPI_INIT_NT" in fortran_writer(psyir)
+    assert "external :: MPI_INIT" in fortran_writer(psyir)
