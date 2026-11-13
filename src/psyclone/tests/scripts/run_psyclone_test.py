@@ -377,3 +377,26 @@ dsl:
         str(source_dir / "nested" / "plain.x90"),
     }
     assert any(str(script_path) in call for call in psyclone_calls)
+
+
+def test_execute_psyclone_passes_script_kwargs(tmp_path, monkeypatch):
+    """Check --script-kwargs gets the dictionary content without braces
+    and without additional quotes."""
+    psyclone_args = []
+    monkeypatch.setattr(run_psyclone, "psyclone_main",
+                        lambda args: psyclone_args.extend(args))
+    runner = RunPsyclone(tmp_path, [])
+    runner._execute_psyclone(
+        tmp_path / "input.x90", tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py",
+        {"key": "value", "num": 2}, api="lfric")
+
+    index = psyclone_args.index("--script-kwargs")
+    assert psyclone_args[index + 1] == "'key': 'value', 'num': 2"
+
+    # No script parameters: the option is not added.
+    psyclone_args.clear()
+    runner._execute_psyclone(
+        tmp_path / "input.x90", tmp_path / "output.x90",
+        tmp_path / "scripts" / "script.py", {}, api="lfric")
+    assert "--script-kwargs" not in psyclone_args

@@ -239,7 +239,7 @@ class RunPsyclone:
             # braces and pass the string representation of the dictionary
             # without the braces.
             params.extend(["--script-kwargs",
-                           f"'{str(script_parameters)[1:-1]}'"])
+                           f"{str(script_parameters)[1:-1]}"])
 
         if self._psyclone_options:
             params.extend(self._psyclone_options.split())
