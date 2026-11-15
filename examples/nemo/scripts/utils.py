@@ -243,7 +243,9 @@ def normalise_loops(
             hoist_expressions=hoist_expressions,
             # Make sure we never repeat this step.
             hoist_argument_expressions=False,
-            hoist_cdtype_expressions=False
+            hoist_cdtype_expressions=False,
+            reproducible=reproducible,
+            nemov4=nemov4
         )
 
     if hoist_cdtype_expressions:
