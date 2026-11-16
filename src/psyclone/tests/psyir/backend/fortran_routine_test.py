@@ -506,3 +506,35 @@ def test_fw_standalone_routine(fortran_reader, fortran_writer):
 end subroutine sub
 '''
     assert correct == output
+
+
+def test_fw_intrinsic_and_external_members(fortran_reader, fortran_writer,
+                                           tmpdir):
+    '''
+    Test when a routine has intrinsic and external symbols we get the correct
+    output.
+    '''
+    code = """subroutine sub(sum, EXTERNAL_FUNC3)
+    intrinsic :: sin
+    real, intrinsic :: cos
+    integer, intrinsic :: sum
+    external :: EXTERNAL_FUNC1
+    real, external :: EXTERNAL_FUNC2
+    integer, external :: EXTERNAL_FUNC3
+
+    end subroutine sub"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    correct = """subroutine sub(sum, EXTERNAL_FUNC3)
+  external :: EXTERNAL_FUNC1
+  integer, external :: EXTERNAL_FUNC3
+  integer, intrinsic :: sum
+  intrinsic :: sin
+  real, external :: EXTERNAL_FUNC2
+  real, intrinsic :: cos
+
+
+end subroutine sub"""
+    output = fortran_writer(psyir)
+    assert correct in output
+    assert Compile(tmpdir).string_compiles(output)

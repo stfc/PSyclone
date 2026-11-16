@@ -57,7 +57,7 @@ class IntrinsicInterface(SymbolInterface):
 
 
 class ExternalInterface(SymbolInterface):
-    '''The symbol is declared as from an external location.'''
+    '''The symbol is declared as coming from an external location.'''
 
     def __str__(self):
         return "External"
