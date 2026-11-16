@@ -24,16 +24,21 @@ class PsycloneRule:
     of files to which to apply the rule. It also manages the default script
     parameter and the file-specific overwrites
 
-    :param rule: the name of the rule  the script name, or a
+    :param name: the name of the rule, i.e. the script name, or a
         special term like `exclude` or `file_specific`.
-    :param file_list: the list of files to which to apply the rule to.
+    :param info: the yaml information of the rule (`params` and `files`).
+    :param first_rule: the first rule with the same name (if this rule is a
+        repetition of a script name). Its parameters are used as defaults,
+        updated with the parameters of this rule.
 
     :raises ValueError: if a file-specific parameter is not one of the
-        parameters declared for the rule.
+        parameters declared for the rule, or if a repeated rule specifies
+        a parameter that is not declared in the first rule.
     """
 
     def __init__(self, name: str,
-                 info: dict[str, Any]) -> None:
+                 info: dict[str, Any],
+                 first_rule: Optional["PsycloneRule"] = None) -> None:
         self._name = name
         # While the values of the parameters can be anything (e.g. a list),
         # from the view of this script which calls PSyclone and passes the
@@ -45,14 +50,26 @@ class PsycloneRule:
         else:
             self._default_params = {}
 
+        if first_rule:
+            first_params = first_rule._default_params
+            unknown = set(self._default_params) - set(first_params)
+            if unknown:
+                raise ValueError(
+                    f"Rule '{name}' is repeated and specifies parameter(s) "
+                    f"{sorted(unknown)} which are not listed in the first "
+                    f"instance of the rule ({sorted(first_params)}).")
+            merged = first_params.copy()
+            merged.update(self._default_params)
+            self._default_params = merged
+
         if "files" not in info:
             raise ValueError(f"Rule '{name}' must have a 'files' attribute, "
                              f"got '{info}'.")
         self._file_list: list[tuple[str, dict[str, Any]]] = []
         files = info["files"]
         # Support shortcut to specify files as a list without using `-` for
-        # each file.
-        # This can't be used to specify
+        # each file. This can't be used to specify parameters for individual
+        # files, but makes the rules shorter and easier to read.
         if isinstance(files, str):
             files = {i: {} for i in files.split()}
         if not files:
@@ -78,13 +95,14 @@ class PsycloneRule:
 
     def get_yaml_dict(self) -> dict[str, Any]:
         """
-        :returns: a dictionary representation to be used as yaml file.
+        :returns: a dictionary representation to be used as an entry of the
+            `rules` list in a yaml file.
         """
-        d = {self.name: {"params": self._default_params,
-                         "files": []}}
-        for file, params in self._file_list:
-            d[self.name]["files"].append({file: params})
-        return d
+        files = [{file: params} for file, params in self._file_list]
+        content = {"params": self._default_params, "files": files}
+        if self.name in PsyclonePhase.SPECIAL_RULES:
+            return {self.name: content}
+        return {"script": self.name, **content}
 
     @property
     def name(self) -> str:
@@ -136,6 +154,7 @@ class PsyclonePhase:
     FILE_SPECIFIC = "file_specific"
     EXCLUDE = "exclude"
     NO_SCRIPT = "no_script"
+    SPECIAL_RULES = (FILE_SPECIFIC, EXCLUDE, NO_SCRIPT)
 
     def __init__(self, name: str,
                  base_paths: list[Path],
@@ -209,16 +228,50 @@ class PsyclonePhase:
                 script_template = Template(info["script_dir"])
                 self._relative_script_dir = (
                     script_template.substitute(os.environ))
+            elif phase == "rules":
+                for item in info["rules"]:
+                    self._add_rule(item)
             else:
-                # Must be a script name (or special term like `exclude` or
-                # `file_specific`). Store this as a rule:
-                pr = PsycloneRule(phase, info[phase])
-                self._rules.append(pr)
+                raise ValueError(f"Unknown entry '{phase}' in phase "
+                                 f"'{self._name}', rules must be listed "
+                                 f"under 'rules'.")
 
         # Store the potentially updated optimisation root path, i.e. the site-
         # and platform-specific location, followed by a script dir (typically
         # transmute or psykal). This path is used in a few places.
         self._opt_path = self._script_root / self._relative_script_dir
+
+    def _add_rule(self, item: dict[str, Any]) -> None:
+        """
+        Adds a rule from an entry of the `rules` list. A script rule is
+        specified as `script: name`, followed by its `params` and `files`.
+        A special rule (`exclude`, `no_script` or `file_specific`) is
+        specified by using the special name as only key, with the `params`
+        and `files` as its value. If a rule with the same name exists
+        already, the defaults of its parameters are taken from the first
+        instance.
+
+        :param item: the yaml data of the rule.
+
+        :raises ValueError: if the entry is not a valid rule.
+        """
+        if not isinstance(item, dict):
+            raise ValueError(f"Invalid rule '{item}' in phase "
+                             f"'{self._name}', expected a mapping.")
+        if "script" in item:
+            name = item["script"]
+            info = {key: value for key, value in item.items()
+                    if key != "script"}
+        elif len(item) == 1 and next(iter(item)) in self.SPECIAL_RULES:
+            name, info = next(iter(item.items()))
+            info = info or {}
+        else:
+            raise ValueError(
+                f"Invalid rule '{item}' in phase '{self._name}': a rule must "
+                f"either have a 'script' entry, or be one of "
+                f"{sorted(self.SPECIAL_RULES)}.")
+        first_rule = next((r for r in self._rules if r.name == name), None)
+        self._rules.append(PsycloneRule(name, info, first_rule))
 
     def get_yaml_dict(self) -> dict[str, Any]:
         """
@@ -232,8 +285,7 @@ class PsyclonePhase:
         if self.file_pattern is not None:
             yaml_dict["file_pattern"] = self.file_pattern
 
-        for rule in self._rules:
-            yaml_dict.update(rule.get_yaml_dict())
+        yaml_dict["rules"] = [rule.get_yaml_dict() for rule in self._rules]
 
         return yaml_dict
 

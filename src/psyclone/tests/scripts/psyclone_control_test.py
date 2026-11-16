@@ -58,7 +58,8 @@ def test_psyclone_info_wildcard_handling(escaped_wildcard):
     """
     info = PsyclonePhase("phase", [], Path())
     # Indirectly hit _read_rule via update
-    yaml_dict = {"some_script.py": {"files": escaped_wildcard}}
+    yaml_dict = {"rules": [{"script": "some_script.py",
+                            "files": escaped_wildcard}]}
     info.update(yaml_dict)
     # There should be one rule
     assert len(info._rules) == 1
@@ -79,10 +80,11 @@ dsl:
   api: lfric
   file_pattern: "*x90"
   script_dir: psykal
-  global.py:
-    files: "*"
-  file_specific:
-    files: "*"
+  rules:
+    - script: global.py
+      files: "*"
+    - file_specific:
+        files: "*"
 """
     yaml_file_1 = tmp_path / "psyclone_info.yaml"
     yaml_file_1.write_text(yaml_content_1, encoding="utf-8")
@@ -182,11 +184,13 @@ def test_get_script_matching_logic(tmp_path):
     # Setup rules: non-matching pattern, NO_SCRIPT rule, then explicit scripts
     yaml_config = {
         "script_dir": "psykal",
-        "exclude": {"files": ["ignored_module.x90"]},
-        "no_script": {"files": ["skipped_module.x90"]},
-        "missing_script.py": {"files": ["broken_module.x90"]},
-        "valid_script.py": {"files": ["good_module.x90"]},
-        "file_specific": {"files": ["\\*"]},
+        "rules": [
+            {"exclude": {"files": ["ignored_module.x90"]}},
+            {"no_script": {"files": ["skipped_module.x90"]}},
+            {"script": "missing_script.py", "files": ["broken_module.x90"]},
+            {"script": "valid_script.py", "files": ["good_module.x90"]},
+            {"file_specific": {"files": ["\\*"]}},
+        ],
     }
     info.update(yaml_config)
 
@@ -225,7 +229,8 @@ def test_get_script_matching_logic(tmp_path):
     )
     info_strict.update(
         {"script_dir": "psykal",
-         "file_specific": {"files": ["explicit_custom.x90"]}}
+         "rules": [
+             {"file_specific": {"files": ["explicit_custom.x90"]}}]}
     )
     with pytest.raises(
         FileNotFoundError, match="Cannot find explicitly requested script"
@@ -249,7 +254,8 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
     info = PsyclonePhase("dsl", [], tmp_path / "scripts")
     info.update({
         "script_dir": "psykal",
-        "global.py": {
+        "rules": [{
+            "script": "global.py",
             "params": {
                 "offload": True,
                 "write_dependencies": True,
@@ -260,7 +266,7 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
                 {"test4.f90": {"write_dependencies": False}},
                 {"test4.f90": {"unchanged": "overridden"}},
             ],
-        },
+        }],
     })
 
     assert info.get_script(Path("other.f90")) == (
@@ -292,10 +298,11 @@ dsl:
   comment: "PSyclone DSL Phase"
   api: lfric
   script_dir: ${site}_${platform}/psykal
-  global.py:
-    files: \\*
-  file_specific:
-    files: \\*
+  rules:
+    - script: global.py
+      files: \\*
+    - file_specific:
+        files: \\*
 """
     monkeypatch.setenv("site", "SITE")
     monkeypatch.setenv("platform", "PLATFORM")
@@ -342,3 +349,60 @@ def test_rule_rejects_undeclared_file_parameter():
     # A declared parameter is accepted.
     info["files"][1] = {"test3.f90": {"offload": False}}
     PsycloneRule("global.py", info)
+
+
+def test_repeated_script_inherits_first_defaults(tmp_path):
+    """A repeated script takes its defaults from the first instance, and
+    its own params only apply to the files it lists."""
+    script_dir = tmp_path / "scripts" / "psykal"
+    script_dir.mkdir(parents=True)
+    script_path = script_dir / "global.py"
+    script_path.touch()
+    control = tmp_path / "control.yaml"
+    control.write_text("""
+phases:
+  - dsl
+dsl:
+  script_dir: psykal
+  rules:
+    - script: global.py
+      params:
+        offload: True
+        write_dependencies: True
+      files:
+        - "*"
+    - script: global.py
+      params:
+        offload: False
+      files: test4.f90 test5.f90
+""", encoding="utf-8")
+    pc = PsycloneControl(script_root=tmp_path / "scripts",
+                         base_paths=[tmp_path])
+    pc.read(control)
+    phase = pc.get_info("dsl")
+    assert phase.get_script(Path("other.f90")) == (
+        script_path, {"offload": True, "write_dependencies": True})
+    assert phase.get_script(Path("test4.f90")) == (
+        script_path, {"offload": False, "write_dependencies": True})
+    # Both instances survive writing the information back as yaml.
+    parsed = yaml.safe_load(pc.to_yaml())
+    assert [r["script"] for r in parsed["dsl"]["rules"]] == ["global.py"] * 2
+
+    # A parameter not listed in the first instance is rejected.
+    first = PsycloneRule("global.py", {"params": {"offload": True},
+                                       "files": "*"})
+    with pytest.raises(ValueError) as err:
+        PsycloneRule("global.py", {"params": {"other": 1}, "files": "a.f90"},
+                     first)
+    assert "not listed in the first instance" in str(err.value)
+
+
+def test_invalid_rules_rejected():
+    """Check that malformed rules or entries outside 'rules' are errors."""
+    info = PsyclonePhase("dsl", [], Path())
+    with pytest.raises(ValueError, match="Unknown entry 'global.py'"):
+        info.update({"global.py": {"files": "*"}})
+    with pytest.raises(ValueError, match="expected a mapping"):
+        info.update({"rules": ["global.py"]})
+    with pytest.raises(ValueError, match="must either have a 'script'"):
+        info.update({"rules": [{"global.py": {"files": "*"}}]})

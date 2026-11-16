@@ -29,8 +29,9 @@ phases:
   - dsl
 dsl:
   file_pattern: "*.x90"
-  no_script:
-    files: "*"
+  rules:
+    - no_script:
+        files: "*"
 """,
         encoding="utf-8",
     )
@@ -81,8 +82,9 @@ phases:
   - dsl
 dsl:
   file_pattern: "*.x90"
-  no_script:
-    files: "*"
+  rules:
+    - no_script:
+        files: "*"
 """,
         encoding="utf-8",
     )
@@ -320,14 +322,15 @@ dsl:
   comment: First
   file_pattern: "*x90"
   script_dir: "${target}/psykal"
-  global.py:
-    params:
-      offload: true
-    files: "*"
-  no_script:
-      files: "plain.x90"
-  exclude:
-      files: "skip.x90"
+  rules:
+    - script: global.py
+      params:
+        offload: true
+      files: "*"
+    - no_script:
+        files: "plain.x90"
+    - exclude:
+        files: "skip.x90"
 """,
         encoding="utf-8",
     )

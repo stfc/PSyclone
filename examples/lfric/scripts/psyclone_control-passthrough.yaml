@@ -15,5 +15,6 @@ dsl-passthrough:
   file_pattern: "*x90"
   script_dir: cpu/psykal
 
-  no_script:
-    files: "*"
+  rules:
+    - no_script:
+        files: "*"
