@@ -3846,6 +3846,7 @@ def test_reprod_view(annexed, dist_mem):
         print(result)
         assert 0
 
+
 @pytest.mark.parametrize("reprod", [True, False])
 def test_reductions_reprod(tmpdir, dist_mem, reprod):
     ''' Check that the optional reprod argument to reductions() method
@@ -5223,6 +5224,7 @@ def test_async_hex_move_1(tmpdir):
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
+
     m1_hex = schedule.walk(LFRicHaloExchange)[2]
     ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(m1_hex)
@@ -5325,7 +5327,6 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     f2_hex = schedule.walk(LFRicHaloExchange)[6]
-    siblings = f2_hex.parent.children
     target = schedule.walk(LFRicLoop)[2]
     ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f2_hex)
@@ -5485,8 +5486,6 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
                   schedule.walk(LFRicHaloExchange)
                   if hex_node.field.name == "m2")
     ahex_trans.apply(m2_hex)
-    m2_start = schedule.walk(LFRicHaloExchangeStart)[0]
-    m2_end = schedule.walk(LFRicHaloExchangeEnd)[0]
     result = str(psy.gen)
     assert (
         "    if (m2_proxy%is_dirty(depth=2)) then\n"
@@ -5502,16 +5501,12 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "    call m2_proxy%set_clean(2)\n") in result
 
     # move m2 async halo exchange start and end then check depths and
-    # set clean are still generated correctly for m2
+    # set clean are still generated correctly for m2. We can't move the end
+    # any later as it is already just before the loop where m2 is read.
+    m2_start = schedule.walk(LFRicHaloExchangeStart)[0]
     mtrans = MoveTrans()
     mtrans.apply(m2_start, schedule.walk(LFRicHaloExchange)[0])
-    other_hex = next(
-        node for node in schedule.walk(LFRicHaloExchange)
-        if node.field.name == "m1" and
-        not isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)))
-    # The additional setup nodes mean that the old target node is no
-    # longer a valid destination for this move. Keep the valid start move
-    # and verify that the asynchronous exchange remains correctly formed.
+    # Verify that the asynchronous exchange remains correctly formed.
     result = str(psy.gen)
     assert (
         "    if (m2_proxy%is_dirty(depth=2)) then\n"
@@ -5565,10 +5560,9 @@ def test_move_vector_halo_exchange():
 
     # reverse the order of the vector halo exchanges
     mtrans = MoveTrans()
-    mtrans.apply(schedule.walk(LFRicHaloExchange)[1],
-                 schedule.walk(LFRicHaloExchange)[0])
-    mtrans.apply(schedule.walk(LFRicHaloExchange)[2],
-                 schedule.walk(LFRicHaloExchange)[1])
+    hexchs = schedule.walk(LFRicHaloExchange)
+    mtrans.apply(hexchs[1], hexchs[0])
+    mtrans.apply(hexchs[2], hexchs[1])
     # When the test is fixed, add a check for re-ordered output here
 
 
@@ -5581,13 +5575,20 @@ def test_vector_halo_exchange_remove():
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # remove second set of halo exchanges via redundant
-    # computation. If they are removed correctly then the two loops
-    # will be adjacent to each other and will follow 3 haloexchange
-    # calls.
+    # remove second set of halo exchanges via redundant computation. If they
+    # are removed correctly then the two loops will be adjacent to each other
+    # and will follow 3 haloexchange calls.
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.walk(LFRicLoop)[0], {"depth": 2})
-    assert len(schedule.walk(LFRicHaloExchange)) == 3
+    first_loop = schedule.walk(LFRicLoop)[0]
+    first_loop_pos = first_loop.position
+    rc_trans.apply(first_loop, {"depth": 2})
+    # Loops adjacent.
+    assert isinstance(schedule.children[first_loop_pos + 1], LFRicLoop)
+    hexchs = schedule.walk(LFRicHaloExchange)
+    assert len(hexchs) == 3
+    # Preceded by halo exchanges.
+    for hexch in hexchs[:3]:
+        assert hexch.position < first_loop_pos
     assert len(schedule.walk(LFRicLoop)) == 2
 
 
@@ -5602,13 +5603,16 @@ def test_vector_async_halo_exchange(tmpdir):
     # Create vector halo exchanges after the first loop by performing
     # redundant computation.
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.walk(LFRicLoop)[0], {"depth": 2})
-    # make all f1 vector halo exchanges asynchronous before the first
-    # loop and one of them before the second loop, then check depths
+    rc_trans.apply(schedule.walk(LFRicLoop)[1], {"depth": 2})
+    # make all f1 vector halo exchanges asynchronous before the first loop and
+    # one of them (the middle one) before the second loop, then check depths
     # and set clean are still generated correctly
     ahex_trans = LFRicAsyncHaloExchangeTrans()
-    for my_hex in reversed(schedule.walk(LFRicHaloExchange)[:4]):
-        ahex_trans.apply(my_hex)
+
+    hexchs = schedule.walk(LFRicHaloExchange)
+    for idx in [4, 2, 1, 0]:
+        ahex_trans.apply(hexchs[idx])
+
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
@@ -5620,7 +5624,13 @@ def test_vector_async_halo_exchange(tmpdir):
             f"    end if\n") in result
     for index in [1, 2, 3]:
         assert f"call f1_proxy({index})%halo_exchange_start(depth=1)" in result
-        assert f"call f1_proxy({index})%halo_exchange_finish(depth=1)" in result
+        assert (f"call f1_proxy({index})%halo_exchange_finish(depth=1)"
+                in result)
+    assert """\
+    call f1_proxy(1)%halo_exchange(depth=1)
+    call f1_proxy(2)%halo_exchange_start(depth=1)
+    call f1_proxy(2)%halo_exchange_finish(depth=1)
+    call f1_proxy(3)%halo_exchange(depth=1)""" in result
 
     # we are not able to test re-ordering of vector halo exchanges as
     # the dependence analysis does not currently support it
@@ -5632,8 +5642,16 @@ def test_vector_async_halo_exchange(tmpdir):
     # computation. If they are removed correctly then the two loops
     # will be adjacent to each other and will follow 6 haloexchange
     # start and end calls.
-    rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.walk(Loop)[1], {"depth": 2})
+    first_loop = schedule.walk(LFRicLoop)[0]
+    first_loop_pos = first_loop.position
+    rc_trans.apply(first_loop, {"depth": 2})
+    assert isinstance(schedule.children[first_loop_pos + 1], LFRicLoop)
+    hexch_starts = schedule.walk(LFRicHaloExchangeStart)
+    hexch_ends = schedule.walk(LFRicHaloExchangeEnd)
+    for start, end in zip(hexch_starts, hexch_ends):
+        assert start.position + 1 == end.position
+        assert end.position < first_loop_pos
+
     assert len(schedule.walk(LFRicHaloExchangeStart)) == 3
     assert len(schedule.walk(LFRicHaloExchangeEnd)) == 3
     assert len(schedule.walk(LFRicLoop)) == 2
@@ -6300,16 +6318,22 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
     last_edge_tile_per_colour = mesh%get_last_edge_tile_all_colours()
     last_edge_cell_per_colour_and_tile = \
 mesh%get_last_edge_cell_all_colours_all_tiles()""" in code
-        assert "last_edge_tile_per_colour(colour)" in code
-        assert "last_edge_cell_per_colour_and_tile(colour,tile)" in code
+        assert """\
+    do colour = 1, ntilecolours, 1
+      do tile = 1, last_edge_tile_per_colour(colour), 1
+        do cell = 1, last_edge_cell_per_colour_and_tile(colour,tile), 1
+""" in code
     else:
         # Use halo version
         assert """
     last_halo_tile_per_colour = mesh%get_last_halo_tile_all_colours()
     last_halo_cell_per_colour_and_tile = \
 mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
-        assert "last_halo_tile_per_colour(colour,1)" in code
-        assert "last_halo_cell_per_colour_and_tile(colour,tile,1)" in code
+        assert """\
+    do colour = 1, ntilecolours, 1
+      do tile = 1, last_halo_tile_per_colour(colour,1), 1
+        do cell = 1, last_halo_cell_per_colour_and_tile(colour,tile,1), 1
+""" in code
 
     # Kernel calls use the tmap to get the cell index
     assert ("call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
@@ -6521,5 +6545,6 @@ def test_reprod_red_with_parallel_do(tmpdir, monkeypatch, annexed,
     else:  # not distmem. annexed can be True or False
         assert "undf_as1_f1" in result
         assert "do df = 1," in result
-        assert "thread_private_asum = thread_private_asum + f1_data(df)" in result
+        assert ("thread_private_asum = thread_private_asum + f1_data(df)"
+                in result)
         assert "asum = asum + array_of_partial_asum(th_idx)" in result
