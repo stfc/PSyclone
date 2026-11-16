@@ -2,12 +2,13 @@
 """
 Reads in one (or more) PSyclone control YAML files, merges them and then runs
 PSyclone on the source files selected by the control files. The output files
-are written to the specified output directory, preserving the relative paths
-of the input files. The script also reports the scripts selected for each
-phase and source file, along with any parameters passed to the scripts. If a
-phase does not have a file_pattern configured, it is skipped with a warning.
-The script can be run in parallel using the specified number of worker
-processes.
+are written to the specified output directory. The name of each output file
+is determined by the `output_template` of the phase (by default preserving
+the relative paths of the input files). The script also reports the scripts
+selected for each phase and source file, along with any parameters passed to
+the scripts. If a phase does not have a file_pattern configured, it is
+skipped with a warning. The script can be run in parallel using the specified
+number of worker processes.
 """
 
 import argparse
@@ -67,7 +68,8 @@ class RunPsyclone:
         Process the source files selected by the control files. This
         is done in parallel, using the specified number of cores, if more than
         one core is requested. The output files are written to the output
-        directory, preserving the relative paths of the input files.
+        directory, using the output template of each phase to determine
+        the name of each file.
         """
         control = PsycloneControl(
             script_root=self._optimisation,
@@ -95,10 +97,8 @@ class RunPsyclone:
             jobs = []
             for source_file in matched_files:
                 script, params = phase.get_script(source_file)
-                destination = (
-                    self._output_path /
-                    source_file.relative_to(self._input_path)
-                )
+                destination = phase.get_output_path(
+                    source_file, self._input_path, self._output_path)
                 if script == PsyclonePhase.RESULT_EXCLUDE:
                     LOGGER.info(
                         "Phase %s: expliclitly excluding %s",

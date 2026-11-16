@@ -403,3 +403,30 @@ def test_execute_psyclone_passes_script_kwargs(tmp_path, monkeypatch):
         tmp_path / "input.x90", tmp_path / "output.x90",
         tmp_path / "scripts" / "script.py", {}, api="lfric")
     assert "--script-kwargs" not in psyclone_args
+
+
+def test_run_uses_output_template(tmp_path, monkeypatch):
+    """Check that the output_template of a phase determines the output."""
+    source_dir = tmp_path / "source"
+    (source_dir / "nested").mkdir(parents=True)
+    (source_dir / "nested" / "file.f90").touch()
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - transmute
+transmute:
+  file_pattern: "*.f90"
+  output_template: "{rel_path}/{stem}.psyclonified{suffix}"
+  rules:
+    - no_script:
+        files: "*"
+""", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(run_psyclone, "psyclone_main",
+                        lambda args: calls.append(list(args)))
+    RunPsyclone(source_dir, [control_file],
+                output_path=tmp_path / "output").run()
+    assert len(calls) == 1
+    assert calls[0][calls[0].index("-o") + 1] == str(
+        tmp_path / "output" / "nested" / "file.psyclonified.f90")

@@ -406,3 +406,38 @@ def test_invalid_rules_rejected():
         info.update({"rules": ["global.py"]})
     with pytest.raises(ValueError, match="must either have a 'script'"):
         info.update({"rules": [{"global.py": {"files": "*"}}]})
+
+
+def test_phase_output_template(tmp_path):
+    """Check the evaluation of the output_template of a phase."""
+    src = tmp_path / "src"
+    out = tmp_path / "out"
+    source_file = src / "sub" / "test.f90"
+    info = PsyclonePhase("dsl", [], Path())
+
+    # The default keeps the relative path and the name.
+    assert info.output_template == "{rel_path}/{name}"
+    assert info.get_output_path(source_file, src, out) == (
+        out / "sub" / "test.f90")
+    # A file in the root of the input directory.
+    assert info.get_output_path(src / "a.f90", src, out) == out / "a.f90"
+
+    info.update({"output_template": "{name}"})
+    assert info.get_output_path(source_file, src, out) == out / "test.f90"
+
+    info.update({"output_template":
+                 "{rel_path}/{stem}.psyclonified{suffix}"})
+    assert info.get_output_path(source_file, src, out) == (
+        out / "sub" / "test.psyclonified.f90")
+    assert yaml.safe_load(yaml.dump(info.get_yaml_dict()))[
+        "output_template"] == "{rel_path}/{stem}.psyclonified{suffix}"
+
+    info.update({"output_template": "{unknown}/{name}"})
+    with pytest.raises(ValueError) as err:
+        info.get_output_path(source_file, src, out)
+    assert "Invalid output_template" in str(err.value)
+
+    info.update({"output_template": "../{name}"})
+    with pytest.raises(ValueError) as err:
+        info.get_output_path(source_file, src, out)
+    assert "outside of the output path" in str(err.value)

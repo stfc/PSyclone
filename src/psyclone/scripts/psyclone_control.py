@@ -156,6 +156,10 @@ class PsyclonePhase:
     NO_SCRIPT = "no_script"
     SPECIAL_RULES = (FILE_SPECIFIC, EXCLUDE, NO_SCRIPT)
 
+    # The template used to determine the output file if the control file
+    # does not specify an `output_template`.
+    DEFAULT_OUTPUT_TEMPLATE = "{rel_path}/{name}"
+
     def __init__(self, name: str,
                  base_paths: list[Path],
                  script_root: Path) -> None:
@@ -168,6 +172,7 @@ class PsyclonePhase:
         self._comment: str = ""
         self._api: str = ""
         self._file_pattern: Optional[str] = None
+        self._output_template: str = self.DEFAULT_OUTPUT_TEMPLATE
         self._rules: list[PsycloneRule] = []
         self._default_parameter = {}
 
@@ -200,6 +205,54 @@ class PsyclonePhase:
         return self._file_pattern
 
     @property
+    def output_template(self) -> str:
+        """
+        :returns: the template used to determine the output file.
+        """
+        return self._output_template
+
+    def get_output_path(self, source_file: Path, input_path: Path,
+                        output_path: Path) -> Path:
+        """
+        Determines the output file for a source file by evaluating the
+        output template of this phase. The template can use these
+        variables (using the syntax `{name}`, as in an f-string):
+
+        - `rel_path`: the directory of the source file, relative to the
+          input path.
+        - `stem`: the stem of the source file (name without suffix).
+        - `suffix`: the suffix of the source file (including the dot).
+        - `name`: the name of the source file (without any directory).
+
+        :param source_file: the source file to process.
+        :param input_path: the root directory of the source files.
+        :param output_path: the root directory for the output files.
+
+        :returns: the output file.
+
+        :raises ValueError: if the template uses an unknown variable, or
+            results in a path outside of the output path.
+        """
+        values = {"rel_path": str(source_file.parent.relative_to(input_path)),
+                  "stem": source_file.stem,
+                  "suffix": source_file.suffix,
+                  "name": source_file.name}
+        try:
+            relative = self._output_template.format(**values)
+        except (KeyError, IndexError, ValueError) as err:
+            raise ValueError(
+                f"Invalid output_template '{self._output_template}' in phase "
+                f"'{self._name}': {err}. Valid variables are "
+                f"{sorted(values)}.") from err
+        result = Path(os.path.normpath(output_path / relative))
+        if not result.is_relative_to(output_path):
+            raise ValueError(
+                f"The output_template '{self._output_template}' in phase "
+                f"'{self._name}' results in '{result}' for '{source_file}', "
+                f"which is outside of the output path '{output_path}'.")
+        return result
+
+    @property
     def opt_path(self) -> Path:
         """
         :return: the optimisation root as absolute path (including site-
@@ -224,6 +277,8 @@ class PsyclonePhase:
                 self._api = info["api"]
             elif phase == "file_pattern":
                 self._file_pattern = info["file_pattern"]
+            elif phase == "output_template":
+                self._output_template = info["output_template"]
             elif phase == "script_dir":
                 script_template = Template(info["script_dir"])
                 self._relative_script_dir = (
@@ -284,6 +339,7 @@ class PsyclonePhase:
                                      "script_dir": self._relative_script_dir}
         if self.file_pattern is not None:
             yaml_dict["file_pattern"] = self.file_pattern
+        yaml_dict["output_template"] = self.output_template
 
         yaml_dict["rules"] = [rule.get_yaml_dict() for rule in self._rules]
 

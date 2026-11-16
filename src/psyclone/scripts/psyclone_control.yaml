@@ -17,6 +17,14 @@ dsl:
   script_dir: "cpu/psykal"
   file_pattern: "*x90"
 
+  # Optional: determines the output file for each source file. Valid
+  # variables are {rel_path} (directory of the source file relative to the
+  # input path), {stem}, {suffix} and {name}. This default keeps the
+  # relative path and the name. Using e.g. "{name}" would write all files
+  # into the output directory, and "{rel_path}/{stem}.new{suffix}" would
+  # turn test.f90 into test.new.f90.
+  output_template: "{rel_path}/{name}"
+
   # The rules are applied in the order given, and the last matching rule
   # wins. Each rule is either a script (`- script: name`), or one of the
   # special rules `exclude`, `no_script` or `file_specific`.
