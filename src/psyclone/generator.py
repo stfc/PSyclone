@@ -82,6 +82,69 @@ FREE_FORM = (".f90", ".f95", ".f03", ".f08", ".F90", ".F95", ".F03", ".F08",
 FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
 
 
+def merge_resolve_imports(
+        current: Union[bool, list[str]],
+        new: Union[bool, list[str]]) -> Union[bool, list[str]]:
+    '''Combine two ``RESOLVE_IMPORTS`` specifications. A value of ``True``
+    (i.e. resolve every import) takes precedence over any list of module
+    names. Otherwise the two lists are unioned (case-insensitively),
+    preserving the order in which the module names were first requested.
+
+    :param current: the accumulated ``RESOLVE_IMPORTS`` specification.
+    :param new: the ``RESOLVE_IMPORTS`` specification of another recipe.
+
+    :returns: the combined ``RESOLVE_IMPORTS`` specification.
+
+    '''
+    if current is True or new is True:
+        return True
+    merged = list(current) if current else []
+    lowered = {name.lower() for name in merged}
+    for name in (new if new else []):
+        if name.lower() not in lowered:
+            merged.append(name)
+            lowered.add(name.lower())
+    return merged
+
+
+# The directory containing the PSyclone package itself. Modules imported from
+# here must never be evicted from sys.modules by _remove_script_modules().
+_PSYCLONE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _remove_script_modules(dirpath: str, preexisting: set[str]) -> None:
+    '''Remove from ``sys.modules`` any module that was imported from the
+    directory of a transformation script.
+
+    Python caches imported modules by name, so a helper module imported by
+    one script (e.g. ``utils``) would otherwise be reused by a later script
+    even when that script lives in a different directory and has its own
+    ``utils`` module.
+
+    :param dirpath: the directory that was added to ``sys.path`` while the
+        script was loaded and executed.
+    :param preexisting: the names of the modules that were already present in
+        ``sys.modules`` before the script was loaded. These are left
+        untouched so that modules imported by PSyclone itself (or by the
+        caller of ``generate``) are never evicted.
+
+    '''
+    if not dirpath:
+        return
+    prefix = os.path.abspath(dirpath) + os.sep
+    psyclone_prefix = _PSYCLONE_DIR + os.sep
+    for name, module in list(sys.modules.items()):
+        if name in preexisting:
+            continue
+        module_file = getattr(module, "__file__", None)
+        if not module_file:
+            continue
+        module_path = os.path.abspath(module_file)
+        if (module_path.startswith(prefix) and
+                not module_path.startswith(psyclone_prefix)):
+            del sys.modules[name]
+
+
 def load_script(
         script_name: str,
         kwargs_str: Optional[str] = None,
@@ -90,7 +153,8 @@ def load_script(
 ) -> Tuple[Optional[Callable],
            List[str],
            Union[bool, List[str]],
-           dict[str, str]]:
+           dict[str, str],
+           str]:
     ''' Loads the specified script containing a PSyclone recipe. This is done
     without adding the imported symbol to the system list of all Python
     modules. This will allow later to import a potentially different script
@@ -99,8 +163,12 @@ def load_script(
 
     TODO #3514
     To avoid that sys.path keeps growing (if PSyclone is called more than
-    once), the caller must remove the first entry of sys.path after executing
-    the script.
+    once), the caller must remove the returned path from sys.path after
+    executing the script. The caller should also call
+    :func:`_remove_script_modules` at that point, so that helper modules
+    imported by the script (either at module level or at runtime, e.g. inside
+    ``trans()``) do not leak into a later script that has a same-named helper
+    in a different directory.
 
     :param script_name: name of the script to load.
     :param kwargs_str: the kwargs argument from the command line.
@@ -109,7 +177,8 @@ def load_script(
         False.
 
     :returns: callable recipe, list of files to skip, whether to resolve
-        modules (or which ones), the kwargs dictionary.
+        modules (or which ones), the kwargs dictionary, and the path that was
+        inserted into sys.path (to be removed by the caller).
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -162,15 +231,19 @@ def load_script(
     else:
         files_to_skip = []
 
-    imports_to_resolve: list[str]
+    imports_to_resolve: Union[bool, list[str]]
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
         # If the imports_to_resolve has the list of explicit filenames, respect
-        # these while resolving the imports.
+        # these while resolving the imports. When several recipes are loaded,
+        # their requests are combined (a value of True takes precedence over
+        # any list of module names).
         # TODO #1540: We still don't transfer the imports_to_resolve=True to
         # the ModuleManager for performance reasons (but we could).
         if isinstance(imports_to_resolve, Iterable):
-            ModuleManager.get().resolve_indirect_imports = imports_to_resolve
+            mod_manager = ModuleManager.get()
+            mod_manager.resolve_indirect_imports = merge_resolve_imports(
+                mod_manager.resolve_indirect_imports, imports_to_resolve)
     else:
         imports_to_resolve = []
 
@@ -179,9 +252,9 @@ def load_script(
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
             return (transformation_recipe, files_to_skip,
-                    imports_to_resolve, kwargs)
+                    imports_to_resolve, kwargs, filepath)
     elif is_optional:
-        return None, files_to_skip, imports_to_resolve, {}
+        return None, files_to_skip, imports_to_resolve, {}, filepath
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
@@ -191,8 +264,8 @@ def load_script(
 def generate(filename: str,
              api: str = "",
              kernel_paths: Optional[list[str]] = None,
-             script_name: Optional[str] = None,
-             kwargs_str: Optional[str] = None,
+             script_kwargs_pairs: Optional[
+                 list[tuple[str, Optional[str]]]] = None,
              line_length: bool = False,
              distributed_memory: Optional[bool] = None,
              kern_out_path: str = "",
@@ -217,7 +290,10 @@ def generate(filename: str,
     :param script_name: a script file that can apply optimisations
         to the PSy layer (can be a path to a file or a filename that
         relies on the PYTHONPATH to find the module). Defaults to None.
-    :param kwargs_str: the kwargs argument from the command line.
+    :param script_kwargs_pairs: a list of (script_file, kwargs_str)
+        tuples that can apply optimisations to the PSy layer.
+        Each script_file can be a path to a file or a filename that
+        relies on the PYTHONPATH to find the module. Defaults to None.
     :param line_length: a logical flag specifying whether we care
         about line lengths being longer than 132 characters. If so,
         the input (algorithm and kernel) code is checked to make sure
@@ -279,13 +355,18 @@ def generate(filename: str,
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
-        if script_name is not None:
-            # Apply provided recipe to PSyIR. Note that trans_func is always
+        if script_kwargs_pairs and len(script_kwargs_pairs) > 0:
+            # Apply provided recipes to PSyIR. Note that trans_func is always
             # defined, otherwise an exception is raised.
-            trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            trans_func(psy.container.root, **kwargs)
-            # TODO #3514: proper cleanup using with
-            del sys.path[0]
+            for script_name, kwargs_str in script_kwargs_pairs:
+                preexisting_modules = set(sys.modules)
+                trans_func, _, _, kwargs, inserted_path = load_script(
+                    script_name, kwargs_str)
+                trans_func(psy.container.root, **kwargs)
+                # TODO #3514: proper cleanup using with
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
+                _remove_script_modules(inserted_path, preexisting_modules)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -333,14 +414,19 @@ def generate(filename: str,
                 "Algorithm file contains no invoke() calls: refusing to "
                 "generate empty PSy code")
 
-        if script_name is not None:
-            # Call the optimisation script for algorithm optimisations
-            recipe, _, _, kwargs = load_script(script_name, kwargs_str,
-                                               "trans_alg", is_optional=True)
-            if recipe:
-                recipe(psyir, **kwargs)
-            # TODO #3514: proper cleanup using with
-            del sys.path[0]
+        if script_kwargs_pairs and len(script_kwargs_pairs) > 0:
+            # Call the optimisation scripts for algorithm optimisations
+            for script_name, kwargs_str in script_kwargs_pairs:
+                preexisting_modules = set(sys.modules)
+                recipe, _, _, kwargs, inserted_path = load_script(
+                    script_name, kwargs_str,
+                    "trans_alg", is_optional=True)
+                if recipe:
+                    recipe(psyir, **kwargs)
+                # TODO #3514: proper cleanup using with
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
+                _remove_script_modules(inserted_path, preexisting_modules)
 
         # For each kernel called from the algorithm layer
         kernels: dict[int, dict[int, Node]] = {}
@@ -427,14 +513,19 @@ def generate(filename: str,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
-        if script_name is not None:
-            # Call the optimisation script for psy-layer optimisations. Note
+        if script_kwargs_pairs and len(script_kwargs_pairs) > 0:
+            # Call the optimisation scripts for psy-layer optimisations. Note
             # that trans_func is always defined, otherwise an exception is
             # raised.
-            trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            trans_func(psy.container.root, **kwargs)
-            # TODO #3514: proper cleanup using with
-            del sys.path[0]
+            for script_name, kwargs_str in script_kwargs_pairs:
+                preexisting_modules = set(sys.modules)
+                trans_func, _, _, kwargs, inserted_path = load_script(
+                    script_name, kwargs_str)
+                trans_func(psy.container.root, **kwargs)
+                # TODO #3514: proper cleanup using with
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
+                _remove_script_modules(inserted_path, preexisting_modules)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -477,10 +568,13 @@ def main(arguments: list[str]) -> None:
     parser.add_argument('-c', '--config', help='config file with '
                         'PSyclone specific options')
     scripts = parser.add_argument_group("Transformation scripts")
-    scripts.add_argument('-s', '--script',
-                         help='filename of a PSyclone optimisation recipe')
-    scripts.add_argument('--script-kwargs', help='Keyword arguments for the '
-                         'transformation script.')
+    scripts.add_argument('-s', '--script', action="append", default=[],
+                         help='filename of a PSyclone optimisation recipe '
+                              '(can be specified multiple times)')
+    scripts.add_argument('--script-kwargs', action="append", default=[],
+                         help='Keyword arguments for the transformation '
+                              'script (can be specified multiple times, each '
+                              'applies to the most recent -s script)')
     parser.add_argument(
         '--enable-cache', action="store_true", default=False,
         help='whether to enable caching of imported module dependencies (if '
@@ -658,10 +752,30 @@ def main(arguments: list[str]) -> None:
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
+    # Pair scripts with their corresponding kwargs. Each --script-kwargs
+    # applies to the most recent -s that preceded it.
     if args.script_kwargs and not args.script:
         print("The '--script-kwargs' argument is only valid if a script is "
               "specified using the '--script' option.", file=sys.stderr)
         sys.exit(1)
+
+    # If any --script-kwargs are provided then there must be exactly one for
+    # each script (i.e. the number of --script-kwargs is either zero or equal
+    # to the number of -s scripts).
+    if args.script_kwargs and len(args.script_kwargs) != len(args.script):
+        print(f"Error: The number of '--script-kwargs' arguments "
+              f"({len(args.script_kwargs)}) must match the number of "
+              f"'--script' arguments ({len(args.script)}). Either provide "
+              f"keyword arguments for every script or for none of them.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    # Pair each script with its kwargs. This works for the common case:
+    # -s script1 --script-kwargs arg1 -s script2 --script-kwargs arg2
+    script_kwargs_pairs = []
+    for i, script in enumerate(args.script):
+        kwargs = args.script_kwargs[i] if args.script_kwargs else None
+        script_kwargs_pairs.append((script, kwargs))
 
     # Set ModuleManager properties from flags
     mod_manager = ModuleManager.get()
@@ -747,8 +861,7 @@ def main(arguments: list[str]) -> None:
     if not args.psykal_dsl:
         code_transformation_mode(
             input_file=args.filename,
-            script_name=args.script,
-            kwargs_str=args.script_kwargs,
+            script_kwargs_pairs=script_kwargs_pairs,
             output_file=args.o,
             keep_comments=args.keep_comments,
             keep_directives=args.keep_directives,
@@ -779,8 +892,7 @@ def main(arguments: list[str]) -> None:
             alg, psy = generate(
                 args.filename, api=api,
                 kernel_paths=args.directory,
-                script_name=args.script,
-                kwargs_str=args.script_kwargs,
+                script_kwargs_pairs=script_kwargs_pairs,
                 line_length=(args.limit == 'all'),
                 distributed_memory=args.dist_mem,
                 kern_out_path=kern_out_path,
@@ -900,31 +1012,31 @@ def add_builtins_use(fp2_tree: Fortran2003.Program,
 
 
 def code_transformation_mode(input_file: str,
-                             script_name: str,
-                             output_file: str,
-                             keep_comments: bool,
-                             keep_directives: bool,
-                             keep_conditional_openmp_statements: bool,
-                             kwargs_str: Optional[str] = None,
+                             script_kwargs_pairs: Optional[
+                                 list[tuple[str, Optional[str]]]] = None,
+                             output_file: str = None,
+                             keep_comments: bool = False,
+                             keep_directives: bool = False,
+                             keep_conditional_openmp_statements: bool = False,
                              free_form: bool = True,
                              line_length: str = "off"):
     '''
-    Process the input_file with the transformations script specified in
-    `script_name` and store it in the output_file.
+    Process the input_file with the transformations scripts specified in
+    `script_kwargs_pairs` and store it in the output_file.
 
     Note: there is some duplicated logic in the PSyKAl path, we could attempt
     to merge them when adopting the LFRIC_TESTING PATH and removing the
     previous way.
 
     :param input_file: the given input file.
-    :param script_name: the given transformation recipe file.
+    :param script_kwargs_pairs: list of (script_name, kwargs_str) tuples.
     :param output_file: the output file where to store the resulting code.
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
         source.
     :param keep_conditional_openmp_statements: whether to keep OpenMP
         conditional compilation statements.
-    :param kwargs_str: the kwargs argument from the command line.
+
     :param free_form: whether the original source is free form Fortran or
                       not.
     :param str line_length: set to "output" to break the output into lines
@@ -933,16 +1045,46 @@ def code_transformation_mode(input_file: str,
     '''
     logger = logging.getLogger(__name__)
 
-    # Load script file
-    if script_name:
-        (trans_recipe, files_to_skip,
-         resolve_mods, kwargs) = load_script(script_name, kwargs_str)
-    else:
-        trans_recipe, files_to_skip, resolve_mods, kwargs = (None, [], False,
-                                                             {})
+    # Ensure script_kwargs_pairs is always a list
+    if script_kwargs_pairs is None:
+        script_kwargs_pairs = []
+
+    # Initialize files_to_skip and resolve_mods
+    all_files_to_skip = []
+    final_resolve_mods: Union[bool, list[str]] = False
+
+    # Load all script files
+    trans_recipes = []
+    for script_name, kwargs_str in script_kwargs_pairs:
+        if script_name:
+            # Record the modules that are already imported so that only the
+            # helper modules pulled in by this script are evicted afterwards.
+            preexisting_modules = set(sys.modules)
+            (trans_recipe, files_to_skip,
+             resolve_mods, kwargs, inserted_path) = load_script(
+                 script_name, kwargs_str)
+            if trans_recipe:
+                # Keep the path inserted by load_script alongside the recipe.
+                # It must be made available again while the recipe runs
+                # (recipes may import helper modules at runtime, e.g. inside
+                # trans()) but must not leak into the next script.
+                trans_recipes.append((trans_recipe, kwargs, inserted_path))
+            all_files_to_skip.extend(files_to_skip)
+            # Combine the RESOLVE_IMPORTS requests of all recipes so that
+            # each of them gets the symbols it asked for.
+            final_resolve_mods = merge_resolve_imports(final_resolve_mods,
+                                                       resolve_mods)
+            # Clean up sys.path after loading each script
+            # TODO #3514: proper cleanup using with
+            if inserted_path in sys.path:
+                sys.path.remove(inserted_path)
+            # Also drop any helper module imported by this script so that a
+            # later script with a same-named helper in another directory
+            # imports its own version.
+            _remove_script_modules(inserted_path, preexisting_modules)
 
     _, filename = os.path.split(input_file)
-    if filename not in files_to_skip:
+    if filename not in all_files_to_skip:
         # If line_length "all" is provided, check the input source
         fll = FortLineLength()
         if line_length == "all":
@@ -957,7 +1099,7 @@ def code_transformation_mode(input_file: str,
 
         # Parse file
         reader = FortranReader(
-            resolve_modules=resolve_mods,
+            resolve_modules=final_resolve_mods,
             ignore_comments=not keep_comments,
             ignore_directives=not keep_directives,
             conditional_openmp_statements=keep_conditional_openmp_statements,
@@ -973,9 +1115,23 @@ def code_transformation_mode(input_file: str,
             logger.error(err, exc_info=True)
             sys.exit(1)
 
-        # Modify file
-        if trans_recipe:
-            trans_recipe(psyir, **kwargs)
+        # Apply all transformation recipes in order
+        for trans_recipe, kwargs, inserted_path in trans_recipes:
+            # Re-insert the script's own directory into sys.path so that any
+            # imports performed at runtime by the recipe (e.g. inside trans())
+            # resolve to helper modules in that directory. It is removed again
+            # immediately afterwards so that it cannot affect the next recipe.
+            preexisting_modules = set(sys.modules)
+            sys.path.insert(0, inserted_path)
+            try:
+                trans_recipe(psyir, **kwargs)
+            finally:
+                # TODO #3514: proper cleanup using with
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
+                # Drop any helper module imported at runtime by this recipe so
+                # that the next recipe resolves its own same-named helpers.
+                _remove_script_modules(inserted_path, preexisting_modules)
 
         # Add profiling if automatic profiling has been requested
         for routine in psyir.walk(Routine):
@@ -1004,6 +1160,3 @@ def code_transformation_mode(input_file: str,
         else:
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
-
-    # TODO #3514: proper cleanup using with
-    del sys.path[0]
