@@ -38,9 +38,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         return self._explicitly_private_symbols
 
     def replace_symbols_using(
-        self,
-        mapping: Union[SymbolTable, dict[Symbol, Symbol]]
-    ):
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace the Symbol referred to by this object's
         `explicitly_private_symbols` set with those in the supplied

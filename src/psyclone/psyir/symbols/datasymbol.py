@@ -9,9 +9,14 @@
 
 from __future__ import annotations
 
+from typing import Union, TYPE_CHECKING
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
 from psyclone.psyir.symbols.symbol import Symbol
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class DataSymbol(TypedSymbol):
@@ -330,7 +335,9 @@ class DataSymbol(TypedSymbol):
         self.preceding_comment = symbol_in.preceding_comment
         self.inline_comment = symbol_in.inline_comment
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -339,8 +346,6 @@ class DataSymbol(TypedSymbol):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         super().replace_symbols_using(mapping)

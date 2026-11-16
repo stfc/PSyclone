@@ -11,8 +11,12 @@
 
 from __future__ import annotations
 import abc
+from typing import Union, TYPE_CHECKING
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
@@ -205,7 +209,9 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -214,8 +220,6 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         super().replace_symbols_using(mapping)

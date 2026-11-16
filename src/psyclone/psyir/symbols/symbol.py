@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
@@ -515,24 +515,27 @@ class Symbol(CommentableMixin):
         return self.is_array
 
     def get_replacement(
-            self,
-            mapping: "SymbolTable | dict[Symbol, Symbol]"
-            ) -> "Symbol":
-        '''Find this symbol's replacement, returning self if there is none.
+            self, mapping: Union[SymbolTable, dict["Symbol", "Symbol"]]
+    ) -> "Symbol":
+        '''Find this symbol's replacement from the supplied mapping, returning
+        self if there is none.
 
-        A SymbolTable matches by name. A dictionary maps
-        Symbol objects by identity, allowing aliases with different names to
-        be replaced without affecting symbols that shadow them.
+        A SymbolTable matches by name. A dictionary matches by identity,
+        allowing aliases with different names to be replaced without affecting
+        symbols that shadow them.
 
         :param mapping: a SymbolTable or dictionary mapping
             original Symbols to replacement Symbols.
+
         :returns: the replacement Symbol, or this Symbol.
         '''
         if isinstance(mapping, dict):
             return mapping.get(self, self)
         return mapping.lookup(self.name, otherwise=self)
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -541,8 +544,6 @@ class Symbol(CommentableMixin):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         if not isinstance(self.interface, ImportInterface):

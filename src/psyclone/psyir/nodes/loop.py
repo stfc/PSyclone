@@ -382,25 +382,6 @@ class Loop(Statement):
             result += f", loop_type='{self.loop_type}'"
         return result + "]"
 
-    def replace_symbols_using(
-        self,
-        mapping: Union[SymbolTable, dict[Symbol, Symbol]]
-    ):
-        '''
-        Replace the Symbol referred to by this object's `variable` with those
-        in the supplied SymbolTable by name or dictionary by identity. If there
-        is no match for a given Symbol then it is left unchanged.
-
-        :param mapping: the symbol table from which to get replacement
-            symbols, or a dictionary mapping original Symbols to replacements
-            by identity.
-
-        '''
-        if self.variable:
-            self.variable = self.variable.get_replacement(mapping)
-
-        super().replace_symbols_using(mapping)
-
     def __str__(self):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__

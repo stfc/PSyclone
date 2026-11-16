@@ -20,7 +20,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.utils import colored
 
 if TYPE_CHECKING:
-    from psyclone.psyir.symbols import Symbol
+    from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 class ChildrenList(list):
@@ -1786,7 +1786,9 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -1797,8 +1799,6 @@ class Node():
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         for child in self.children:

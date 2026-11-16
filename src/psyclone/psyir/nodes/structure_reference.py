@@ -23,7 +23,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataType, DataTypeSymbol, UnresolvedType,
-    StructureType, UnsupportedType)
+    StructureType, Symbol, SymbolTable, UnsupportedType)
 
 
 class StructureReference(StructureAccessorMixin, Reference):
@@ -223,14 +223,15 @@ class StructureReference(StructureAccessorMixin, Reference):
             result += "\n" + str(entity)
         return result
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''Update symbols in the explicit datatype override, if present,
         before updating the referenced symbol and child nodes.
 
         :param mapping: the symbol table from which to get replacement
             symbols by name, or a dictionary mapping original Symbols to
             replacements by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` | dict
         '''
         if self._overwrite_datatype is not None:
             self._overwrite_datatype.replace_symbols_using(mapping)

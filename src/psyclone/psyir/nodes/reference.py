@@ -7,7 +7,7 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from typing import Optional
+from typing import Optional, Union
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.errors import PSycloneError
@@ -16,6 +16,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     Symbol,
+    SymbolTable,
     AutomaticInterface,
     RoutineSymbol,
     IntrinsicSymbol, ArgumentInterface
@@ -405,7 +406,9 @@ class Reference(DataNode):
 
         return False
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Update any Symbols referenced by this Node with those in the
         supplied table by name or dictionary by identity. If there is
@@ -414,8 +417,6 @@ class Reference(DataNode):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         self.symbol = self.symbol.get_replacement(mapping)

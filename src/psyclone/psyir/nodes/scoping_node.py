@@ -163,8 +163,8 @@ class ScopingNode(Node):
         return var_accesses
 
     def replace_symbols_using(
-            self,
-            mapping: Union[SymbolTable, dict[Symbol, Symbol]]) -> None:
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
         those in the supplied table by name or dictionary by identity. If there

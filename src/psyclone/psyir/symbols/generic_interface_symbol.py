@@ -9,12 +9,15 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import DataType, UnresolvedType
 from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class GenericInterfaceSymbol(RoutineSymbol):
@@ -269,7 +272,9 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_values.append((new_sym, info.from_container))
         self.routines = new_values
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -281,8 +286,6 @@ class GenericInterfaceSymbol(RoutineSymbol):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         super().replace_symbols_using(mapping)

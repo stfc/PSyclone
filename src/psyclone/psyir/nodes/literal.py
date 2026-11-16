@@ -6,6 +6,7 @@
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Literal node implementation.'''
+from psyclone.psyir.symbols import SymbolTable
 
 import re
 
@@ -167,7 +168,9 @@ class Literal(DataNode):
                     Signature(symbol.name), AccessType.CONSTANT, self)
         return access_info
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -176,15 +179,13 @@ class Literal(DataNode):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         self.datatype.replace_symbols_using(mapping)
         super().replace_symbols_using(mapping)
 
     @property
-    def value_as_python(self) -> Union[str, bool, int, float]:
+    def value_as_python(self) -> Union[str, bool, int, float, None]:
         '''
         .. warning::
             value_as_python doesn't attempt to preserve the precision

@@ -54,7 +54,9 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -63,8 +65,6 @@ class DataType(metaclass=abc.ABCMeta):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
 
@@ -265,7 +265,9 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -277,8 +279,6 @@ class UnsupportedFortranType(UnsupportedType):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         partial_datatype = self.partial_datatype
@@ -584,8 +584,8 @@ class ScalarType(DataType):
         return precision_match and length_match
 
     def replace_symbols_using(
-            self,
-            mapping: Union[SymbolTable, dict[Symbol, Symbol]]) -> None:
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -1204,7 +1204,9 @@ class ArrayType(DataType):
         # such as a DataTypeSymbol datatype (which should not be copied).
         return ArrayType(self.elemental_type, new_shape)
 
-    def replace_symbols_using(self, mapping):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable by name or dictionary by identity. If there is
@@ -1213,8 +1215,6 @@ class ArrayType(DataType):
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
             by identity.
-        :type mapping: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            dict
 
         '''
         if isinstance(self.elemental_type, DataTypeSymbol):
@@ -1532,8 +1532,7 @@ class StructureType(DataType):
         return True
 
     def replace_symbols_using(
-        self,
-        mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
     ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
