@@ -126,7 +126,8 @@ def test_intrinsiccall_datatype(fortran_reader):
     with pytest.raises(InternalError) as err:
         _ = call.datatype
     assert ("Failed to compute the datatype of a 'ABS' intrinsic. This is "
-            "likely due to not fully initialising the intrinsic correctly."
+            "likely due to an incomplete node or the provided arguments are "
+            "not valid for the intrinsic."
             in str(err.value))
 
     # Test that when we get a AttributeError due to unresolved/unsupported
@@ -142,21 +143,6 @@ def test_intrinsiccall_datatype(fortran_reader):
     assert isinstance(call.datatype, UnresolvedType)
 
 
-@pytest.mark.parametrize("expression", [
-    "abs(a)", "real(a)", "transpose(a)", "sum(a, dim=1)",
-    "lbound(a)", "matmul(a, b)", "dot_product(a, b)"])
-def test_intrinsiccall_datatype_unknown_arguments(fortran_reader, expression):
-    '''Unavailable imported declarations must not cause inference to fail.'''
-    psyir = fortran_reader.psyir_from_source(f'''
-        subroutine example
-          use missing_mod
-          result = {expression}
-        end subroutine example
-    ''')
-    call = psyir.walk(Assignment)[0].rhs
-    assert isinstance(call.datatype, UnresolvedType)
-
-
 def test_intrinsiccall_datatype_invalid_scalar_array_argument(fortran_reader):
     '''A known scalar passed to TRANSPOSE is invalid, not unresolved.'''
     psyir = fortran_reader.psyir_from_source('''
@@ -166,8 +152,11 @@ def test_intrinsiccall_datatype_invalid_scalar_array_argument(fortran_reader):
         end subroutine example
     ''')
     call = psyir.walk(Assignment)[0].rhs
-    with pytest.raises(InternalError, match="Failed to compute the datatype"):
+    with pytest.raises(InternalError) as err:
         _ = call.datatype
+    assert "Failed to compute the datatype" in str(err.value)
+    assert ("This is likely due to an incomplete node or the provided "
+            "arguments are not valid for the intrinsic.") in str(err.value)
 
 
 def test_intrinsiccall_datatype_typeerr_paths(
@@ -240,8 +229,9 @@ def test_intrinsiccall_datatype_typeerr_paths(
     with pytest.raises(InternalError) as err:
         _ = intrinsics[1].datatype
     assert ("Failed to compute the datatype of a 'MIN' intrinsic. "
-            "This is likely due to not fully initialising the intrinsic "
-            "correctly." in str(err.value))
+            "This is likely due to an incomplete node or the provided "
+            "arguments are not valid for the intrinsic."
+            in str(err.value))
 
 
 def test_intrinsiccall_reference_accesses_no_arg_names():

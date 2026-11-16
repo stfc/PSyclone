@@ -4888,14 +4888,15 @@ class IntrinsicCall(Call):
                 # objects; errors on known types or missing arguments indicate
                 # invalid or incomplete PSyIR and must still be reported.
                 # TODO #3416: Python 3.9 does not provide AttributeError.obj
-                if not hasattr(err, "obj"):  # pragma: no cover
+                if not hasattr(err, "obj"):
                     if str(err).startswith(tuple(
                             f"'{dtype.__name__}' object has no attribute "
                             for dtype in (UnresolvedType,
-                                          UnsupportedFortranType,
+                                          UnsupportedType,
                                           DataTypeSymbol))):
                         return UnresolvedType()
-                elif isinstance(err.obj, (UnresolvedType, UnsupportedType,
+                elif isinstance(err.obj, (UnresolvedType,
+                                          UnsupportedType,
                                           DataTypeSymbol)):
                     return UnresolvedType()
                 outerr = err
@@ -4903,9 +4904,10 @@ class IntrinsicCall(Call):
             # Can't use debug string due to this being a potentially
             # incomplete IntrinsicCall
             raise InternalError(
-                f"Failed to compute the datatype of a "
-                f"'{self.intrinsic.name}' intrinsic. This is likely due "
-                f"to not fully initialising the intrinsic correctly."
+                f"Failed to compute the datatype of a '{self.intrinsic.name}' "
+                f"intrinsic. This is likely due "
+                f"to an incomplete node or the provided arguments are not "
+                f"valid for the intrinsic."
             ) from outerr
         else:
             return self.intrinsic.return_type

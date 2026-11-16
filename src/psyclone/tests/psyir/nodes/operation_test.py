@@ -15,8 +15,8 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, IntrinsicCall,
-    Literal, Range, Reference, Return, StructureReference, UnaryOperation)
+    ArrayReference, BinaryOperation, IntrinsicCall, Literal, Range, Reference,
+    Return, StructureReference, UnaryOperation, Assignment, DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType, Symbol,
     StructureType, UnsupportedFortranType)
@@ -520,6 +520,30 @@ def test_binaryoperation_intrinsic_fn_datatype():
     binop = BinaryOperation.create(oper, arg1, arg2)
     assert isinstance(binop.datatype, ScalarType)
     assert binop.datatype == ScalarType.real_single_type()
+
+
+def test_datatype_overloaded_operator(fortran_reader):
+    '''An overloaded derived-type expression has an unresolved result type.
+
+    An imported derived type has a DataTypeSymbol, even when operator(+) is
+    also imported. Accessing the expression's datatype must not assume that
+    this has an intrinsic type.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine example(b, c, d)
+          use types_mod, only: my_type, operator(+)
+          implicit none
+          type(my_type), intent(out) :: b
+          type(my_type), intent(in) :: c, d
+          b = c + d
+        end subroutine example
+    ''')
+    rhs = psyir.walk(Assignment)[0].rhs
+    assert isinstance(rhs, DataNode)
+    assert isinstance(rhs, BinaryOperation)
+    assert isinstance(rhs.children[0].datatype, DataTypeSymbol)
+
+    assert isinstance(rhs.datatype, UnresolvedType)
 
 
 # Test UnaryOperation class
