@@ -27,7 +27,7 @@ from fparser.two.parser import ParserFactory
 from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
@@ -515,12 +515,14 @@ def test_script_trans_lfric(tmp_path):
 
     '''
     fuse_loop_script = script_factory(tmp_path, """
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 def trans(psyir):
     module = psyir.children[0]
     schedule = [x for x in module.children if x.name == "invoke_0"][0]
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    loops = schedule.walk(LFRicLoop)
+    loop1 = loops[0]
+    loop2 = loops[1]
     transform = LFRicLoopFuseTrans()
     transform.apply((loop1, loop2))
 """)
@@ -530,8 +532,9 @@ def trans(psyir):
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    loops = schedule.walk(LFRicLoop)
+    loop1 = loops[0]
+    loop2 = loops[1]
     trans = LFRicLoopFuseTrans()
     trans.apply((loop1, loop2))
     generated_code_1 = psy.gen
