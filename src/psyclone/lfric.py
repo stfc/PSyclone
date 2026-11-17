@@ -17,7 +17,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -4647,7 +4647,7 @@ class HaloDepth():
 
     def set_by_value(self,
                      max_depth: bool,
-                     var_depth: Optional[DataNode],
+                     var_depth: DataNode | None,
                      annexed_only: bool,
                      max_depth_m1: bool):
         # pylint: disable=too-many-arguments
@@ -5621,9 +5621,9 @@ class LFRicKernelArgument(KernelArgument):
         else:
             self._mesh = None
         # The number of vertical layers (for a field/operator)
-        self._nlayers: Optional[str] = arg_meta_data.nlayers
+        self._nlayers: str | None = arg_meta_data.nlayers
         # The number of data values associated with each DoF of a field
-        self._ndata: Optional[str] = arg_meta_data.ndata
+        self._ndata: str | None = arg_meta_data.ndata
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -6274,7 +6274,7 @@ class LFRicKernelArgument(KernelArgument):
         return self.proxy_name
 
     @property
-    def proxy_data_type(self) -> Union[str, None]:
+    def proxy_data_type(self) -> str | None:
         '''
         :returns: the type of this argument's proxy (if it exists) as
                   defined in LFRic infrastructure.

@@ -11,7 +11,7 @@ from __future__ import annotations
 import abc
 import re
 from enum import Enum
-from typing import Optional, Any, Union, Iterable
+from typing import Any, Iterable
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -67,10 +67,10 @@ class CodeBlock(Statement, DataNode):
 
     def __init__(
         self,
-        parse_tree: Union[Any, list[Any]],
+        parse_tree: Any | list[Any],
         structure: CodeBlock.Structure,
-        parent: Optional[Node] = None,
-        annotations: Optional[list[str]] = None
+        parent: Node | None = None,
+        annotations: list[str] | None = None
     ):
         super().__init__(parent=parent, annotations=annotations)
         # Store a list of the parser objects holding the code associated
@@ -424,7 +424,7 @@ class Fparser2CodeBlock(CodeBlock):
             output.extend(node.tofortran().split("\n"))
         return output
 
-    def _contains_stmt(self, stmt_cls: Union[type, Iterable[type]],
+    def _contains_stmt(self, stmt_cls: type | Iterable[type],
                        only: bool = False) -> bool:
         '''
         :param stmt_cls: the class or classes to check for in this

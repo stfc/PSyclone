@@ -10,7 +10,6 @@
 '''
 
 import abc
-from typing import Dict, List, Union
 
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
@@ -40,7 +39,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     excluded_node_types = ()
 
     def get_node_list(self,
-                      nodes: Union[Node, Schedule, List[Node]]) -> List[Node]:
+                      nodes: Node | Schedule | list[Node]) -> list[Node]:
         '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
         Node, a Schedule, or a list of nodes. This function converts this
@@ -86,9 +85,9 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                                   f"object of type: {arg_type}")
 
     def apply(self,
-              nodes: Union[Node, Schedule, List[Node]],
+              nodes: Node | Schedule | list[Node],
               node_type_check: bool = True,
-              options: Dict = None,
+              options: dict = None,
               **kwargs):
         '''
         Apply the RegionTrans transformation.
@@ -110,8 +109,8 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         super().apply(nodes, node_type_check=node_type_check)
 
     def validate(self,
-                 nodes: Union[Node, Schedule, List[Node]],
-                 options: Dict = None,
+                 nodes: Node | Schedule | list[Node],
+                 options: dict = None,
                  **kwargs):
         '''Checks that the nodes in `nodes` are valid for a region
         transformation.

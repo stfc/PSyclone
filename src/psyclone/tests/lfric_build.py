@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Optional, Union
 
 from psyclone.tests.utilities import (change_dir, CompileError, Compile,
                                       get_base_path, get_infrastructure_path)
@@ -46,7 +45,7 @@ class LFRicBuild(Compile):
     # The path to the infrastructure source files.
     _infrastructure_path: Path
 
-    def __init__(self, tmpdir: Optional[Union[str, Path]]) -> None:
+    def __init__(self, tmpdir: str | Path | None) -> None:
         super().__init__(tmpdir)
 
         self.base_path = get_base_path("lfric")

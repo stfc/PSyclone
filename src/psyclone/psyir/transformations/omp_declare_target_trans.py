@@ -9,7 +9,7 @@
 This module provides the implementation of OMPDeclareTargetTrans
 
 '''
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone.psyir.nodes import OMPDeclareTargetDirective, Routine
 from psyclone.psyir.transformations.callee_transformation_mixin import (
@@ -66,8 +66,8 @@ class OMPDeclareTargetTrans(Transformation,
 
     '''
     def apply(self,
-              node: Union[Routine, Kern],
-              options: Optional[dict[str, Any]] = None,
+              node: Routine | Kern,
+              options: dict[str, Any] | None = None,
               force: bool = False,
               device_string: str = "",
               **kwargs) -> None:
@@ -97,8 +97,8 @@ class OMPDeclareTargetTrans(Transformation,
                 routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self,
-                 node: Union[Kern, Routine],
-                 options: Optional[dict[str, Any]] = None,
+                 node: Kern | Routine,
+                 options: dict[str, Any] | None = None,
                  **kwargs) -> None:
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 

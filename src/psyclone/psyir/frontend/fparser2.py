@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import re
 import os
 import sys
-from typing import Iterable, Optional, Tuple, Union
+from typing import Iterable
 
 from fparser.common.readfortran import (
     FortranStringReader, FortranFileReader, FortranReaderBase)
@@ -575,12 +575,12 @@ def default_real_type():
 
 
 def get_literal_precision(
-        fparser2_node: Union[Fortran2003.Real_Literal_Constant,
-                             Fortran2003.Signed_Real_Literal_Constant,
-                             Fortran2003.Logical_Literal_Constant,
-                             Fortran2003.Char_Literal_Constant,
-                             Fortran2003.Int_Literal_Constant,
-                             Fortran2003.Signed_Int_Literal_Constant],
+        fparser2_node: Fortran2003.Real_Literal_Constant |
+        Fortran2003.Signed_Real_Literal_Constant |
+        Fortran2003.Logical_Literal_Constant |
+        Fortran2003.Char_Literal_Constant |
+        Fortran2003.Int_Literal_Constant |
+        Fortran2003.Signed_Int_Literal_Constant,
         psyir_literal_parent: Node) -> ScalarType.Precision:
     '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
@@ -935,9 +935,9 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        guard_type: list[Optional[str]] = field(default_factory=list)
-        guard_type_name: list[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: list[Optional[str]] = field(default_factory=list)
+        guard_type: list[str | None] = field(default_factory=list)
+        guard_type_name: list[str | None] = field(default_factory=list)
+        intrinsic_type_name: list[str | None] = field(default_factory=list)
         clause_type: list[str] = field(default_factory=list)
         stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
@@ -948,7 +948,7 @@ class Fparser2Reader():
         self,
         ignore_directives: bool = True,
         last_comments_as_codeblocks: bool = False,
-        resolve_modules: Union[bool, list[str]] = False,
+        resolve_modules: bool | list[str] = False,
         ignore_comments: bool = False,
         free_form: bool = False,
         conditional_openmp: bool = False,
@@ -1704,11 +1704,10 @@ class Fparser2Reader():
     def _process_type_spec(
             self,
             parent: Node,
-            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
-                             Fortran2003.Declaration_Type_Spec]
-    ) -> Tuple[
-            Union[ScalarType, DataTypeSymbol],
-            Union[ScalarType.Precision, DataSymbol, int, None]]:
+            type_spec: Fortran2003.Intrinsic_Type_Spec |
+            Fortran2003.Declaration_Type_Spec
+    ) -> tuple[ScalarType | DataTypeSymbol,
+               ScalarType.Precision | DataSymbol | int | None]:
         '''
         Processes the fparser2 parse tree of a type specification in order to
         extract the type and precision that are specified.
@@ -1792,11 +1791,10 @@ class Fparser2Reader():
         self,
         scope: ScopingNode,
         symbol_table: SymbolTable,
-        decl: Union[
-                Fortran2003.Type_Declaration_Stmt,
-                Fortran2003.Data_Component_Def_Stmt,
-                Fortran2003.Procedure_Stmt],
-        visibility_map: Optional[dict[str, Symbol.Visibility]] = None,
+        decl: Fortran2003.Type_Declaration_Stmt |
+        Fortran2003.Data_Component_Def_Stmt |
+        Fortran2003.Procedure_Stmt,
+        visibility_map: dict[str, Symbol.Visibility] | None = None,
         statics_list: Iterable[str] = (),
         preceding_comments: Iterable[str] = (),
     ):
@@ -2448,7 +2446,7 @@ class Fparser2Reader():
         node: Fortran2003.Type_Declaration_Stmt,
         scope: ScopingNode,
         symbol_table: SymbolTable,
-        visibility_map: Optional[dict[str, Symbol.Visibility]] = None
+        visibility_map: dict[str, Symbol.Visibility] | None = None
     ):
         '''Try to obtain partial datatype information from node by removing
         any unsupported properties in the declaration.
@@ -3085,8 +3083,8 @@ class Fparser2Reader():
 
     def _process_precision(self,
                            type_spec: Fortran2003.Intrinsic_Type_Spec,
-                           psyir_parent: Node) -> Optional[
-                               Union[ScalarType.Precision, DataNode]]:
+                           psyir_parent: Node
+                           ) -> ScalarType.Precision | DataNode | None:
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract precision
         information. Two formats for specifying precision are
@@ -3182,11 +3180,11 @@ class Fparser2Reader():
 
     def _process_char_length(
             self,
-            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
-                             Fortran2003.Int_Literal_Constant,
-                             Fortran2003.Char_Length],
-            psyir_parent: Node) -> Optional[
-                Union[ScalarType.CharLengthParameter, DataNode]]:
+            type_spec: Fortran2003.Intrinsic_Type_Spec |
+            Fortran2003.Int_Literal_Constant |
+            Fortran2003.Char_Length,
+            psyir_parent: Node
+    ) -> ScalarType.CharLengthParameter | DataNode | None:
         '''
         Process any length attribute on a CHARACTER declaration.
 
@@ -5849,14 +5847,12 @@ class Fparser2Reader():
 
         return self._process_args(node, call)
 
-    def _process_args(self, node: Union[
-                          Fortran2003.Call_Stmt,
-                          Fortran2003.Intrinsic_Function_Reference,
-                          Fortran2003.Structure_Constructor
-                      ],
-                      call: Union[Call, IntrinsicCall],
-                      check_valid_argument_ordering: bool = False) -> Union[
-                              Call, IntrinsicCall]:
+    def _process_args(self, node: Fortran2003.Call_Stmt |
+                      Fortran2003.Intrinsic_Function_Reference |
+                      Fortran2003.Structure_Constructor,
+                      call: Call | IntrinsicCall,
+                      check_valid_argument_ordering: bool = False
+                      ) -> Call | IntrinsicCall:
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
         contained in the call argument, respectively.
@@ -5928,7 +5924,7 @@ class Fparser2Reader():
 
     def _get_lost_declaration_comments_and_directives(
         self, decl_list, attach_trailing_symbol: bool = True
-    ) -> list[Union[Fortran2003.Comment, Fortran2003.Directive]]:
+    ) -> list[Fortran2003.Comment | Fortran2003.Directive]:
         '''Finds comments from the variable declaration that the default
         declaration handler doesn't keep. Any comments that appear after
         the final declaration but before the first PSyIR node created are
@@ -6436,7 +6432,7 @@ class Fparser2Reader():
 
     def _directive_handler(
         self, node: Fortran2003.Directive, parent: Node
-    ) -> Union[CodeBlock, UnknownDirective, Directive]:
+    ) -> CodeBlock | UnknownDirective | Directive:
         '''
         Process a directive and add it to the tree. The current behaviour
         places most directives into a CodeBlock.

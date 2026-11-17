@@ -13,7 +13,7 @@
    actual code.
 '''
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone import psyGen
 from psyclone.psyir.nodes import Node, ValueRangeCheckNode
@@ -51,7 +51,7 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         super().__init__(node_class=node_class)
 
     def validate(self, node_list: list[Node],
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''Performs validation checks specific to nan-test
         transformations. This function is only here so that it
@@ -72,8 +72,8 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
 
         super().validate(node_list, options, **kwargs)
 
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Apply this value-range checking transformation.
 

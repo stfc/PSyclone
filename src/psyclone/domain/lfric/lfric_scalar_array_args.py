@@ -13,7 +13,6 @@ an Invoke or a Kernel stub.
 
 # Imports
 from collections import Counter
-from typing import Union
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import (LFRicCollection, LFRicConstants, LFRicTypes,
@@ -36,7 +35,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
     :param node: the Invoke or Kernel stub for which to manage the
                  ScalarArray arguments.
     '''
-    def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
+    def __init__(self, node: LFRicKern | LFRicInvoke):
         super().__init__(node)
 
         # Initialise a dictionary keyed by intent ('in', 'out', 'inout')

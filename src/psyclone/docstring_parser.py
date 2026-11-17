@@ -16,7 +16,7 @@ from dataclasses import dataclass
 import inspect
 import os
 import re
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List
 
 from psyclone.errors import DocParseError
 
@@ -37,7 +37,7 @@ class ArgumentData():
     desc: str
     inline_type: bool
 
-    def gen_docstring(self, function: Union[None, Callable[..., Any]] = None,
+    def gen_docstring(self, function: None | Callable[..., Any] = None,
                       cls_name: str = "") -> str:
         '''
         :param function: The function who the generated docstring will be for.
@@ -131,7 +131,7 @@ class DocstringData():
     sub_arguments: OrderedDict[str, OrderedDict]
 
     def add_data(self, docstring_element:
-                 Union[ArgumentData, RaisesData, ReturnsData, str]) -> None:
+                 ArgumentData | RaisesData | ReturnsData | str) -> None:
         '''
         Adds the docstring_element to the DocstringData object. If there is a
         previous docstring_element in this DocstringData it will be
@@ -240,7 +240,7 @@ class DocstringData():
 
     def gen_docstring(
             self, indentation: str = "    ",
-            function: Union[None, Callable[..., Any]] = None
+            function: None | Callable[..., Any] = None
     ) -> str:
         '''
         Generates the docstring from the input docdata. The indentation of the
@@ -470,7 +470,7 @@ class DocstringData():
 
 def create_docstring_data(args: List[str], desc: str,
                           function: Callable[..., Any]) ->\
-        Union[ArgumentData, RaisesData, ReturnsData]:
+        ArgumentData | RaisesData | ReturnsData:
     '''
     Creates a docstring data object (i.e. ArgumentData, RaisesData or
     ReturnsData) from an argument list and description.

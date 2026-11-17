@@ -10,8 +10,7 @@
    a region of code."
 '''
 
-from typing import Any, Optional, Union
-
+from typing import Any
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import (
     Literal, Loop, Node, ReadOnlyVerifyNode, Directive, Reference, Schedule,
@@ -49,7 +48,7 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     def validate(self, node_list: list[Node],
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to read-only-based
@@ -95,8 +94,8 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
         # transformations.
         super().validate(node_list, options, **kwargs)
 
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Apply this read-only verification transformation.
 

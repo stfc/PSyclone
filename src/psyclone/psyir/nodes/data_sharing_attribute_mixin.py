@@ -8,7 +8,6 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Optional, Union
 
 from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -39,7 +38,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[Symbol, SymbolTable]
+        table_or_symbol: Symbol | SymbolTable
     ):
         '''
         Replace the Symbol referred to by this object's
@@ -291,7 +290,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         return False
 
     def _add_reduction_clauses(self,
-                               need_sync: Optional[list[Symbol]] = None
+                               need_sync: list[Symbol] | None = None
                                ) -> None:
         '''
         Analyses the code beneath this node and adds the necessary

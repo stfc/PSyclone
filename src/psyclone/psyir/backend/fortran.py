@@ -9,8 +9,6 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
-from typing import Union
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
@@ -265,7 +263,7 @@ class FortranWriter(LanguageWriter):
         return comments
 
     def gen_datatype(self,
-                     datatype: Union[DataType, DataTypeSymbol],
+                     datatype: DataType | DataTypeSymbol,
                      name: str) -> str:
         '''Given a DataType instance as input, return the Fortran datatype
         of the symbol including any specific precision properties.
@@ -563,7 +561,7 @@ class FortranWriter(LanguageWriter):
         return result + "\n"
 
     def gen_vardecl(self,
-                    symbol: Union[DataSymbol, Member],
+                    symbol: DataSymbol | Member,
                     include_visibility: bool = False) -> str:
         '''Create and return the Fortran variable declaration for this Symbol
         or derived-type member.

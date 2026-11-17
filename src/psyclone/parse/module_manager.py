@@ -13,7 +13,7 @@ import copy
 from difflib import SequenceMatcher
 import logging
 from pathlib import Path
-from typing import cast, Iterable, Optional, OrderedDict, Union
+from typing import cast, Iterable, OrderedDict
 import os
 import re
 
@@ -44,8 +44,8 @@ class ModuleManager:
     _threshold_similarity = 0.7
 
     @staticmethod
-    def get(cache_active: Optional[bool] = None,
-            cache_path: Optional[str] = None):
+    def get(cache_active: bool | None = None,
+            cache_path: str | None = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
         '''
@@ -71,11 +71,11 @@ class ModuleManager:
         self._cache_active = False
 
         # Path to cache
-        self._cache_path: Optional[str] = None
+        self._cache_path: str | None = None
 
         # Whether to resolve imports while inspecting another import.
         # It can be a list of specific module names for finer control.
-        self._resolve_indirect_imports: Union[bool, Iterable[str]] = False
+        self._resolve_indirect_imports: bool | Iterable[str] = False
 
         self._visited_files: dict[str, FileInfo] = {}
 
@@ -138,7 +138,7 @@ class ModuleManager:
         self._cache_active = value
 
     @property
-    def cache_path(self) -> Optional[str]:
+    def cache_path(self) -> str | None:
         '''
         :returns: the path where the cache file will be stored, if it is None
             the file will be created in the same directory as the source file.
@@ -146,7 +146,7 @@ class ModuleManager:
         return self._cache_path
 
     @cache_path.setter
-    def cache_path(self, value: Optional[str]):
+    def cache_path(self, value: str | None):
         '''
         :param value: specify the path where the cache file will be stored, if
             None the file will be created in the same directory as the source
@@ -160,7 +160,7 @@ class ModuleManager:
         self._cache_path = value
 
     @property
-    def resolve_indirect_imports(self) -> Union[bool, Iterable[str]]:
+    def resolve_indirect_imports(self) -> bool | Iterable[str]:
         '''
         :returns: whether indirect imports will be imported (if found). This
             can be a list of module names to provide finer control.
@@ -168,7 +168,7 @@ class ModuleManager:
         return self._resolve_indirect_imports
 
     @resolve_indirect_imports.setter
-    def resolve_indirect_imports(self, value: Union[bool, Iterable[str]]):
+    def resolve_indirect_imports(self, value: bool | Iterable[str]):
         '''
         :param value: specify whether indirect imports will be imported (if
             found). This can be a list of module names for finer control.
@@ -212,8 +212,7 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def add_search_path(self,
-                        directories: Union[str, Path,
-                                           list[str], list[Path]],
+                        directories: str | Path | list[str] | list[Path],
                         recursive: bool = True) -> None:
         '''If the directory is not already contained in the search path,
         add it. Directory can either be a string, in which case it is a single
@@ -291,7 +290,7 @@ class ModuleManager:
     def _find_module_in_files(
             self,
             name: str,
-            file_list: Iterable[FileInfo]) -> Union[None, ModuleInfo]:
+            file_list: Iterable[FileInfo]) -> None | ModuleInfo:
         '''
         Searches the files represented by the supplied list of FileInfo objects
         to find the one defining the named Fortran module.
@@ -350,7 +349,7 @@ class ModuleManager:
         '''
         return self._ignore_modules
 
-    def add_files(self, filepaths: Union[str, Iterable[str]]) -> None:
+    def add_files(self, filepaths: str | Iterable[str]) -> None:
         """Utility to add multiple files to the ModuleManager.
         Any file already found to be present in the ModuleManager is skipped.
 
@@ -503,7 +502,7 @@ class ModuleManager:
                 ext.islower() and
                 not ext.startswith(".x"))
 
-    def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
+    def get_module_info(self, module_name: str) -> ModuleInfo | None:
         """This function returns the ModuleInfo for the specified
         module.
 

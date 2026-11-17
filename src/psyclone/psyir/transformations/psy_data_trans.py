@@ -8,7 +8,7 @@
 '''Contains the PSyData transformation.
 '''
 
-from typing import Any, Optional, Union
+from typing import Any
 import warnings
 
 from psyclone.configuration import Config
@@ -83,8 +83,8 @@ class PSyDataTrans(RegionTrans):
         return self.__class__.__name__
 
     # ------------------------------------------------------------------------
-    def validate(self, nodes: Union[Node, list[Node]],
-                 options: Optional[dict[str, Any]] = None,
+    def validate(self, nodes: Node | list[Node],
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid, that the location
@@ -189,10 +189,10 @@ class PSyDataTrans(RegionTrans):
         super().validate(node_list, options, **kwargs)
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
-              prefix: Optional[str] = None,
-              region_name: Optional[tuple[str, str]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
+              prefix: str | None = None,
+              region_name: tuple[str, str] | None = None,
               **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a

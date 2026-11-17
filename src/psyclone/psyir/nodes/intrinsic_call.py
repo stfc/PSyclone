@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
-from typing import List, Tuple, Callable, Union
+from typing import Callable
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
@@ -124,7 +124,7 @@ def _compute_reference_accesses(
 
 def _type_of_arg_with_rank_minus_one(
         arg: Reference, scalar_type: ScalarType
-) -> Union[ScalarType, ArrayType]:
+) -> ScalarType | ArrayType:
     '''
     Returns a DataType with with the type of the provided scalar_type
     with one rank less than the input arg. If arg is an array of rank 1,
@@ -4934,7 +4934,7 @@ class IntrinsicCall(Call):
             " values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
         )
 
-    def _find_matching_interface(self) -> Tuple[str]:
+    def _find_matching_interface(self) -> tuple[str]:
         '''
         Finds the matching required argument interface for this node to
         add argument names from.
@@ -4947,7 +4947,7 @@ class IntrinsicCall(Call):
             # Pull out the list of optional argument names.
             optional_names = list(self.intrinsic.optional_args.keys())
             # Create a list of all the possible interface's argument lists.
-            potential_interfaces: List[Tuple[str]] = [
+            potential_interfaces: list[tuple[str]] = [
                     names for names in self.intrinsic.required_args.arg_names
             ]
             # Remove any of the interfaces that don't contain
@@ -5158,7 +5158,7 @@ class IntrinsicCall(Call):
 
     @classmethod
     def create(cls, intrinsic: IntrinsicCall.Intrinsic,
-               arguments: Iterable[Union[DataNode, tuple[str, DataNode]]] = ()
+               arguments: Iterable[DataNode | tuple[str, DataNode]] = ()
                ) -> IntrinsicCall:
         '''Create an instance of this class given the type of intrinsic and a
         list of nodes (or name-and-node tuples) for its arguments. Any

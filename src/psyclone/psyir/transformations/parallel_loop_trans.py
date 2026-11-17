@@ -9,7 +9,6 @@
 
 import abc
 from collections.abc import Iterable
-from typing import Union, List, Optional
 import warnings
 import logging
 
@@ -78,7 +77,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         loop: Loop,
         symbol_name: str,
         force_private: Iterable[str] = (),
-        output_set: Optional[set[Symbol]] = None
+        output_set: set[Symbol] | None = None
     ):
         ''' Check and (if dry_run is False) perform symbol privatisation
         for the given symbol_name in the given node.
@@ -349,12 +348,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 raise TransformationError(messages)
 
     def apply(self, node, options=None, verbose: bool = False,
-              collapse: Union[int, bool] = False, force: bool = False,
-              ignore_dependencies_for: Union[None, List[str]] = None,
+              collapse: int | bool = False, force: bool = False,
+              ignore_dependencies_for: None | list[str] = None,
               privatise_arrays: bool = False, sequential: bool = False,
               nowait: bool = False,
-              reduction_ops: List[Union[BinaryOperation.Operator,
-                                        IntrinsicCall.Intrinsic]] = None,
+              reduction_ops: list[BinaryOperation.Operator |
+                                  IntrinsicCall.Intrinsic] | None = None,
               force_private: Iterable[str] = (),
               **kwargs):
         '''

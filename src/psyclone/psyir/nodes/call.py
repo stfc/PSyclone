@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Tuple, Union, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -164,7 +163,7 @@ class Call(Statement, DataNode):
             call.append_named_arg(name, arg)
 
     def append_named_arg(self,
-                         name: Union[str, None],
+                         name: str | None,
                          arg: DataNode):
         '''Append a named argument to this call.
 
@@ -187,7 +186,7 @@ class Call(Statement, DataNode):
         self.children.append(arg)
 
     def insert_named_arg(self,
-                         name: Union[str, None],
+                         name: str | None,
                          arg: DataNode,
                          index: int) -> None:
         '''Insert a named argument to the call.
@@ -341,7 +340,7 @@ class Call(Statement, DataNode):
         return var_accesses
 
     @property
-    def symbol(self) -> Optional[Symbol]:
+    def symbol(self) -> Symbol | None:
         '''
         :returns: the routine symbol that this call calls.
         '''
@@ -351,7 +350,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def routine(self) -> Optional[Reference]:
+    def routine(self) -> Reference | None:
         '''
         :returns: the routine reference that this call calls.
         '''
@@ -375,7 +374,7 @@ class Call(Statement, DataNode):
         return super().datatype
 
     @property
-    def arguments(self) -> Tuple[DataNode, ...]:
+    def arguments(self) -> tuple[DataNode, ...]:
         '''
         :returns: the children of this node that represent its arguments.
         '''
@@ -383,7 +382,7 @@ class Call(Statement, DataNode):
             return tuple(self.children[1:])
         return ()
 
-    def argument_by_name(self, name: str) -> Union[DataNode, None]:
+    def argument_by_name(self, name: str) -> DataNode | None:
         '''
         :param name: The name of the argument to lookup.
 
@@ -398,7 +397,7 @@ class Call(Statement, DataNode):
         return self.arguments[arg_names.index(lname)]
 
     @property
-    def is_elemental(self) -> Optional[bool]:
+    def is_elemental(self) -> bool | None:
         '''
         :returns: whether the routine being called is elemental (provided with
             an input array it will apply the operation individually to each of
@@ -411,7 +410,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def is_pure(self) -> Optional[bool]:
+    def is_pure(self) -> bool | None:
         '''
         :returns: whether the routine being called is pure (guaranteed to
             return the same result when provided with the same argument
@@ -498,7 +497,7 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self) -> List[Routine]:
+    def get_callees(self) -> list[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call. It does *not* attempt to resolve static polymorphism
@@ -682,8 +681,8 @@ class Call(Statement, DataNode):
             do not match.
 
         """
-        def type_symbols_match(type1: Union[DataTypeSymbol, DataType],
-                               type2: Union[DataTypeSymbol, DataType]) -> bool:
+        def type_symbols_match(type1: DataTypeSymbol | DataType,
+                               type2: DataTypeSymbol | DataType) -> bool:
             '''
             :returns: True if the two types correspond to DataTypeSymbols with
                       the same name (case insensitive), False otherwise.
@@ -754,7 +753,7 @@ class Call(Statement, DataNode):
                     f"'{routine_arg_str}' ({dummy_type})"
                 )
 
-    def get_argument_map(self, routine: Routine) -> List[int]:
+    def get_argument_map(self, routine: Routine) -> list[int]:
         '''Return a list of indices mapping from each argument of this
         call to the corresponding entry in the argument list of the
         supplied routine.
@@ -770,7 +769,7 @@ class Call(Statement, DataNode):
         '''
         # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
-        routine_argument_list: List[DataSymbol] = (
+        routine_argument_list: list[DataSymbol] = (
             routine.symbol_table.argument_list[:]
         )
 
@@ -855,7 +854,7 @@ class Call(Statement, DataNode):
     def get_callee(
             self,
             use_first_callee_and_no_arg_check: bool = False
-    ) -> Tuple[Routine, List[int]]:
+    ) -> tuple[Routine, list[int]]:
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.

@@ -8,8 +8,6 @@
 ''' This module contains the implementations of the various OpenACC Directive
 Clause nodes.'''
 
-from typing import Union
-
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
@@ -40,7 +38,7 @@ class ACCAsyncQueueClause(Clause):
         return isinstance(child, DataNode)
 
     @property
-    def queue(self) -> Union[DataNode, None]:
+    def queue(self) -> DataNode | None:
         '''
         :returns: the queue specified by this clause (if any)
         '''

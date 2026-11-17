@@ -8,7 +8,6 @@
    for parallel loop/region directives.'''
 
 import logging
-from typing import Union, List, Tuple
 
 from psyclone.core import (AccessSequence, Signature)
 from psyclone.psyir.nodes import (
@@ -24,12 +23,13 @@ class ReductionInferenceTool():
 
     :param red_ops: a list of allowed reduction operators.
     '''
-    def __init__(self, red_ops: List[Union[BinaryOperation.Operator,
-                                           IntrinsicCall.Intrinsic]] = []):
+    def __init__(self, red_ops: list[BinaryOperation.Operator |
+                                     IntrinsicCall.Intrinsic] = []):
         self.red_ops = red_ops
 
-    def _get_reduction_operator(self, node: Node) -> \
-            Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
+    def _get_reduction_operator(
+        self, node: Node
+    ) -> BinaryOperation.Operator | IntrinsicCall.Intrinsic:
         '''
         :param node: the node to match against.
 
@@ -70,8 +70,9 @@ class ReductionInferenceTool():
 
         return ref_sig == sig and no_indices and no_members
 
-    def _get_write_reduction(self, node: Node, sig: Signature) -> \
-            Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
+    def _get_write_reduction(
+        self, node: Node, sig: Signature
+    ) -> BinaryOperation.Operator | IntrinsicCall.Intrinsic:
         '''
         Return the reduction operator for given node if it is the
         LHS of an Assignment of the form _either_
@@ -113,8 +114,9 @@ class ReductionInferenceTool():
                             return op
         return None
 
-    def _get_read_reduction(self, node: Node, sig: Signature) -> \
-            Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
+    def _get_read_reduction(
+        self, node: Node, sig: Signature
+    ) -> BinaryOperation.Operator | IntrinsicCall.Intrinsic:
         '''
         Return reduction operator for given node if it is the child
         of a DataNode which is the RHS of an Assignment of the form
@@ -149,11 +151,10 @@ class ReductionInferenceTool():
                                 return op
                 return None
 
-    def attempt_reduction(self, sig: Signature,
-                          access_seq: AccessSequence) -> \
-            Tuple[Union[BinaryOperation.Operator,
-                        IntrinsicCall.Intrinsic],
-                  Reference]:
+    def attempt_reduction(
+        self, sig: Signature, access_seq: AccessSequence
+    ) -> tuple[BinaryOperation.Operator | IntrinsicCall.Intrinsic,
+               Reference]:
         '''
         Determine if the variable with the given Signature and AccessSequence
         can be handled using a reduction clause and, if so, return that
