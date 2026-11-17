@@ -34,10 +34,10 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
     Literal, ACCLoopDirective)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
-                                            TransformationError, ProfileTrans,
-                                            ACCLoopTrans)
-from psyclone.transformations import ACCEnterDataTrans
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ACCLoopTrans, ACCUpdateTrans,
+    TransformationError, ProfileTrans, ACCLoopTrans)
+from psyclone.transformations import ACCEnterDataTrans, ACCRoutineTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
