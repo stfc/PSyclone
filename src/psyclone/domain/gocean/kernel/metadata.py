@@ -116,7 +116,7 @@ class GOceanStencilMetadata:
                 raise TypeError("GOcean stencil rows must be strings.")
             if not re.fullmatch(r"[0-9]{3}", row):
                 raise ValueError(
-                    "GOcean stencil rows must each contain three decimal "
+                    "GOcean stencil rows must each contain three integer "
                     f"depths but found '{row}'."
                 )
         if (
@@ -276,7 +276,7 @@ class GOceanKernelMetadata(KernelMetadata):
     iterates_over: str
     index_offset: str
     meta_args: tuple[GOceanArgumentMetadata, ...]
-    procedure_name: str
+    procedure_name: str = field()
     name: str
 
     # Preserve the concise nested names used by metadata-to-argument rules.

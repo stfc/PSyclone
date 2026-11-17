@@ -119,10 +119,13 @@ if TYPE_CHECKING:
 class LFRicArgMetadata:  # pylint: disable=too-few-public-methods
     """Common behaviour of all typed LFRic argument records."""
 
+    # Every concrete argument record supplies its validated access descriptor.
+    access: str
+
     @property
     def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
-        return LFRicConstants().ACCESS_MAPPING[getattr(self, "access")]
+        return LFRicConstants().ACCESS_MAPPING[self.access]
 
 
 def _normalise_label(value: object, description: str, default: str) -> str:

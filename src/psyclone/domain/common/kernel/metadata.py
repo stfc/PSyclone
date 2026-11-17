@@ -5,7 +5,8 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-"""Common Metadata interface and utilities to validate and normalise them."""
+"""Common Kernel Metadata interface and utilities to validate and normalise
+them."""
 
 from __future__ import annotations
 
@@ -25,7 +26,13 @@ if TYPE_CHECKING:
 
 
 class KernelMetadata(ABC):
-    """Common abstract interface to be implemented by each DSL metadata"""
+    """Common abstract interface to be implemented by each DSL."""
+
+    # Even if this is an abstract class, common attribute should be
+    # defined here so common methods can use them. This will need to
+    # be declared agan in dataclasses inheriting 'KernelMetadata'
+    name: Optional[str]
+    procedure_name: Optional[str] = None
 
     @classmethod
     @abstractmethod
@@ -129,7 +136,7 @@ class KernelMetadata(ABC):
         container = next(
             node for node in FortranReader().psyir_from_source(source).walk(
                 Container) if not isinstance(node, FileContainer))
-        return container.symbol_table.lookup(getattr(self, "name"))
+        return container.symbol_table.lookup(self.name)
 
     @staticmethod
     def _validate_and_get_value(node: Node) -> str:

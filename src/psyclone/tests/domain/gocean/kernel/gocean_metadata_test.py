@@ -152,7 +152,7 @@ def test_stencil_metadata():
     for rows, error, message in (
             (("000",), ValueError, "exactly three"),
             (("000", 10, "001"), TypeError, "must be strings"),
-            (("000", "01x", "001"), ValueError, "decimal depths"),
+            (("000", "01x", "001"), ValueError, "integer depths"),
             (("000", "000", "000"), ValueError, "go_pointwise"),
             (("000", "010", "000"), ValueError, "go_pointwise")):
         with pytest.raises(error, match=message):

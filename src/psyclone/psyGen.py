@@ -2308,8 +2308,7 @@ class KernelArgument(Argument):
     ) -> None:
         self._arg = arg
         self._metadata_index = metadata_index
-        access = getattr(arg, "access_type", arg.access)
-        super().__init__(call, arg_info, access)
+        super().__init__(call, arg_info, arg.access_type)
 
     @property
     def space(self) -> str:

@@ -51,9 +51,9 @@ class Kernel:
                 "Kernel procedures must be a tuple of Routines.")
 
         procedure_name = self.procedure_name
-        if procedure_name is None or procedure_name == "":
-            procedure_name = getattr(self.metadata, "procedure_name", None)
-        if procedure_name is None or procedure_name == "":
+        if not procedure_name:
+            procedure_name = self.metadata.procedure_name
+        if not procedure_name:
             raise ValueError(
                 "Kernel procedure name must be provided explicitly or "
                 "by the metadata.")
@@ -126,9 +126,7 @@ class KernelContainer(Container):
         children: list[Node],
     ) -> KernelContainer:
         '''Create a kernel Container instance given a name, metadata, a symbol
-        table and a list of child nodes. A domain-specific kernel is
-        created with the metadata describing the kernel interface for
-        a single kernel routine within the container.
+        table and a list of child nodes.
 
         :param name: the name of the Container.
         :param metadata: the metadata object.
