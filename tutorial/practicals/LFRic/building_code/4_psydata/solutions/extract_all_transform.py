@@ -10,6 +10,7 @@ function via the -s option. It adds kernel extraction code to
 all invokes.
 '''
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Routine
 
@@ -27,10 +28,13 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(subroutine.name)
 
-        # Apply the transformation
-        extract.apply(subroutine, {"region_name": ("time_evolution",
-                                                   subroutine.name),
-                                   "create_driver": True})
+        # Apply the transformation, skipping the nodes representing
+        # initialisation.
+        idx = subroutine.walk(LFRicLoop)[0].position
+        extract.apply(subroutine[idx:],
+                      {"region_name": ("time_evolution",
+                                       subroutine.name),
+                       "create_driver": True})
 
         # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:

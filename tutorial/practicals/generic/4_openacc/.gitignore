@@ -2,3 +2,5 @@ output.dat
 psy.f90
 tra_adv.exe
 psy_*.f90
+output_*.f90
+output_openacc.f90
