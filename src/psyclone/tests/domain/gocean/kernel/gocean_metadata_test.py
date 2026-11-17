@@ -188,6 +188,13 @@ def test_argument_metadata_validation():
         GOceanGridPropertyArgMetadata("go_read", "invalid")
 
 
+@pytest.mark.parametrize("access", ["go_write", "go_readwrite"])
+def test_grid_property_access_read_only(access):
+    """Grid properties reject access modes that would modify them."""
+    with pytest.raises(ValueError, match="grid-property access.*go_read"):
+        GOceanGridPropertyArgMetadata(access, "go_grid_area_t")
+
+
 def test_argument_access_type():
     """Typed arguments expose their generic access without a descriptor."""
     argument = GOceanFieldArgMetadata("go_read", "go_cu")
@@ -210,6 +217,15 @@ def test_kernel_metadata_validation():
             "go_all_pts", "go_offset_sw",
             [GOceanGridPropertyArgMetadata("go_read", "go_grid_area_t")],
             "code", "kernel")
+
+
+def test_kernel_metadata_requires_field():
+    """At least one field is requiered in each kernel metadata."""
+    with pytest.raises(ParseError, match="field argument to define its "
+                       "iteration space"):
+        gp = GOceanGridPropertyArgMetadata("go_read", "go_grid_area_t")
+        GOceanKernelMetadata(
+            "go_all_pts", "go_offset_sw", [gp], "code", "kernel")
 
 
 def test_kernel_metadata_common_properties():
@@ -288,7 +304,7 @@ def test_find_symbol_discovery_errors(fortran_reader):
     ("go_arg(go_read, go_cu, go_pointwise, extra)", ParseError,
      "two or three arguments"),
     ("go_arg(go_read, go_cu, other(000, 011, 000))", ParseError,
-     "must use go_stencil"),
+     "must be go_pointwise or go_stencil but found 'other"),
     ("go_arg(go_read, go_cu, invalid)", ValueError,
      "field access form"),
     ("go_arg(go_read, go_r_scalar, invalid)", ValueError,

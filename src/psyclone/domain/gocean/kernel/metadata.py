@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import re
-from typing import ClassVar, Optional, TYPE_CHECKING
+from typing import ClassVar, Optional, TYPE_CHECKING, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
@@ -235,12 +235,11 @@ class GOceanGridPropertyArgMetadata:
         :raises TypeError: if any value has the wrong type.
         :raises ValueError: if any value is outside the valid vocabulary.
         """
-        const = GOceanConstants()
         object.__setattr__(
             self, "access",
             normalise(
                 self.access, "grid-property access",
-                const.VALID_ACCESS_TYPES))
+                ("go_read",)))
         name = normalise(self.name, "grid-property name")
         properties = Config.get().api_conf("gocean").grid_properties
         if name not in properties:
@@ -262,11 +261,12 @@ class GOceanGridPropertyArgMetadata:
         return GOceanConstants().ACCESS_MAPPING[self.access]
 
 
-GOceanArgumentMetadata = (
-    GOceanFieldArgMetadata
-    | GOceanScalarArgMetadata
-    | GOceanGridPropertyArgMetadata
-)
+# Create the Union type for the meta_args
+GOceanArgumentMetadata = Union[
+    GOceanFieldArgMetadata,
+    GOceanScalarArgMetadata,
+    GOceanGridPropertyArgMetadata,
+]
 
 
 @dataclass(frozen=True)
@@ -289,7 +289,7 @@ class GOceanKernelMetadata(KernelMetadata):
 
         :raises TypeError: if any value has the wrong type.
         :raises ValueError: if a value or Fortran name is invalid.
-        :raises ParseError: if grid properties have no associated field.
+        :raises ParseError: if there is no field to define the iteration space.
         """
         const = GOceanConstants()
         object.__setattr__(
@@ -316,18 +316,15 @@ class GOceanKernelMetadata(KernelMetadata):
         object.__setattr__(self, "name", normalise(self.name, "kernel name"))
         FortranReader.validate_name(self.procedure_name)
         FortranReader.validate_name(self.name)
-        has_grid_property = any(
-            isinstance(argument, GOceanGridPropertyArgMetadata)
-            for argument in self.meta_args
-        )
         has_field = any(
             isinstance(argument, GOceanFieldArgMetadata)
             for argument in self.meta_args
         )
-        if has_grid_property and not has_field:
+        if not has_field:
             raise ParseError(
-                f"Kernel {self.name} requires a property of the grid but "
-                "does not have any field objects as arguments."
+                f"Kernel {self.name} does not have any field objects as "
+                "arguments. A GOcean kernel requires at least one field "
+                "argument to define its iteration space."
             )
 
     @classmethod
@@ -344,8 +341,11 @@ class GOceanKernelMetadata(KernelMetadata):
         :raises TypeError: if its datatype is not a StructureType.
         :raises ParseError: if the metadata declaration is invalid.
         """
+
+        # The GOcean metadata is provided as a DataType declaration
         datatype = cls._validate_and_get_structure(psyir, "GOcean")
 
+        # It has 3 mandatory components
         components = datatype.components
         missing = {
             value
@@ -358,6 +358,14 @@ class GOceanKernelMetadata(KernelMetadata):
             )
 
         try:
+            # Inside the DataType, 'iterates_over' and 'index_offset' are given
+            # by components with assignments (initial_values)
+            iterates_over = cls._validate_and_get_value(
+                components["iterates_over"].initial_value)
+            index_offset = cls._validate_and_get_value(
+                components["index_offset"].initial_value)
+
+            # The meta_args are provided as Array Constructors
             meta_args = components["meta_args"]
             if not isinstance(meta_args.initial_value, ArrayConstructor):
                 raise ParseError("meta_args must be an array constructor.")
@@ -367,6 +375,8 @@ class GOceanKernelMetadata(KernelMetadata):
                     meta_args, "meta_args")
             )
 
+            # An the procedure_name is provided as a DataType first procedure
+            # component
             if not datatype.procedure_components:
                 raise ParseError(
                     f"GOcean metadata must bind a kernel procedure but "
@@ -377,14 +387,10 @@ class GOceanKernelMetadata(KernelMetadata):
                 cls._validate_and_get_value(procedure.initial_value)
                 if procedure.initial_value else procedure.name
             )
-            scalar_values = [
-                cls._validate_and_get_value(components[name].initial_value)
-                for name in ("iterates_over", "index_offset")
-            ]
 
             return cls(
-                scalar_values[0],
-                scalar_values[1],
+                iterates_over,
+                index_offset,
                 arguments,
                 procedure_name,
                 psyir.name,
@@ -400,6 +406,8 @@ class GOceanKernelMetadata(KernelMetadata):
         :returns: the number of arguments supplied by the algorithm layer.
         """
         return sum(
+            # Grid properties not provided by the algorithms layer, they are
+            # introduced by infrastructure calls added in the PSy-layer.
             not isinstance(argument, GOceanGridPropertyArgMetadata)
             for argument in self.meta_args
         )
@@ -444,6 +452,7 @@ class GOceanKernelMetadata(KernelMetadata):
         :param name: optional metadata type name.
 
         :returns: the containing module and metadata symbol.
+
         :raises ParseError: if discovery fails.
         """
         candidates = cls._find_symbols(psyir, name=name)
@@ -466,6 +475,7 @@ class GOceanKernelMetadata(KernelMetadata):
         :param container: the module containing the kernel.
 
         :returns: the resolved procedure name and tuple of implementations.
+
         :raises ParseError: if the implementation cannot be resolved.
         """
         routines = [
@@ -483,7 +493,7 @@ class GOceanKernelMetadata(KernelMetadata):
 def _parse_meta_arg(
     node: Node,
 ) -> GOceanArgumentMetadata:
-    """Convert one go_arg PSyIR constructor to typed metadata.
+    """Convert one go_arg PSyIR constructor to metadata.
 
     :param node: the ``go_arg`` constructor to convert.
 
@@ -492,6 +502,9 @@ def _parse_meta_arg(
     :raises ParseError: if the constructor structure is invalid.
     :raises ValueError: if a field access form is invalid.
     """
+    # In PSyIR go_args are represented as function calls because:
+    #   go_arg(GO_WRITE, GO_CU, GO_POINTWISE)
+    # the 'go_arg' is an undefined symbol.
     if not isinstance(node, Call):
         raise ParseError(
             "Expected a metadata constructor but found "
@@ -501,8 +514,9 @@ def _parse_meta_arg(
         raise ParseError(
             "Each meta_args entry must use the go_arg constructor."
         )
-    arguments = tuple(node.arguments)
 
+    # Validate its arguments
+    arguments = tuple(node.arguments)
     if len(arguments) not in (2, 3):
         raise ParseError(
             "Each go_arg constructor must contain two or three arguments "
@@ -510,35 +524,51 @@ def _parse_meta_arg(
         )
     access = KernelMetadata._validate_and_get_value(arguments[0])
     second = KernelMetadata._validate_and_get_value(arguments[1])
+
+    # If it has 2 arguments, its a GridProperty
     if len(arguments) == 2:
         return GOceanGridPropertyArgMetadata(access, second)
+
+    # If it has 3 arguments, its type depend on the second argument
     const = GOceanConstants()
     if second in const.VALID_FIELD_GRID_TYPES:
-        form = arguments[2]
-        if isinstance(form, Call):
-            if form.routine.symbol.name.lower() != const.VALID_STENCIL_NAME:
+        third = arguments[2]
+        # For fields the third argument can be a value or a Constructor (call):
+        # GO_POINTWISE
+        # or
+        # GO_STENCIL(000,110,000)
+        if isinstance(third, Call):
+            if third.routine.symbol.name.lower() != const.VALID_STENCIL_NAME:
                 raise ParseError(
-                    "A field metadata call must use go_stencil."
+                    f"A field metadata constructor third argument must be "
+                    f"{', '.join(const.VALID_STENCIL_NAMES)} or "
+                    f"{const.VALID_STENCIL_NAME} but found "
+                    f"'{third.debug_string()}'."
                 )
+            # If its a go_stencil, its arguments are the stencil rows
             rows = tuple(KernelMetadata._validate_and_get_value(value)
-                         for value in form.arguments)
+                         for value in third.arguments)
             stencil = GOceanStencilMetadata(rows)
         else:
-            value = KernelMetadata._validate_and_get_value(form)
+            # If it's a value, it must be one of  VALID_STENCIL_NAMES,
+            # currently only GO_POINTWISE
+            value = KernelMetadata._validate_and_get_value(third)
             if value not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"Expected field access form to be one of "
-                    f"{const.VALID_STENCIL_NAMES} or "
+                    f"{', '.join(const.VALID_STENCIL_NAMES)} or "
                     f"{const.VALID_STENCIL_NAME} but found '{value}'."
                 )
             stencil = GOceanPointwiseMetadata()
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
-        form = KernelMetadata._validate_and_get_value(arguments[2])
-        if form not in const.VALID_STENCIL_NAMES:
+        # If it's a scalar, the third argument must be go_pointwise, e.g.:
+        #   go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)
+        third = KernelMetadata._validate_and_get_value(arguments[2])
+        if third not in const.VALID_STENCIL_NAMES:
             raise ValueError(
                 f"Expected scalar access form to be one of "
-                f"{const.VALID_STENCIL_NAMES} but found '{form}'."
+                f"{const.VALID_STENCIL_NAMES} but found '{third}'."
             )
         return GOceanScalarArgMetadata(access, second)
     raise ParseError(

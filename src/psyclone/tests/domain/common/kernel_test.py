@@ -23,7 +23,7 @@ GOCEAN_SOURCE = """
 module demo_mod
   type, extends(kernel_type) :: demo_type
     type(go_arg), dimension(1) :: meta_args = (/ &
-      go_arg(go_read, go_r_scalar, go_pointwise) /)
+      go_arg(go_read, go_ct, go_pointwise) /)
     integer :: iterates_over = go_all_pts
     integer :: index_offset = go_offset_ne
   contains

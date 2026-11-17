@@ -383,7 +383,12 @@ Argument Metadata: meta_args
 The ``meta_args`` array specifies information about data that the
 kernel code expects to be passed to it via its argument list. There is
 one entry in the ``meta_args`` array for each **scalar**, **field**,
-or **grid-property** passed into the Kernel. Their ordering in the
+or **grid-property** passed into the Kernel.
+
+Every kernel must have at least one **field** argument to define its iteration
+space. A kernel with only scalar or grid-property arguments is not supported.
+
+Their ordering in the
 ``meta_args`` array must be the same as that in the kernel code
 argument list. The entry must be of type ``go_arg`` which itself contains
 metadata about the associated argument. The size of the meta_args
@@ -879,4 +884,3 @@ the GOcean 1.0 API. For an overview of transformations in general see
 .. autoclass:: psyclone.domain.gocean.transformations.GOMoveIterationBoundariesInsideKernelTrans
     :members:
     :no-index:
-
