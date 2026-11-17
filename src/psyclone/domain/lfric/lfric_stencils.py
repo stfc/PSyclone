@@ -39,7 +39,7 @@ class LFRicStencils(LFRicCollection):
                              direction.
 
     '''
-    def __init__(self, node: "LFRicInvoke" | LFRicKern):
+    def __init__(self, node: "LFRicInvoke | LFRicKern"):
         # pylint: disable=too-many-branches
         super().__init__(node)
 
