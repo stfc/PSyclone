@@ -13,6 +13,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -213,14 +214,13 @@ def test_extract_node_gen():
 
     psy, invoke = get_invoke("1_single_invoke.f90", "lfric",
                              idx=0, dist_mem=False)
-    etrans.apply(invoke.schedule.children[0])
+    etrans.apply(invoke.schedule.walk(LFRicLoop)[0])
     code = str(psy.gen)
     output = '''CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 17, 15)
+"invoke_0_testkern_type-testkern_code-r0", 16, 15)
     CALL extract_psy_data % PreDeclareVariable("a", a)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
-    CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
     CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % PreDeclareVariable("m1_data", m1_data)
     CALL extract_psy_data % PreDeclareVariable("m2_data", m2_data)
@@ -253,7 +253,6 @@ def test_extract_node_gen():
     CALL extract_psy_data % ProvideVariable("a", a)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
-    CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
     CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % ProvideVariable("m1_data", m1_data)
     CALL extract_psy_data % ProvideVariable("m2_data", m2_data)
@@ -268,7 +267,7 @@ def test_extract_node_gen():
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
     CALL extract_psy_data % PreEnd
-    do cell = loop0_start, loop0_stop, 1
+    do cell = 1, loop0_stop, 1
       call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
