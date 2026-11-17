@@ -526,12 +526,14 @@ jobs:
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
         rm -rf tests/${TEST_DIR}
-        ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py del_key "key_si3" add_key "key_nosignedzero" -j ${NUM_PARALLEL}
+        ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -j ${NUM_PARALLEL}
         # Run test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cd tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        ./nemo
+        export CUDA_VISIBLE_DEVICES=1
+        mpirun -np 1 ./nemo
         # tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
