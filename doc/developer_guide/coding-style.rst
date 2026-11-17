@@ -7,89 +7,66 @@
 
 .. _coding-style:
 
-.. testsetup::
-
-    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../src/psyclone/tests/test_files/"
-        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
-    KERNEL_PATH="../src/psyclone/tests/test_files/gocean1p0/"
-
 Coding and Documentation Style
 ******************************
 
-Documentation Style
-###################
-When writing documentation, each reference to a PSyclone class or function
-should be set in italics (i.e. enclosed by single backticks) except in headings.
-The first time a class or function is mentioned, use the full Python path, e.g.:
-`psyclone.core.signature.Signature`. After that just use the
-class name (again in italics).
-File names and shell commands should be set in double back-ticks (\`\`).
+Directory Layout and File Names
+###############################
 
-Any code examples provided in the documentation should be using the
-right syntax to allow for syntax highlighting. The option
-``.. highlight:: LANGUAGE`` is used to define the language to be used
-for all text following the directive (until the end of the current file).
-It is recommended to have at most one ``highlight`` directive in
-a file and to avoid switching default languages several times within a file.
-Having a default language set in a file allows use of the very convenient
-shortcut notation "::". Note that the "::" will be replaced with a
-single ":" if the previous character is not a space::
+The main directories in the PSyclone repository are:
 
-    .. highlight:: fortran
+.. list-table:: Repository directory layout
+   :header-rows: 1
+   :widths: 35 65
 
-    Code example::
+   * - Path
+     - Description
+   * - ``bin/``
+     - Top-level driver scripts for PSyclone and the PSyclone kernel tool
+   * - ``doc/``
+     - Documentation source using Sphinx
+   * - ``examples/``
+     - Multiple examples of PSyclone usage and transformation scripts
+   * - ``src/psyclone``
+     - The Python source code
+   * - ``src/psyclone/psyir/``
+     - Classes related to the PSyclone Intermediate Representation (PSyIR)
+   * - ``src/psyclone/domain/<API_NAME>``
+     - Classes specific to the supported PSyKAl DSLs
+   * - ``src/psyclone/tests/``
+     - Unit and functional tests using pytest
+   * - ``tutorial/practicals``
+     - Hands-on exercises using a local installation of PSyclone
 
-        program this_is_highlighted_using_fortran_syntax
+In general, any file in PSyclone should contain one main class (helper classes or
+functions specific to that class are of course possible), following the naming
+conventions recommended in PEP8.
+The corresponding file name should be derived from the class name by replacing
+all upper case letters with lower case, and adding a '_' to separate words. So the
+file containing the class `ExtractTrans` should be called `extract_trans.py`.
+Sets of large amounts of classes with very inter-related semantics (e.g. a domain
+metadata, a domain set of built-ins) can also go under a single file if that helps
 
-    And if you don't want any ":" in the previous line, just
-    add a white space before the "::" ::
+Every file under `src/psyclone/psyir/` should contain an equivalent file wiht pytest
+unit-tests under `src/psyclone/psyir/tests/` with the same directory layout and the
+`_test.py` postfix. For example, the unit tests of `src/psyclone/psyir/nodes/node.py`
+are located in `src/psyclone/tests/psyir/nodes/node_test.py`.
 
-        program there_is_no_colon_in_the_previous_description
-
-If some examples in a file need a different highlighting syntax,
-use the ``.. code-block:: LANGUAGE`` directive, which will only
-change the syntax for the following code example::
-
-    .. highlight:: fortran
-
-    Code example::
-
-        program this_is_highlighted_using_fortran_syntax
-
-    This is a python example:
-
-    .. code-block:: python
-
-        trans = self.get_transform()
-
-
-It is also possible to use ``code-block`` inside a Python docstring that
-is pulled into a document::
-
-
-    class GOConstLoopBoundsTrans(Transformation):
-        ''' Switch on (or off) the use of constant loop bounds within
-        a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
-        generate loops where the bounds are obtained by de-referencing a field
-        object, e.g.:
-
-        .. code-block:: fortran
-
-          DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
-
-        Some compilers are able to produce more efficient code if they are
-        ...
-
-The code block will be highlighted as Fortran code.
 
 Coding Style
 ############
-Any new PSyclone code must confirm to Python's pep8 specification, and
-must be pylint error and warning free. Installation of the tools is
-described in :ref:`dev-installation`.
-In some cases pylint errors and warnings can be suppressed using the
-pylint markup code::
+
+Any new PSyclone code must conform to Python's PEP8 specification and be fully
+covered by unit tests. Conformance can be tested with the following tools:
+
+- The flake8 linter ( `flake8 .`)
+- pytest (`pytest -n auto src/psyclone/`)
+- Code coverage (`pytest --cov-report term-missing --cov psyclone`)
+
+Installation of the tools is described in :ref:`dev-installation`.
+
+We also recommend judicious use of `pylint`. In some cases pylint errors and
+warnings can be suppressed using the pylint markup code::
 
     # pylint: disable=too-many-branches
     def _upper_bound(self):
@@ -140,6 +117,82 @@ Additional rules that apply:
              # Avoid circular import
              # pylint: disable=import-outside-toplevel
              from psyclone.core.access_type import AccessType
+
+
+License notice
+--------------
+
+Every file should start with the following header.
+ 
+.. code-block: python
+
+    # -----------------------------------------------------------------------------
+    # SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+    #                         Facilities Council
+    # SPDX-License-Identifier: BSD-3-Clause
+    # See the full LICENSE file in the project root for details.
+    # -----------------------------------------------------------------------------
+
+
+Docstrings
+----------
+
+The docstring to any new or modified routine in PSyclone must be fully
+documented with typehints, description, parameters, returns and raises sections.
+If the method is simple and the docstring description and returns value essentially
+say the same, the description can be omitted. An example of a method docstring is
+shown below:
+
+.. code-block: python
+
+    def some_function(
+        filename: str,
+        kernel_path: str,
+        node: Union[Node, None] = None
+    ) -> Node:
+        '''The description starts with a capital letter and must have proper
+        punctuation. If it's useful to reference other code, this should use
+        Sphinx notation, for example use :func:`parse.algorithm.parse` to
+        reference functions, or :py:class:`psyclone.psyir.nodes.Node` to reference
+        classes. Do not use backslash to escape each new lines. The description
+        must be followed by an empty line before the parameters start (and also
+        before the returns and raises sections if these exist).
+
+        :param filename: start lower case, but add full stop.
+        :param kernel_path: no empty line between different parameters.
+            If you need more than one line, continue the following lines with
+            an indentation, otherwise sphinx will not layout the text correctly.
+        :param node: the parameter type should be declared using Python 3.9
+            compatible typehint, i.e. ``Union[X, Y]`` rather than ``X | Y``.
+            Type hints should be specified according to PEP 484
+            (https://peps.python.org/pep-0483/).
+
+        :returns: description of the returned value. The return type must always
+            be specified as a typehint, with -> None used for functions with
+            no return value.
+
+        :raises IOError: lower case start with punctuation at the end.
+        :raises GenerationError: list the same exception more than once if
+            it can be raised by different errors.
+        :raises GenerationError: same exception, raised by a different error.
+
+        '''
+
+Notes about typehints:
+
+
+  #) If a type hint refers to a class that is defined only after its use
+     in a given module, use ``from __future__ import annotations``.
+
+  #) If a class is imported only for typehint signatures, not possible due to circular
+     imports then its import should be protected by a ``if TYPE_CHECKING:`` block,
+     and its actualy use should be put in double quotes, e.g.::
+
+        if TYPE_CHECKING:
+            from psyclone.somepath.class import SomeClass
+
+        def my_func(my_arg: "SomeClass") -> None:
+        ...
 
 
 Exceptions
@@ -213,118 +266,70 @@ Care must be taken when testing logging calls added to PSyclone. See
 
 .. _interface_description:
 
-Interface Description
-#####################
+
+Documentation Style
+###################
+
+When writing documentation, each reference to a PSyclone class or function
+should be set in italics (i.e. enclosed by single backticks) except in headings.
+The first time a class or function is mentioned, use the full Python path, e.g.:
+`psyclone.core.signature.Signature`. After that just use the
+class name (again in italics).
+File names and shell commands should be set in double back-ticks (\`\`).
+
+Any code examples provided in the documentation should be using the
+right syntax to allow for syntax highlighting. The option
+``.. highlight:: LANGUAGE`` is used to define the language to be used
+for all text following the directive (until the end of the current file).
+It is recommended to have at most one ``highlight`` directive in
+a file and to avoid switching default languages several times within a file.
+Having a default language set in a file allows use of the very convenient
+shortcut notation "::". Note that the "::" will be replaced with a
+single ":" if the previous character is not a space::
+
+    .. highlight:: fortran
+
+    Code example::
+
+        program this_is_highlighted_using_fortran_syntax
+
+    And if you don't want any ":" in the previous line, just
+    add a white space before the "::" ::
+
+        program there_is_no_colon_in_the_previous_description
+
+If some examples in a file need a different highlighting syntax,
+use the ``.. code-block:: LANGUAGE`` directive, which will only
+change the syntax for the following code example::
+
+    .. highlight:: fortran
+
+    Code example::
+
+        program this_is_highlighted_using_fortran_syntax
+
+    This is a python example:
+
+    .. code-block:: python
+
+        trans = self.get_transform()
 
 
-The interface to any new or modified routine in PSyclone must be fully
-documented using Sphinx mark-up. An example of how to do this is shown below:
-
-    .. literalinclude:: interface_example.py
-
-Example layout of the interface description above:
-
-.. autofunction:: interface_example.some_function
-
-Some important details:
-
-  #) There are up to four major sections in each interface description: function
-     description, parameter description and type, return value and type, and
-     raises (exceptions). The function description is required, all other
-     sections only need be provided if they are applicable for the code being
-     documented. The formatting for each section is slightly different:
-
-         .. tabularcolumns:: |l|L|
-         
-         ===================== ======================================================
-         Section               Formatting
-         ===================== ======================================================
-         function description  The description of the function must start with
-                               a capital letter, and end with a full stop.
-         parameter description Start the parameter description with a lowercase 
-                               letter and end with a full stop. The parameter type
-                               hints must follow `PEP 484
-			       <https://peps.python.org/pep-0484/>`_. 
-         return value          The description of the return value should start with
-                               a lowercase letter, and end with a full stop. The type
-                               must follow `PEP 484
-			       <https://peps.python.org/pep-0484/>`_.
-         exceptions            These must start with a lower case letter, and end
-                               with a full stop.
-         ===================== ======================================================
+It is also possible to use ``code-block`` inside a Python docstring that
+is pulled into a document::
 
 
-  #) If a parameter description, return value or exception is continued
-     to the next line, the next line should be indented, e.g.::
+    class GOConstLoopBoundsTrans(Transformation):
+        ''' Switch on (or off) the use of constant loop bounds within
+        a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
+        generate loops where the bounds are obtained by de-referencing a field
+        object, e.g.:
 
-        '''
-        :param some_very_long_variable_name: this is some argument that has
-            a very long name and description that requires multiple lines of
-            description.
-	'''
+        .. code-block:: fortran
 
-  #) The closing \'\'\' of the interface description can be at the end of a
-     text line if the overall description is short. Otherwise it should be on a
-     separate line. An optional empty line between interface description and
-     code should be included in the comment section.
+          DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
 
-  #) Standard Python functions like ``__str__`` etc. need only be documented with a
-     simple informal comment.
-
-  #) Only document exceptions that are raised directly by a method, not exceptions
-     that might be raised in base classes.
-
-  #) If a type hint refers to a class that is defined only after its use
-     in a given module, use ``from __future__ import annotations`` to ensure the
-     type hint is compatible with Python 3.9 (or other earlier version of Python
-     that PSyclone still supports).
-
-  #) If importing a class required for a type hint is not possible due to circular
-     imports then its import should be protected by a ``if TYPE_CHECKING:`` block,
-     and its actualy use should be put in double quotes, e.g.::
-
-        if TYPE_CHECKING:
-            from psyclone.somepath.class import SomeClass
-
-        def my_func(my_arg: "SomeClass") -> None:
+        Some compilers are able to produce more efficient code if they are
         ...
 
-
-
-File Names and Directory Layout
-################################
-Any file in PSyclone should only contain one main class (helper classes or functions
-specific to that class are of course possible). While the class name should start
-with a capital letter and be in camel-case (`ExtractTrans`), the corresponding
-file name should be derived from the class name by replacing all upper case letters
-with lower case, and adding a '_' to separate words. So the file containing
-the class `ExtractTrans` should be called `extract_trans.py`.
-
-The directory structure of the PSyclone classes is as follows:
-
-domain:
-    This directory contains the various API-specific classes.
-
-    domain/API_NAME:
-        The following domains are currently supported: `lfric`, `gocean`, `nemo`.
-
-        domain/API_NAME/transformations:
-            These directories contain the API-specific transformations,
-            typically using one of the classes in psyir/transformations as a base
-            class. Any transformation class should have the domain as prefix, and
-            `Trans` as postfix (e.g. `GOceanExtractTrans`), and the corresponding
-            file name should start with the API name and end with `_trans.py`
-            (e.g. `gocean_extract_trans.py`).
-
-psyir:
-    This directory contains all classes and functions related to the PSyIR
-    (PSyclone Intermediate Representation). The directory itself does not contain
-    any source files (except `__init__.py` to shorten the import paths).
-
-    psyir/transformations
-        This directory contains all basic transformations, i.e. all transformations
-        that are either directly usable in any API, or are base classes for
-        API-specific transformations. Any transformation class should have `Trans`
-        as postfix (e.g. `ExtractTrans`), and the corresponding file name should
-        end with `_trans.py` (e.g. `extract_trans.py`).
-
+The code block will be highlighted as Fortran code.
