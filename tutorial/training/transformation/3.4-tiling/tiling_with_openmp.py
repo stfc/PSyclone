@@ -15,7 +15,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
-                                            LoopTiling2DTrans,
+                                            LoopTilingTrans,
                                             OMPParallelTrans)
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer, Loop,
                                   Reference)
