@@ -399,8 +399,8 @@ class LFRicTypes:
             '''
             name: str
             scalar_type: str
-            dims: list        # list[str] notation supported in Python 3.9+
-            properties: list  # ditto
+            dims: list
+            properties: list
 
         field_datatypes = [
             Array("RealField", "LFRicRealScalarDataType",
