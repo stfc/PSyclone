@@ -83,7 +83,7 @@ InvokeSchedule[invoke='invoke_0', dm=False]
          Reference[name:'loop1_stop']
          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
          Schedule[]
-             0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
+             0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv)
      ...
 ```
 
@@ -163,7 +163,7 @@ InvokeSchedule[invoke='invoke_0', dm=True]
         Reference[name:'loop1_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
-            0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
+            0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv)
     ...
 ```
 

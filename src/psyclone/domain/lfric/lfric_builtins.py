@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic API. Each supported built-in is implemented
@@ -52,13 +21,15 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
-                                  Reference, IntrinsicCall)
+                                  IntrinsicCall, Literal, Reference,
+                                  UnaryOperation)
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.symbols import DataSymbol, Symbol, UnsupportedFortranType
 from psyclone.utils import a_or_an
 
 #: The name of the file containing the meta-data describing the
@@ -401,17 +372,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return None
 
     @property
-    def undf_name(self):
+    def undf_name(self) -> str:
         '''
         Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
-        :rtype: str
 
         '''
         field = self._arguments.iteration_space_arg()
-        return field.function_space.undf_name
+        return self.scope.symbol_table.lookup_with_tag(
+            field.function_space.undf_tag).name
 
     @property
     def qr_required(self):
@@ -475,20 +446,20 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return self._reduction_type
 
-    def get_dof_loop_index_symbol(self):
+    def get_dof_loop_index_symbol(self) -> DataSymbol:
         '''
         Finds or creates the symbol representing the index in any loops
         over DoFs.
 
         :returns: symbol representing the DoF loop index.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
-        return table.find_or_create_integer_symbol(
-            "df", tag="dof_loop_idx")
+        return table.find_or_create(
+            "df", tag="dof_loop_idx", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def get_indexed_field_argument_references(self):
         '''
@@ -2785,6 +2756,24 @@ class LFRicMinvalXKern(LFRicBuiltIn):
     _datatype = "real"
     _reduction_type = LFRicBuiltIn.ReductionType.MIN
 
+    def _create_reduction_initial_value(
+        self, variable: Symbol
+    ) -> IntrinsicCall:
+        '''
+        Creates the initial value for the reduction variable used for this
+        MIN reduction.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.HUGE,
+            arguments=(Literal("0", variable.datatype.copy()),)
+        )
+
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
         """
@@ -2824,6 +2813,27 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
     _case_name = "maxval_X"
     _datatype = "real"
     _reduction_type = LFRicBuiltIn.ReductionType.MAX
+
+    def _create_reduction_initial_value(
+        self, variable: Symbol
+    ) -> UnaryOperation:
+        '''
+        Creates the initial value for the reduction variable used for this
+        MAX reduction.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return UnaryOperation.create(
+            UnaryOperation.Operator.MINUS,
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.HUGE,
+                arguments=(Literal("0", variable.datatype.copy()),)
+            )
+        )
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:

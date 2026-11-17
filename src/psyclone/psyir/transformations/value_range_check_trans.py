@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-#         N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying that input and output
@@ -42,13 +13,17 @@
    actual code.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone import psyGen
-from psyclone.psyir.nodes import ValueRangeCheckNode
+from psyclone.psyir.nodes import Node, ValueRangeCheckNode
 from psyclone.psyir import nodes
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
     '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
     schedule. At code creation time this node will use the PSyData API
@@ -75,30 +50,38 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         # This function is only here to change the default node type
         super().__init__(node_class=node_class)
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Performs validation checks specific to nan-test
         transformations. This function is only here so that it
         is documented.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if transformation is applied to a \
-                                     Kernel or a BuiltIn call without its \
-                                     parent Loop.
-        :raises TransformationError: if transformation is applied to a Loop \
-                                     without its parent Directive when \
-                                     optimisations are applied.
-        :raises TransformationError: if transformation is applied to an \
-                                     orphaned Directive without its parent \
-                                     Directive.
+        :raises TransformationError: if transformation is applied to a
+            Kernel or a BuiltIn call without its parent Loop.
+        :raises TransformationError: if transformation is applied to a Loop
+            without its parent Directive when optimisations are applied.
+        :raises TransformationError: if transformation is applied to an
+            orphaned Directive without its parent Directive.
 
         '''
         # pylint: disable=useless-super-delegation
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this value-range checking transformation.
+
+        :param nodes: nodes to enclose in the checking region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
 
 
 # ============================================================================

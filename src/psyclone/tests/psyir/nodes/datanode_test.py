@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. G. Wallwork, University of Cambridge
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the PSyIR DataNode.
@@ -43,8 +13,7 @@ import pytest
 from psyclone.psyir.nodes import (
     DataNode, Reference, BinaryOperation, Loop, Call, ArrayReference, Range)
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE, REAL_TYPE,
-    RoutineSymbol, INTEGER_TYPE)
+    DataSymbol, UnresolvedType, RoutineSymbol, ScalarType)
 
 
 def test_datanode_datatype():
@@ -58,16 +27,16 @@ def test_datanode_datatype():
 
     # If it is a Loop we can infer the type of the bounds
     loop = Loop.create(
-                    DataSymbol("a", INTEGER_SINGLE_TYPE),
+                    DataSymbol("a", ScalarType.integer_single_type()),
                     Call.create(RoutineSymbol("get_start")),
                     Call.create(RoutineSymbol("get_stop")),
                     Call.create(RoutineSymbol("get_step")),
                     []
     )
 
-    assert loop.start_expr.datatype == INTEGER_TYPE
-    assert loop.stop_expr.datatype == INTEGER_TYPE
-    assert loop.step_expr.datatype == INTEGER_TYPE
+    assert loop.start_expr.datatype == ScalarType.integer_type()
+    assert loop.stop_expr.datatype == ScalarType.integer_type()
+    assert loop.step_expr.datatype == ScalarType.integer_type()
 
     # If it is a Range we can infer the type of the bounds
     ref1 = Reference(DataSymbol("i", UnresolvedType()))
@@ -82,25 +51,28 @@ def test_datanode_datatype():
     # integer, or an array of integers.
     assert arrayref.indices[0].datatype == UnresolvedType()
     # But the Range bounds can only be integers
-    assert arrayref.indices[1].children[0].datatype == INTEGER_TYPE
-    assert arrayref.indices[1].children[1].datatype == INTEGER_TYPE
+    assert (arrayref.indices[1].children[0].datatype ==
+            ScalarType.integer_type())
+    assert (arrayref.indices[1].children[1].datatype ==
+            ScalarType.integer_type())
 
 
 def test_datanode_is_character():
     '''Test that character expressions are marked correctly.
     '''
-    reference = Reference(DataSymbol("char", CHARACTER_TYPE))
+    reference = Reference(DataSymbol("char", ScalarType.character_type()))
     assert reference.is_character()
 
-    reference = Reference(DataSymbol("int", INTEGER_SINGLE_TYPE))
-    reference2 = Reference(DataSymbol("int2", INTEGER_SINGLE_TYPE))
+    reference = Reference(DataSymbol("int", ScalarType.integer_single_type()))
+    reference2 = Reference(
+        DataSymbol("int2", ScalarType.integer_single_type()))
     bop = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                  reference, reference2)
     assert not reference.is_character()
     assert not reference2.is_character()
     assert not bop.is_character()
 
-    reference = Reference(DataSymbol("real", REAL_TYPE))
+    reference = Reference(DataSymbol("real", ScalarType.real_type()))
     assert not reference.is_character()
 
     reference = Reference(DataSymbol("unknown", UnresolvedType()))

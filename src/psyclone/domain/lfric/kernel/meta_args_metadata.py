@@ -1,42 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing the MetaArgsMetadata class which captures
 the values for the LFRic kernel meta_args metadata.
 
 '''
+from __future__ import annotations
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
@@ -85,20 +58,16 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             "ARG_TYPE", "META_ARGS", self._meta_args_args)
 
     @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of MetaArgsMetadata from an fparser2
-        tree.
+    def create_from_fparser2(
+            fparser2_tree: Fortran2003.Data_Component_Def_Stmt
+    ) -> MetaArgsMetadata:
+        '''Create an instance of MetaArgsMetadata from an fparser2 tree.
 
-        :param fparser2_tree: fparser2 tree capturing the meta \
-            args metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
-            Data_Component_Def_Stmt`
+        :param fparser2_tree: fparser2 tree capturing the meta args metadata.
 
         :returns: an instance of MetaArgsMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            MetaArgsMetadata`
 
-        :raises ParseError: if an unknown MetaArgsArgMetadata argument \
+        :raises ParseError: if an unknown MetaArgsArgMetadata argument
             is found.
 
         '''
@@ -121,11 +90,8 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                 nargs = len(meta_arg.children[1].children)
                 intergrid_arg = False
                 if nargs == 5:
-                    fifth_arg = meta_arg.children[1].children[4]
-                    intergrid_arg = (
-                        fifth_arg.children and
-                        fifth_arg.children[0].string.lower() == "mesh_arg")
-
+                    intergrid_arg = FieldArgMetadata.get_named_arg(meta_arg,
+                                                                   "mesh_arg")
                 if intergrid_arg and vector_arg:
                     arg = InterGridVectorArgMetadata.create_from_fparser2(
                         meta_arg)

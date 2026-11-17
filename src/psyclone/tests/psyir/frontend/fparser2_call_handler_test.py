@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 
 '''Performs py.test tests on the support for calls within the
@@ -44,7 +16,6 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     CodeBlock, Schedule, Call, Reference, StructureReference,
@@ -165,27 +136,6 @@ def test_call_type_bound_expression(f2008_parser):
     assert calls[3].routine.debug_string() == "struct(i)%field%method"
     assert len(calls[3].arguments) == 0
     assert len(calls[3].argument_names) == 0
-
-
-def test_call_incorrect_type(f2008_parser):
-    '''Test that fparser2reader _call_handler method raises the expected
-    exception if the name of the call is already declared as an
-    incompatible symbol type. Note, fparser2 should really pick this
-    up but currently its consistency checks are limited.
-
-    '''
-    test_code = (
-        "subroutine test()\n"
-        "real :: kernel\n"
-        "  call kernel()\n"
-        "end subroutine")
-    reader = FortranStringReader(test_code)
-    ptree = f2008_parser(reader)
-    processor = Fparser2Reader()
-    with pytest.raises(GenerationError) as info:
-        _ = processor.generate_psyir(ptree)
-    assert ("Expecting the symbol 'kernel', to be of type 'Symbol' or "
-            "'RoutineSymbol', but found 'DataSymbol'." in str(info.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
-# Modified by: I. Kavcic, Met Office
-# Modified by: J. Henrichs, Bureau of Meteorology
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -45,13 +15,15 @@ import os
 import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
+from psyclone.domain.lfric import (
+    FunctionSpace, KernelInterface, LFRicKern, LFRicTypes)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.tests.utilities import get_invoke
 
 # pylint complains about all isinstance tests involving LFRicTypes,
 # since it doesn't know what the actual return type is. So disable
@@ -95,7 +67,8 @@ def test_generate(var_accesses):
     kernel_interface = KernelInterface(kernel0)
     kernel_interface.generate(var_accesses=var_accesses)
     # Check symbols
-    nlayers_symbol = kernel_interface._symtab.lookup("nlayers")
+    nlayers_symbol = kernel_interface._symtab.lookup(
+        f"nlayers_{kernel0.arguments.first_field_or_operator}")
     assert isinstance(nlayers_symbol, LFRicTypes("MeshHeightDataSymbol"))
     undf_w0_symbol = kernel_interface._symtab.lookup("undf_w0")
     assert isinstance(undf_w0_symbol,
@@ -139,7 +112,8 @@ def test_generate(var_accesses):
         assert len(var_accesses.all_signatures) == 6
 
         # Test all read-only variables
-        for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
+        for var in [f"nlayers_{arg_list[2].name}", "undf_w0", "f2", "ndf_w0",
+                    "dofmap_w0"]:
             accesses = var_accesses[Signature(var)]
             assert len(accesses) == 1
             assert accesses[0].access_type == AccessType.READ
@@ -171,14 +145,59 @@ def test_mesh_height():
     expected type of Symbol to the symbol table and the _arglist list.
 
     '''
-    kernel_interface = KernelInterface(None)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kernel_interface = KernelInterface(kern)
     kernel_interface.mesh_height()
-    symbol = kernel_interface._symtab.lookup("nlayers")
+    symbol = kernel_interface._symtab.lookup("nlayers_f1")
     assert isinstance(symbol, LFRicTypes("MeshHeightDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-1] is symbol
+
+
+def test_mesh_height_named_values():
+    """Test mesh_height handles named nlayers values by creating the
+    corresponding nlayers_<name> symbols and adding them to the argument list
+    only once even if repeated in the metadata."""
+    _, invoke = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
+                           api="lfric", idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kernel_interface = KernelInterface(kern)
+    kernel_interface.mesh_height()
+
+    # The first field is f1 so expect nlayers_f1
+    nlayers_f1 = kernel_interface._symtab.lookup("nlayers_f1")
+    assert isinstance(nlayers_f1, LFRicTypes("MeshHeightDataSymbol"))
+    assert nlayers_f1 in kernel_interface._arglist
+
+    # Named nlayers value 'shallow' should create nlayers_shallow
+    nlayers_shallow = kernel_interface._symtab.lookup("nlayers_shallow")
+    assert isinstance(nlayers_shallow, LFRicTypes("MeshHeightDataSymbol"))
+    assert nlayers_shallow in kernel_interface._arglist
+    # Even though two args used the same named nlayers, the symbol should
+    # only appear once in the argument list
+    assert kernel_interface._arglist.count(nlayers_shallow) == 1
+
+
+def test_ndata_named_values():
+    """Test that field_ndata adds appropriate arguments for distinct values
+    of ndata."""
+    _, invoke = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
+                           api="lfric", idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kernel_interface = KernelInterface(kern)
+    kernel_interface.field_ndata()
+
+    # Named ndata value 'precip' should create ndata_precip
+    ndata_precip = kernel_interface._symtab.lookup("ndata_precip")
+    assert isinstance(ndata_precip,
+                      LFRicTypes("NumberOfValuesPerDofDataSymbol"))
+    assert isinstance(ndata_precip.interface, ArgumentInterface)
+    assert ndata_precip.interface.access == ArgumentInterface.Access.READ
+    # Ensure it appears only once even if used multiple times
+    assert kernel_interface._arglist.count(ndata_precip) == 1
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")

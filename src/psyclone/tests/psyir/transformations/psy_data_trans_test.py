@@ -1,45 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Loop, PSyDataNode, Routine
 from psyclone.psyir.transformations import (
     OMPLoopTrans, PSyDataTrans, ReadOnlyVerifyTrans, TransformationError)
@@ -82,6 +52,19 @@ def test_psy_data_trans_basic():
                       PSyDataNode)
     assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
         children[0] is node
+
+
+def test_psy_data_trans_keyword_options():
+    '''Check that PSyData options can be provided as keyword arguments.'''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean", idx=0, dist_mem=False)
+    trans = PSyDataTrans()
+    trans.apply(invoke.schedule, prefix="profile",
+                region_name=("module_name", "region_name"))
+
+    node = invoke.schedule[0]
+    assert node.prefix == "profile_"
+    assert node.region_name == "region_name"
 
 
 def test_psy_data_trans_validate_not_inside_loop_directive(fortran_reader):
@@ -136,7 +119,7 @@ def test_class_definitions(fortran_writer):
 
     # By default, no prefix should be used:
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
@@ -144,13 +127,13 @@ def test_class_definitions(fortran_writer):
     data_trans.apply(schedule, {"prefix": "extract"})
     code = fortran_writer(schedule.root)
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
@@ -161,10 +144,10 @@ def test_class_definitions(fortran_writer):
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "type(PSyDataType), save, target :: psy_data" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert "type(psydatatype), save, target :: psy_data" in code
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
-    assert ("type(profile_PSyDataType), save, target :: "
+    assert ("type(profile_psydatatype), save, target :: "
             "profile_psy_data" in code)
 
     assert "CALL psy_data" in code
@@ -176,38 +159,6 @@ def test_class_definitions(fortran_writer):
     assert "Error in 'prefix' parameter: found 'invalid-prefix', while " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)
-
-
-# -----------------------------------------------------------------------------
-def test_psy_data_get_unique_region_names():
-    '''Tests the get_unique_region_names function.'''
-    data_trans = PSyDataTrans()
-    region_name = data_trans.\
-        get_unique_region_name([], {"region_name": ("a", "b")})
-    assert region_name == ("a", "b")
-
-    with pytest.raises(InternalError) as err:
-        region_name = data_trans.\
-            get_unique_region_name([], {"region_name": 1})
-    assert "The name must be a tuple containing two non-empty strings." \
-        in str(err.value)
-
-    with pytest.raises(InternalError) as err:
-        region_name = data_trans.\
-            get_unique_region_name([], {"region_name": ("a", "")})
-    assert "The name must be a tuple containing two non-empty strings." \
-        in str(err.value)
-
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0)
-    region_name = data_trans.get_unique_region_name(invoke.schedule, {})
-    assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0-r0')
-
-    region_name = data_trans.\
-        get_unique_region_name([invoke.schedule[0]], {})
-    assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0-compute_cv_code-r0')
 
 
 # -----------------------------------------------------------------------------

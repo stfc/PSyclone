@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR Array Assignment to explicit
 PSyIR Loops. This could be useful for e.g. performance reasons, to enable
@@ -47,12 +17,12 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Literal, Node, Range, Reference,
-    CodeBlock, Routine, BinaryOperation)
+    CodeBlock, Routine, BinaryOperation, ArrayConstructor)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, SymbolError)
+    DataSymbol, ScalarType, SymbolError)
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -79,8 +49,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
     >>> trans.apply(assignment)
     >>> print(psyir.debug_string())
     subroutine sub()
-      real, dimension(10) :: tmp
       integer :: idx
+      real, dimension(10) :: tmp
     <BLANKLINE>
       do idx = LBOUND(tmp, dim=1), UBOUND(tmp, dim=1), 1
         tmp(idx) = tmp(idx) + 3
@@ -145,7 +115,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             loop_variable_symbol = symbol_table.new_symbol(
                                         root_name="idx",
                                         symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
 
             # Replace one range for each top-level array expression in the
             # assignment
@@ -215,11 +185,9 @@ class ArrayAssignment2LoopsTrans(Transformation):
             not have Range specifying the access to at least one of its
             dimensions.
         :raises TransformationError: if two or more of the loop ranges
-            in the assignment are different or are not known to be the
-            same.
+            in the assignment are different or are not known to be the same.
         :raises TransformationError: if node contains a character type
-                                     child and the allow_strings option is
-                                     not set.
+            child and the allow_strings option is not set.
 
         '''
         super().validate(node, **kwargs)
@@ -242,6 +210,17 @@ class ArrayAssignment2LoopsTrans(Transformation):
         if node.has_descendant(CodeBlock):
             message = (f"{self.name} does not support array assignments that"
                        f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
+        # Do not allow to transform expressions with ArrayConstructors
+        # This could be relaxed in future
+        if node.has_descendant(ArrayConstructor):
+            message = (f"{self.name} does not support array assignments that"
+                       " contain an ArrayConstructor anywhere in"
+                       " the expression")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(LazyString(
@@ -424,19 +403,13 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         '''
         for child in node.walk((Literal, Reference)):
-            try:
-                forbidden = ScalarType.Intrinsic.CHARACTER
-                if (child.is_character(unknown_as=False) or
-                        (child.symbol.datatype.intrinsic == forbidden)):
-                    if verbose:
-                        node.append_preceding_comment(message)
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"{message}, but found:"
-                        f"\n{node.debug_string()}"))
-            except (NotImplementedError, AttributeError):
-                # We cannot always get the datatype, we ignore this for now
-                pass
+            if child.is_character(unknown_as=False):
+                if verbose:
+                    node.append_preceding_comment(message)
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                    lambda: f"{message}, but found:"
+                    f"\n{node.debug_string()}"))
 
 
 def _walk_until_non_elemental_call(

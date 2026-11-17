@@ -1,7 +1,5 @@
 # PSyclone GOcean Example 2
 
-**Authors:** A. R. Porter, STFC Daresbury Lab
-
 ## Introduction
 
 This is a very simple, single-kernel example of the use of PSyclone to
@@ -52,13 +50,11 @@ with NVIDIA's profiling tools, either `nvprof` or `nvvp`.
 
 ## Notes
 
-PSyclone transforms the kernel source and adds a
-`!$acc routine` to it to instruct the compiler to build it for the
-accelerator device. An alternative solution (at least, for this simple
-example) would be to use the '-Mipa=inline:reshape' compiler flag.
-(Currently PSyclone's module-inline transformation cannot be used on
-a kernel that has been transformed for use with OpenACC -
-[issue #229](https://github.com/stfc/PSyclone/issues/229).)
+PSyclone first makes a local, private copy of the kernel routine and
+then adds `!$acc routine` directive to it to instruct the compiler to
+build it for the accelerator device. An alternative solution (at least,
+for this simple example) would be to use the '-Mipa=inline:reshape'
+compiler flag.
 
 Also, the kernel currently has the extents of the field array
 as explicit arguments. This is because the NVIDIA compiler does not support
@@ -66,41 +62,3 @@ assumed-size arrays within compute regions. Once PSyclone has been
 extended to automatically provide this information - [issue #230](https://github.com/stfc/PSyclone/issues/230),
 these arguments can be removed from the kernel meta-data and algorithm
 layer.
-
-## Licence:
-
------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2018-2026, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-------------------------------------------------------------------------------

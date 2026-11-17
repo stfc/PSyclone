@@ -1,55 +1,31 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
+from typing import TYPE_CHECKING, Union
+
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
     Literal, DataNode)
 from psyclone.psyir.symbols import (
-    DataSymbol, UnsupportedFortranType, INTEGER_TYPE,
+    DataSymbol, UnsupportedFortranType, ScalarType, SymbolTable,
     ArgumentInterface, UnresolvedType, ContainerSymbol,
     ImportInterface, ArrayType, DataTypeSymbol)
+
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class LFRicStencils(LFRicCollection):
@@ -58,14 +34,12 @@ class LFRicStencils(LFRicCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.lfric.LFRicInvoke` or
-                :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil
                              direction.
 
     '''
-    def __init__(self, node):
+    def __init__(self, node: Union["LFRicInvoke", LFRicKern]):
         # pylint: disable=too-many-branches
         super().__init__(node)
 
@@ -121,25 +95,25 @@ class LFRicStencils(LFRicCollection):
                     if not arg.stencil.extent:
                         self._kern_args.append(arg)
 
-    def extent_value(self, arg) -> DataNode:
+    def extent_value(self, arg: "LFRicKernelArgument") -> DataNode:
         '''
         Returns the content of the stencil extent which may be a literal
         value (a number) or a variable name. This function simplifies this
-        problem by returning a string in either case.
+        problem by returning a DataNode (Reference or Literal) in either case.
 
         :param arg: the argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the content of the stencil extent.
 
         '''
         extent_arg = arg.stencil.extent_arg
         if extent_arg.is_literal():
-            return Literal(extent_arg.text, INTEGER_TYPE)
+            return Literal(extent_arg.text, ScalarType.integer_type())
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
-    def stencil_unique_str(arg, context):
+    def tag_name(arg: "LFRicKernelArgument",
+                 context: str) -> str:
         '''
         Creates a unique identifier for a stencil. As a stencil
         differs due to the function space it operates on, type of
@@ -147,19 +121,17 @@ class LFRicStencils(LFRicCollection):
         to create a unique string.
 
         :param arg: kernel argument with which stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param str context: a context for this stencil (e.g. "size" or
-                            "direction").
+        :param context: a context for this stencil (e.g. "size" or
+                        "direction").
 
         :returns: unique string identifying the stencil for this argument.
-        :rtype: str
 
         :raises GenerationError: if an explicit stencil extent is found in
                                  the metadata for the kernel argument.
 
         '''
         unique = context
-        unique += arg.function_space.mangled_name
+        unique += arg.function_space.tag_name
         unique += arg.descriptor.stencil['type']
         if arg.descriptor.stencil['extent']:
             raise GenerationError(
@@ -170,39 +142,35 @@ class LFRicStencils(LFRicCollection):
             unique += arg.stencil.direction_arg.text.lower()
         return unique
 
-    def map_name(self, arg):
+    def map_name(self, arg: "LFRicKernelArgument") -> str:
         '''
         Creates and registers a name for the stencil map associated with the
         supplied kernel argument.
 
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a valid unique map name for a stencil in the PSy layer.
-        :rtype: str
 
         '''
-        unique = LFRicStencils.stencil_unique_str(arg, "map")
+        unique = LFRicStencils.tag_name(arg, "map")
         return self.symtab.lookup_with_tag(unique).name
 
     @staticmethod
-    def dofmap_symbol(symtab, arg):
+    def dofmap_symbol(symtab: SymbolTable,
+                      arg: "LFRicKernelArgument") -> DataSymbol:
         '''
         Creates and registers a symbol for the stencil dofmap associated with
         the supplied kernel argument.
 
         :param symtab: symbol table that will contain (or already contains)
                        the symbol with this name.
-        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a dofmap symbol for a stencil in the PSy layer.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_dofmap"
-        unique = LFRicStencils.stencil_unique_str(arg, "dofmap")
+        unique = LFRicStencils.tag_name(arg, "dofmap")
         # The dofmap symbol type depends if it's in a stub or an invoke, so
         # don't commit to any type yet.
         return symtab.find_or_create_tag(
@@ -210,23 +178,21 @@ class LFRicStencils(LFRicCollection):
                 datatype=UnresolvedType())
 
     @staticmethod
-    def dofmap_size_symbol(symtab, arg):
+    def dofmap_size_symbol(symtab: SymbolTable,
+                           arg: "LFRicKernelArgument") -> DataSymbol:
         '''
         Create a valid symbol for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
         :param symtab: symbol table that will contain (or already contains)
                        the symbol with this name.
-        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a symbol for the stencil size.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_size"
-        unique = LFRicStencils.stencil_unique_str(arg, "size")
+        unique = LFRicStencils.tag_name(arg, "size")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 # We don't commit to a type because it is different on
@@ -234,7 +200,8 @@ class LFRicStencils(LFRicCollection):
                 datatype=UnresolvedType())
 
     @staticmethod
-    def max_branch_length(symtab, arg) -> DataSymbol:
+    def max_branch_length(symtab: SymbolTable,
+                          arg: "LFRicKernelArgument") -> DataSymbol:
         '''
         Create a valid unique name for the maximum length of a stencil branch
         (in cells) of a 2D stencil dofmap in the PSy layer. This is required
@@ -243,47 +210,41 @@ class LFRicStencils(LFRicCollection):
 
         :param symtab: symbol table that will contain (or already contains)
                        the symbol with this name.
-        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the symbol representing the max stencil branch length.
 
         '''
         root_name = arg.name + "_max_branch_length"
-        unique = LFRicStencils.stencil_unique_str(arg, "length")
+        unique = LFRicStencils.tag_name(arg, "length")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @staticmethod
-    def direction_name(symtab, arg):
+    def direction_name(symtab: SymbolTable, arg: "LFRicKernelArgument") -> str:
         '''
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
 
         :param symtab: symbol table that will contain (or already contains)
                        the symbol with this name.
-        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
-        :rtype: str
 
         '''
         root_name = arg.name+"_direction"
-        unique = LFRicStencils.stencil_unique_str(arg, "direction")
+        unique = LFRicStencils.tag_name(arg, "direction")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @property
-    def _unique_extent_vars(self):
+    def _unique_extent_vars(self) -> list[str]:
         '''
         :returns: list of all the unique extent argument names in this
                   invoke or kernel call.
-        :rtype: list of str
 
         :raises InternalError: if neither 'self._kernel' or 'self._invoke' are
                                set.
@@ -301,7 +262,7 @@ class LFRicStencils(LFRicCollection):
                                 "impossible.")
         return names
 
-    def _declare_unique_extent_vars(self):
+    def _declare_unique_extent_vars(self) -> None:
         '''
         Declare all unique extent arguments as integers with intent 'in'.
 
@@ -315,7 +276,7 @@ class LFRicStencils(LFRicCollection):
                             symbol.datatype = ArrayType(
                                     LFRicTypes(
                                         "LFRicIntegerScalarDataType")(),
-                                    [Literal("4", INTEGER_TYPE)])
+                                    [Literal("4", ScalarType.integer_type())])
                             symbol.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                             self.symtab.append_argument(symbol)
@@ -337,11 +298,10 @@ class LFRicStencils(LFRicCollection):
                     self.symtab.append_argument(symbol)
 
     @property
-    def _unique_direction_vars(self):
+    def _unique_direction_vars(self) -> list[str]:
         '''
         :returns: a list of all the unique direction argument names in this
                   invoke call.
-        :rtype: list of str
 
         '''
         names = []
@@ -352,7 +312,7 @@ class LFRicStencils(LFRicCollection):
                 names.append(self.direction_name(self.symtab, arg).name)
         return names
 
-    def _declare_unique_direction_vars(self):
+    def _declare_unique_direction_vars(self) -> None:
         '''
         Declare all unique direction arguments as integers with intent 'in'.
 
@@ -368,16 +328,15 @@ class LFRicStencils(LFRicCollection):
                 self.symtab.append_argument(symbol)
 
     @property
-    def unique_alg_vars(self):
+    def unique_alg_vars(self) -> list[str]:
         '''
         :returns: list of the names of the extent and direction arguments
                   supplied to the PSy routine from the Algorithm layer.
-        :rtype: list of str
 
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Declares all stencil maps, extent and direction arguments passed into
         the PSy layer.
@@ -388,7 +347,7 @@ class LFRicStencils(LFRicCollection):
         self._declare_unique_direction_vars()
         self._declare_maps_invoke()
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Declares all stencil-related quantities for a Kernel stub.
 
@@ -404,6 +363,7 @@ class LFRicStencils(LFRicCollection):
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         :raises GenerationError: if an unsupported stencil type is encountered.
@@ -462,7 +422,7 @@ class LFRicStencils(LFRicCollection):
                         rhs=BinaryOperation.create(
                             BinaryOperation.Operator.ADD,
                             self.extent_value(arg),
-                            Literal("1", INTEGER_TYPE))
+                            Literal("1", ScalarType.integer_type()))
                         )
                     self._invoke.schedule.addchild(stmt, cursor)
                     cursor += 1
@@ -524,7 +484,7 @@ class LFRicStencils(LFRicCollection):
                 "Initialise stencil dofmaps")
         return cursor
 
-    def _declare_maps_invoke(self):
+    def _declare_maps_invoke(self) -> None:
         '''
         Declare all stencil maps in the PSy layer.
 
@@ -539,7 +499,7 @@ class LFRicStencils(LFRicCollection):
         const = LFRicConstants()
 
         for arg in self._kern_args:
-            unique_tag = LFRicStencils.stencil_unique_str(arg, "map")
+            unique_tag = LFRicStencils.tag_name(arg, "map")
 
             if unique_tag in stencil_map_names:
                 continue
@@ -629,7 +589,7 @@ class LFRicStencils(LFRicCollection):
                     f"integer(kind=i_def), pointer, dimension(:,:,:) "
                     f":: {dofmap_symbol.name} => null()")
 
-    def _declare_maps_stub(self):
+    def _declare_maps_stub(self) -> None:
         '''
         Add declarations for all stencil maps to a kernel stub. (Note that
         the order of arguments will be redefined later on by ArgOrdering)
@@ -646,9 +606,10 @@ class LFRicStencils(LFRicCollection):
                     symtab.append_argument(max_length)
                 symbol.datatype = ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
-                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                        [Reference(symtab.lookup_with_tag(
+                            arg.function_space.ndf_tag)),
                          Reference(max_length),
-                         Literal("4", INTEGER_TYPE)])
+                         Literal("4", ScalarType.integer_type())])
             else:
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
                 size_symbol.datatype = \
@@ -658,7 +619,8 @@ class LFRicStencils(LFRicCollection):
                 symtab.append_argument(size_symbol)
                 symbol.datatype = ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
-                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                        [Reference(symtab.lookup_with_tag(
+                            arg.function_space.ndf_tag)),
                          Reference(size_symbol)])
             symbol.interface = ArgumentInterface(
                         ArgumentInterface.Access.READ)

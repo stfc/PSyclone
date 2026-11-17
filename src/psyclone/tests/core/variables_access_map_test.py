@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: Joerg Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
 '''This module tests the VariablesAccessMap class.'''
 
@@ -323,10 +294,10 @@ def test_variables_access_map_domain_loop() -> None:
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
-        "a: READ, b: READ, f1_data: READWRITE, f2_data: READWRITE, field_type:"
-        " CONSTANT, i_def: CONSTANT, map_w3: READ, ncell_2d_no_halos: READ, "
-        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, r_def: CONSTANT, "
-        "undf_w3: READ")
+        "a: READ, b: READ, f1_data: READWRITE, f2_data: READWRITE, "
+        "field_proxy_type: CONSTANT, field_type: CONSTANT, i_def: CONSTANT, "
+        "map_w3: READ, ncell_2d_no_halos: READ, ndf_w3: READ, "
+        "nlayers_f1: READ, nlayers_f2: READ, r_def: CONSTANT, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -346,7 +317,8 @@ def test_lfric_access_map() -> None:
     assert (
         "basis_w1_qr: READ, basis_w3_qr: READ, cell: WRITE+READ, "
         "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: INC, "
-        "f2_data: READ, field_type: CONSTANT, i_def: CONSTANT, m1_data: "
+        "f2_data: READ, field_proxy_type: CONSTANT, field_type: CONSTANT, "
+        "i_def: CONSTANT, m1_data: "
         "READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, "
         "ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, "
         "np_xy_qr: READ, np_z_qr: READ, quadrature_xyoz_type: CONSTANT, "

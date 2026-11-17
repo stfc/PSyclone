@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 subroutine main()
     use mpi
     real*8, dimension(:,:,:), allocatable :: su, sv, sw, u, v, w

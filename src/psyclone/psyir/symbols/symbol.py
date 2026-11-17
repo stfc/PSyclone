@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''This module contains the SymbolError class and the generic Symbol class.
@@ -41,12 +10,17 @@
 
 from __future__ import annotations
 from enum import Enum
+from typing import Optional, TYPE_CHECKING
+
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class SymbolError(PSycloneError):
@@ -412,16 +386,14 @@ class Symbol(CommentableMixin):
         '''
         return isinstance(self._interface, UnknownInterface)
 
-    def find_symbol_table(self, node):
+    def find_symbol_table(self, node: "Node") -> Optional["SymbolTable"]:
         '''
         Searches back up the PSyIR tree for the SymbolTable that contains
         this Symbol instance.
 
         :param node: the PSyIR node from which to search.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the SymbolTable containing this Symbol or None.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
 
         :raises TypeError: if the supplied `node` argument is not a PSyIR Node.
 
@@ -479,8 +451,11 @@ class Symbol(CommentableMixin):
         If a `loop_variable` is specified, a variable access will only be
         considered an array access if the specified variable is used in
         at least one of the indices. For example:
-        >>> do i=1, n
-        >>>     a(j) = 2
+
+        .. code-block:: fortran
+
+            do i=1, n
+                a(j) = 2
 
         the access to `a` is not considered an array if `loop_variable` is
         set to `i`. If `loop_variable` is specified, `access_information`
@@ -499,7 +474,7 @@ class Symbol(CommentableMixin):
             access information is given.
 
         '''
-        # TODO #1270: this function might either be better off elsewhere,
+        # TODO #3098: this function might either be better off elsewhere,
         # or even do not implement one function that uses both access
         # information and symbol table - if required, the user can
         # query both in two simple statements anyway.

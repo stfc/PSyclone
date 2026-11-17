@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -45,7 +14,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -53,6 +22,9 @@ from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.datanode import DataNode
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class DataType(metaclass=abc.ABCMeta):
@@ -300,7 +272,8 @@ class UnsupportedFortranType(UnsupportedType):
         have matching names. If there is no match for a given Symbol then it
         is left unchanged.
 
-        This base implementation simply propagates the call to any child Nodes.
+        A partial datatype that is a DataTypeSymbol is replaced directly. It
+        must not be traversed because the datatype definition may be recursive.
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
@@ -308,8 +281,23 @@ class UnsupportedFortranType(UnsupportedType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if self.partial_datatype:
-            self.partial_datatype.replace_symbols_using(table_or_symbol)
+        partial_datatype = self.partial_datatype
+        if not partial_datatype:
+            return
+
+        if not isinstance(partial_datatype, DataTypeSymbol):
+            partial_datatype.replace_symbols_using(table_or_symbol)
+            return
+
+        if isinstance(table_or_symbol, Symbol):
+            if table_or_symbol.name.lower() != partial_datatype.name.lower():
+                return
+            replacement = table_or_symbol
+        else:
+            replacement = table_or_symbol.lookup(
+                partial_datatype.name, otherwise=partial_datatype)
+
+        self._partial_datatype = replacement
 
     @property
     def intrinsic(self):
@@ -357,17 +345,29 @@ class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
 
     :param intrinsic: the intrinsic of this scalar type.
-    :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
-    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                     int | :py:class:`psyclone.psyir.nodes.DataNode`
+    :param length: optionally, the length of a character type.
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
 
     '''
 
-    class Intrinsic(Enum):
+    class ScalarTypeAttribute(Enum):
+        '''
+        Provides some common functionality to the various classes that
+        describe attributes of a ScalarType.
+
+        '''
+        def copy(self) -> ScalarType.ScalarTypeAttribute:
+            ''':returns: a copy of self.'''
+            return copy.copy(self)
+
+        def debug_string(self) -> str:
+            ''':returns: the name of the Enum item.'''
+            return self.name
+
+    class Intrinsic(ScalarTypeAttribute):
         '''Enumeration of the different intrinsic scalar datatypes that are
         supported by the PSyIR.
 
@@ -376,8 +376,9 @@ class ScalarType(DataType):
         REAL = 2
         BOOLEAN = 3
         CHARACTER = 4
+        COMPLEX = 5
 
-    class Precision(Enum):
+    class Precision(ScalarTypeAttribute):
         '''Enumeration of the different types of 'default' precision that may
         be specified for a scalar datatype.
 
@@ -386,12 +387,17 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-        def copy(self):
-            '''
-            :returns: a copy of self.
-            :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
-            '''
-            return copy.copy(self)
+    class CharLengthParameter(ScalarTypeAttribute):
+        '''Enumeration of different length characteristics that a character
+        type may have.
+
+        '''
+        #: The length is defined by some other variable. In Fortran
+        ## this is indicated with an asterisk.
+        ASSUMED = 1
+        #: The length can change during program execution. In Fortran this
+        ## is indicated with a colon.
+        DEFERRED = 2
 
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
@@ -401,7 +407,13 @@ class ScalarType(DataType):
         Intrinsic.BOOLEAN: bool,
         Intrinsic.REAL: float}
 
-    def __init__(self, intrinsic, precision):
+    def __init__(
+            self,
+            intrinsic: ScalarType.Intrinsic,
+            precision: Union[int, ScalarType.Precision, "DataNode"],
+            length: Optional[
+                Union[int, ScalarType.CharLengthParam, "DataNode"]] = None
+    ):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 f"ScalarType expected 'intrinsic' argument to be of type "
@@ -431,16 +443,86 @@ class ScalarType(DataType):
                     f"DataSymbol must be of either 'unresolved' or "
                     f"scalar, integer type but got: ScalarType with "
                     f"datatype {dtype}")
-        # TODO #3135 If the precision is an int, then we would like to make
+        # TODO #3538 If the precision is an int, then we would like to make
         # a Literal containing it instead, however this is not currently
         # possible due to circular imports.
         self._precision = precision
 
+        # The 'length' setter includes validation checks.
+        self._length = None
+        self.length = length
+
     @property
-    def intrinsic(self):
+    def length(self) -> "DataNode":
+        '''
+        :returns: the length of a character type.
+
+        :raises TypeError: if this ScalarType instance is not of
+                           character type.
+        '''
+        if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
+            raise TypeError(
+                f"A ScalarType of intrinsic type '{self._intrinsic}' does not "
+                f"have the 'length' property.")
+        return self._length
+
+    @length.setter
+    def length(self, value: Union[int, "DataNode", None]):
+        '''
+        Setter for the length of a character string. If the new value
+        is supplied as an int then this is converted into a Literal.
+
+        If this type is a character string and the `value` is None then
+        the length is set to the Fortran default of 1.
+
+        :value: the new length to assign.
+
+        :raises TypeError: if value is not None and this is not a
+                           character type.
+        :raises ValueError: if the supplied value is an int with value < 0.
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
+            if value is None:
+                self._length = None
+                return
+            raise TypeError(
+                f"Only ScalarTypes of character type support the length "
+                f"property but length '{value}' was supplied to an intrinsic"
+                f" type of '{self._intrinsic}'")
+
+        # This is a character type.
+        if value is None:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes.literal import Literal
+            # Default length of a character string is 1.
+            self._length = Literal("1", ScalarType.integer_type())
+            return
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        if isinstance(value, ScalarType.CharLengthParameter):
+            self._length = value
+        elif isinstance(value, int) and not isinstance(value, bool):
+            if value < 0:
+                raise ValueError(
+                    f"If the length of a character ScalarType is specified "
+                    f"using an int then it must be >= 0 but got: {value}")
+            from psyclone.psyir.nodes.literal import Literal
+            self._length = Literal(str(value), ScalarType.integer_type())
+        elif isinstance(value, DataNode):
+            self._length = value
+        else:
+            raise TypeError(
+                f"The length property of a character ScalarType must be a non-"
+                f"negative int, ScalarType.CharLengthParameter "
+                f"or DataNode but got '{type(value).__name__}'")
+
+    @property
+    def intrinsic(self) -> ScalarType.Intrinsic:
         '''
         :returns: the intrinsic used by this scalar type.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
         '''
         return self._intrinsic
 
@@ -453,26 +535,34 @@ class ScalarType(DataType):
         '''
         return self._precision
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''
         :returns: a description of this scalar datatype.
-        :rtype: str
 
         '''
         if isinstance(self.precision, ScalarType.Precision):
             precision_str = self.precision.name
         else:
             precision_str = str(self.precision)
-        return f"Scalar<{self.intrinsic.name}, {precision_str}>"
 
-    def __eq__(self, other):
+        if self._length:
+            len_str = f", len:{self._length}"
+        else:
+            len_str = ""
+
+        return f"Scalar<{self.intrinsic.name}, {precision_str}{len_str}>"
+
+    def __eq__(self, other: Any) -> bool:
         '''
-        :param Any other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether this type is equal to the 'other' type.
-        :rtype: bool
+
         '''
         if not super().__eq__(other):
+            return False
+
+        if self.intrinsic != other.intrinsic:
             return False
 
         # TODO #2659 - the following should be sufficient but isn't because
@@ -491,9 +581,18 @@ class ScalarType(DataType):
                 )
         else:
             precision_match = self.precision == other.precision
-        return precision_match and self.intrinsic == other.intrinsic
 
-    def replace_symbols_using(self, table_or_symbol):
+        if self.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            # We've already checked that the two are of the same intrinsic type
+            length_match = self._length == other.length
+        else:
+            length_match = True
+
+        return precision_match and length_match
+
+    def replace_symbols_using(
+            self,
+            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -501,15 +600,14 @@ class ScalarType(DataType):
         left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
-
+                                symbols or a single, replacement Symbol.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
+        if isinstance(self._length, DataNode):
+            self._length.replace_symbols_using(table_or_symbol)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
@@ -522,20 +620,120 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             symbols.update(self.precision.get_all_accessed_symbols())
-
+        if isinstance(self._length, DataNode):
+            symbols.update(self._length.get_all_accessed_symbols())
         return symbols
 
-    def copy(self):
+    def copy(self) -> ScalarType:
         '''
         :returns: a copy of self.
-        :rtype: :py:class:`psyclone.psyir.symbols.DatatTypes.ScalarType`
         '''
-        # TODO #3135 After the precision is always either a Precision or
-        # a DataNode this hasattr check can be removed.
-        if hasattr(self.precision, "copy"):
-            return ScalarType(self.intrinsic, self.precision.copy())
+        if isinstance(self.precision, int):
+            # TODO #3538 - ideally precision will always be stored as a
+            # DataNode and this branch of the `if` won't be necessary.
+            precision = self.precision
         else:
-            return ScalarType(self.intrinsic, self.precision)
+            precision = self.precision.copy()
+        if self._length:
+            return ScalarType(self.intrinsic, precision, self._length.copy())
+        return ScalarType(self.intrinsic, precision)
+
+    # Create common scalar datatypes
+    @staticmethod
+    def real_type() -> "ScalarType":
+        ''' :returns: a REAL scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def real_single_type() -> "ScalarType":
+        ''' :returns: a REAL single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def real_double_type() -> "ScalarType":
+        ''' :returns: a REAL double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def real4_type() -> "ScalarType":
+        ''' :returns: a REAL 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL, 4)
+
+    @staticmethod
+    def real8_type() -> "ScalarType":
+        ''' :returns: a REAL 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL, 8)
+
+    @staticmethod
+    def complex_type() -> "ScalarType":
+        ''' :returns: a COMPLEX scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def complex_single_type() -> "ScalarType":
+        ''' :returns: a COMPLEX single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def complex_double_type() -> "ScalarType":
+        ''' :returns: a COMPLEX double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def complex4_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 4)
+
+    @staticmethod
+    def complex8_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 8)
+
+    @staticmethod
+    def integer_type() -> "ScalarType":
+        ''' :returns: a INTEGER scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def integer_single_type() -> "ScalarType":
+        ''' :returns: a INTEGER single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def integer_double_type() -> "ScalarType":
+        ''' :returns: a INTEGER double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def integer4_type() -> "ScalarType":
+        ''' :returns: a INTEGER 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+
+    @staticmethod
+    def integer8_type() -> "ScalarType":
+        ''' :returns: a INTEGER 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER, 8)
+
+    @staticmethod
+    def boolean_type() -> "ScalarType":
+        ''' :returns: a BOOLEAN scalartype '''
+        return ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def character_type() -> "ScalarType":
+        ''' :returns: a BOOLEAN scalartype '''
+        return ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED, 1)
 
 
 class ArrayType(DataType):
@@ -661,6 +859,14 @@ class ArrayType(DataType):
                     self.lower.copy(), self.upper.copy()
             )
 
+        def get_all_accessed_symbols(self) -> set["Symbol"]:
+            '''
+            :returns: a set of all the symbols accessed inside this Symbol.
+            '''
+            symbols = self.lower.get_all_accessed_symbols()
+            symbols.update(self.upper.get_all_accessed_symbols())
+            return symbols
+
     def __init__(
         self,
         elemental_type: Union[DataType, DataTypeSymbol],
@@ -683,7 +889,7 @@ class ArrayType(DataType):
 
             '''
             if isinstance(var, int):
-                return Literal(str(var), INTEGER_TYPE)
+                return Literal(str(var), ScalarType.integer_type())
             return var
 
         if isinstance(elemental_type, DataType):
@@ -706,7 +912,7 @@ class ArrayType(DataType):
         # Replace any ints in shape with a Literal. int's are only supported
         # as they allow a more concise dimension declaration.
         self._shape = []
-        one = Literal("1", INTEGER_TYPE)
+        one = Literal("1", ScalarType.integer_type())
         for dim in shape:
             if isinstance(dim, (DataNode, int)):
                 # The lower bound is 1 by default.
@@ -1084,163 +1290,244 @@ class StructureType(DataType):
         :param name: the name of the member.
         :param datatype: the type of the member.
         :param visibility: whether this member is public or private.
-        :param initial_value: the initial value of this member (if any).
-        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param initial_value: the initial value of this member (if any) or the
+            redirection value if it is a procedure.
         '''
         name: str
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
-        initial_value: Any
+        initial_value: Optional[DataNode] = None
+        _preceding_comment: str = ""
+        _inline_comment: str = ""
+
+        def __post_init__(self) -> None:
+            '''Validate the attributes of this component.
+
+            :raises TypeError: if any of the supplied values are of the wrong
+                type.
+            '''
+            # This import must be placed here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+
+            if not isinstance(self.name, str):
+                raise TypeError(
+                    "The name of a component of a StructureType must be a "
+                    f"'str' but got '{type(self.name).__name__}'")
+            if not isinstance(self.datatype, (DataType, DataTypeSymbol)):
+                raise TypeError(
+                    "The type of a component of a StructureType must be a "
+                    "'DataType' or 'DataTypeSymbol' but got "
+                    f"'{type(self.datatype).__name__}'")
+            if not isinstance(self.visibility, Symbol.Visibility):
+                raise TypeError(
+                    "The visibility of a component of a StructureType must "
+                    "be an instance of 'Symbol.Visibility' but got "
+                    f"'{type(self.visibility).__name__}'")
+            if (self.initial_value is not None and
+                    not isinstance(self.initial_value, DataNode)):
+                raise TypeError(
+                    "The initial value of a component of a StructureType "
+                    "must be None or an instance of 'DataNode', but got "
+                    f"'{type(self.initial_value).__name__}'.")
+            if not isinstance(self.preceding_comment, str):
+                raise TypeError(
+                    "The preceding_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.preceding_comment).__name__}'")
+            if not isinstance(self.inline_comment, str):
+                raise TypeError(
+                    "The inline_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.inline_comment).__name__}'")
+
+        def __eq__(self, other: Any) -> bool:
+            '''
+            :param other: the object to check equality to.
+
+            :returns: whether this type is equal to the 'other' type.
+
+            '''
+            if type(other) is not type(self):
+                return False
+
+            if self.name != other.name:
+                return False
+
+            if self.datatype != other.datatype:
+                return False
+
+            if self.visibility != other.visibility:
+                return False
+
+            if self.initial_value != other.initial_value:
+                return False
+
+            # The _preceding_comment and _inline_comment are ignored
+            return True
 
     def __init__(self):
         self._components = OrderedDict()
+        self._procedure_components = OrderedDict()
+        self._extends = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "StructureType<>"
 
-    def __copy__(self):
+    def __copy__(self) -> 'StructureType':
         '''
         :returns: a copy of this StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
         '''
         new = StructureType()
 
-        for name, component in self.components.items():
-            new.add(name, component.datatype, component.visibility,
-                    component.initial_value, component.preceding_comment,
-                    component.inline_comment)
+        for component in self.components.values():
+            new.add(component)
+        for component in self.procedure_components.values():
+            new.add_procedure_component(component)
+        new._extends = self.extends
         return new
 
     @staticmethod
-    def create(components):
+    def create(
+        components: list[StructureType.ComponentType],
+        procedure_components: Optional[
+            list[StructureType.ComponentType]] = None,
+        extends: Optional[DataTypeSymbol] = None
+    ) -> 'StructureType':
         '''
-        Creates a StructureType from the supplied list of properties.
+        Creates a StructureType from the supplied lists of components.
 
-        :param components: the name, type, visibility (whether public or
-            private), initial value (if any), preceding comment (if any)
-            and inline comment (if any) of each component.
-        :type components: List[tuple[
-            str,
-            :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
-            Optional[str],
-            Optional[str]
-            ]]
+        :param components: the data components of this type.
+        :param procedure_components: the procedure components of this type.
+        :param extends: the type extended by this type, if any.
 
         :returns: the new type object.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
 
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (3, 4, 5, 6):
-                raise TypeError(
-                    f"Each component must be specified using a 3 to 6-tuple "
-                    f"of (name, type, visibility, initial_value, "
-                    f"preceding_comment, inline_comment) but found a "
-                    f"tuple with {len(component)} members: {component}")
-            stype.add(*component)
+            stype.add(component)
+        if procedure_components:
+            for component in procedure_components:
+                stype.add_procedure_component(component)
+        if extends is not None:
+            stype.extends = extends
         return stype
 
     @property
-    def components(self):
+    def components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
         :returns: Ordered dictionary of the components of this type.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._components
 
-    def add(self, name: str, datatype, visibility, initial_value=None,
-            preceding_comment: str = "", inline_comment: str = ""):
+    @property
+    def procedure_components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
-        Create a component with the supplied attributes and add it to
-        this StructureType.
+        :returns: ordered dictionary of the type-bound procedures of this
+            type.
+        '''
+        return self._procedure_components
 
-        :param name: the name of the new component.
-        :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param visibility: whether this component is public or private.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        :param initial_value: the initial value of the new component.
-        :type initial_value: Optional[
-            :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param preceding_comment: a comment that precedes this component.
-        :param inline_comment: a comment that follows this component on the
-                               same line.
+    @property
+    def extends(self) -> Optional[Symbol]:
+        '''
+        :returns: the type extended by this type, or None.
+        '''
+        return self._extends
 
-        :raises TypeError: if any of the supplied values are of the wrong type.
+    @extends.setter
+    def extends(self, value: Symbol) -> None:
+        '''Set the type extended by this type.
+
+        :param value: the type being extended.
+
+        :raises TypeError: if value is not a Symbol.
+        '''
+        if not isinstance(value, Symbol):
+            raise TypeError(
+                f"The type that a StructureType extends must be a "
+                f"Symbol but got '{type(value).__name__}'.")
+        self._extends = value
+
+    def add(self, component: 'StructureType.ComponentType') -> None:
+        '''
+        Add the supplied component to this StructureType.
+
+        :param component: the component to add.
+
+        :raises TypeError: if the supplied value is not a ComponentType or if
+            the component would make this StructureType recursive.
 
         '''
-        # This import must be placed here to avoid circular
-        # dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import DataNode
-        if not isinstance(name, str):
+        if not isinstance(component, self.ComponentType):
             raise TypeError(
-                f"The name of a component of a StructureType must be a 'str' "
-                f"but got '{type(name).__name__}'")
-        if not isinstance(datatype, (DataType, DataTypeSymbol)):
-            raise TypeError(
-                f"The type of a component of a StructureType must be a "
-                f"'DataType' or 'DataTypeSymbol' but got "
-                f"'{type(datatype).__name__}'")
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                f"The visibility of a component of a StructureType must be "
-                f"an instance of 'Symbol.Visibility' but got "
-                f"'{type(visibility).__name__}'")
-        if datatype is self:
+                "The component added to a StructureType must be an instance "
+                "of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if component.datatype is self:
             # A StructureType cannot contain a component of its own type
             raise TypeError(
-                f"Error attempting to add component '{name}' - a "
+                f"Error attempting to add component '{component.name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
-        if (initial_value is not None and
-                not isinstance(initial_value, DataNode)):
-            raise TypeError(
-                f"The initial value of a component of a StructureType must "
-                f"be None or an instance of 'DataNode', but got "
-                f"'{type(initial_value).__name__}'.")
-        if not isinstance(preceding_comment, str):
-            raise TypeError(
-                f"The preceding_comment of a component of a StructureType "
-                f"must be a 'str' but got "
-                f"'{type(preceding_comment).__name__}'")
-        if not isinstance(inline_comment, str):
-            raise TypeError(
-                f"The inline_comment of a component of a StructureType must "
-                f"be a 'str' but got "
-                f"'{type(inline_comment).__name__}'")
 
-        key_name = name.lower()
-        self._components[key_name] = self.ComponentType(name, datatype,
-                                                        visibility,
-                                                        initial_value)
-        # Use object.__setattr__ due to the frozen nature of ComponentType
-        object.__setattr__(self._components[key_name],
-                           "_preceding_comment",
-                           preceding_comment)
-        object.__setattr__(self._components[key_name],
-                           "_inline_comment",
-                           inline_comment)
+        key_name = component.name.lower()
+        self._components[key_name] = component
 
-    def lookup(self, name):
+    def lookup(self, name: str) -> 'StructureType.ComponentType':
         '''
+        :param name: the name of a component.
+
         :returns: the ComponentType tuple describing the named member of this
                   StructureType.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
-        return self._components[name.lower()]
+        lower_name = name.lower()
+        if lower_name in self._components:
+            return self._components[lower_name]
+        return self._procedure_components[lower_name]
 
-    def __eq__(self, other):
+    def add_procedure_component(
+        self, component: 'StructureType.ComponentType'
+    ) -> None:
+        '''Add a type-bound procedure to this StructureType.
+
+        :param component: the procedure component to add.
+
+        :raises TypeError: if the supplied value is not a ComponentType or is
+            not valid for a procedure component.
         '''
-        :param Any other: the object to check equality to.
+        # Imports here avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
+        if not isinstance(component, self.ComponentType):
+            raise TypeError(
+                "The procedure component added to a StructureType must be an "
+                "instance of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if not isinstance(component.datatype, DataType):
+            raise TypeError(
+                f"The type of a procedure component of a StructureType must "
+                f"be a 'DataType' but got "
+                f"'{type(component.datatype).__name__}'")
+        if (component.initial_value is not None and
+                (not isinstance(component.initial_value, Reference) or
+                 not isinstance(component.initial_value.symbol, Symbol))):
+            raise TypeError(
+                "The initial value of a procedure component of a "
+                "StructureType must be None or a Reference to a "
+                f"Symbol but got '{type(component.initial_value).__name__}'.")
+
+        key_name = component.name.lower()
+        self._procedure_components[key_name] = component
+
+    def __eq__(self, other: Any) -> bool:
+        '''
+        :param other: the object to check equality to.
 
         :returns: whether this StructureType is equal to the 'other' type.
-        :rtype: bool
         '''
         if not super().__eq__(other):
             return False
@@ -1251,9 +1538,18 @@ class StructureType(DataType):
         if self.components != other.components:
             return False
 
+        if self.procedure_components != other.procedure_components:
+            return False
+
+        if self.extends is not other.extends:
+            return False
+
         return True
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -1264,8 +1560,6 @@ class StructureType(DataType):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Since ComponentType is a frozen dataclass it is immutable, therefore
@@ -1283,18 +1577,46 @@ class StructureType(DataType):
                         component.datatype.name, otherwise=component.datatype)
 
             else:
-                component.datatype.replace_symbols_using(table_or_symbol)
-                new_type = component.datatype
+                # Make a copy before updating any Symbol references so that
+                # replacing them does not modify the original StructureType.
+                new_type = component.datatype.copy()
+                new_type.replace_symbols_using(table_or_symbol)
 
-            if component.initial_value:
-                component.initial_value.replace_symbols_using(table_or_symbol)
+            initial_value = component.initial_value
+            if initial_value:
+                initial_value = initial_value.copy()
+                initial_value.replace_symbols_using(table_or_symbol)
 
             # Construct the new ComponentType
             key_name = component.name.lower()
-            self.add(key_name, new_type, component.visibility,
-                     component.initial_value,
-                     preceding_comment=component.preceding_comment,
-                     inline_comment=component.inline_comment)
+            self.add(self.ComponentType(
+                key_name, new_type, component.visibility, initial_value,
+                component.preceding_comment, component.inline_comment))
+
+        # Similarly, since procedure_components is also a frozen dataclass
+        # we need to replace the instance with a new one with updated values
+        for component in list(self.procedure_components.values()):
+            new_type = component.datatype.copy()
+            new_type.replace_symbols_using(table_or_symbol)
+
+            initial_value = component.initial_value
+            if initial_value:
+                initial_value = initial_value.copy()
+                initial_value.replace_symbols_using(table_or_symbol)
+
+            self.add_procedure_component(self.ComponentType(
+                component.name, new_type, component.visibility,
+                initial_value, component.preceding_comment,
+                component.inline_comment))
+
+        # Update reference in the extends attribute
+        if self.extends:
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self.extends.name.lower():
+                    self._extends = table_or_symbol
+            else:
+                self._extends = table_or_symbol.lookup(
+                    self.extends.name, otherwise=self.extends)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
@@ -1309,30 +1631,14 @@ class StructureType(DataType):
             if cmpt.initial_value:
                 symbols.update(
                     cmpt.initial_value.get_all_accessed_symbols())
+        for cmpt in self.procedure_components.values():
+            symbols.update(cmpt.datatype.get_all_accessed_symbols())
+            if cmpt.initial_value:
+                symbols.update(
+                    cmpt.initial_value.get_all_accessed_symbols())
+        if self.extends:
+            symbols.add(self.extends)
         return symbols
-
-
-# Create common scalar datatypes
-REAL_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                       ScalarType.Precision.UNDEFINED)
-REAL_SINGLE_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                              ScalarType.Precision.SINGLE)
-REAL_DOUBLE_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                              ScalarType.Precision.DOUBLE)
-REAL4_TYPE = ScalarType(ScalarType.Intrinsic.REAL, 4)
-REAL8_TYPE = ScalarType(ScalarType.Intrinsic.REAL, 8)
-INTEGER_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                          ScalarType.Precision.UNDEFINED)
-INTEGER_SINGLE_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                 ScalarType.Precision.SINGLE)
-INTEGER_DOUBLE_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                 ScalarType.Precision.DOUBLE)
-INTEGER4_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-INTEGER8_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER, 8)
-BOOLEAN_TYPE = ScalarType(ScalarType.Intrinsic.BOOLEAN,
-                          ScalarType.Precision.UNDEFINED)
-CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
-                            ScalarType.Precision.UNDEFINED)
 
 
 # For automatic documentation generation

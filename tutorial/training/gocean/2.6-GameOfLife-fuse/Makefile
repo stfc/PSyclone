@@ -1,8 +1,8 @@
 EXE = gol
 API = gocean
 
-SCRIPT = fuse_loops.py
+SCRIPT = copy_kernels_and_fuse_loops.py
 # TO test the other script:
-# SCRIPT = fuse_loops_last.py
+# SCRIPT = copy_kernels_and_fuse_loops_last.py
 
 include ../common.mk

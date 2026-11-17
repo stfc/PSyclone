@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
-# and A. Pirrie, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
@@ -48,7 +16,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -61,8 +28,8 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, ImportInterface, ScalarType, SymbolTable,
-    UnresolvedType, INTEGER_TYPE, UnsupportedFortranType)
+    GenericInterfaceSymbol, ImportInterface, SymbolTable,
+    UnresolvedType, ScalarType, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -95,7 +62,7 @@ class LFRicKern(CodedKern):
         # is called from load().
         # pylint: disable=super-init-not-called
         self._parent = None
-        self._stub_symbol_table = LFRicSymbolTable()
+        self._stub_symbol_table = SymbolTable()
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -130,6 +97,9 @@ class LFRicKern(CodedKern):
         api_config = Config.get().api_conf("lfric")
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
+        # TODO #2054 - this 'routine' property can be replaced once this
+        # class sub-classes Call.
+        self.routine: Optional[Reference] = None
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -442,8 +412,8 @@ class LFRicKern(CodedKern):
                 arg, fspace = self.arguments.get_arg_on_space_name(fs_name)
                 # Set up our dict of evaluator targets, one entry per
                 # target FS.
-                if fspace.mangled_name not in self._eval_targets:
-                    self._eval_targets[fspace.mangled_name] = (fspace, arg)
+                if fspace.tag_name not in self._eval_targets:
+                    self._eval_targets[fspace.tag_name] = (fspace, arg)
 
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
@@ -556,13 +526,12 @@ class LFRicKern(CodedKern):
         return tmap
 
     @property
-    def last_cell_all_colours_symbol(self):
+    def last_cell_all_colours_symbol(self) -> str:
         '''
         Getter for the symbol of the array holding the index of the last
         cell of each colour.
 
         :returns: name of the array.
-        :rtype: str
 
         :raises InternalError: if this kernel is not coloured.
         '''
@@ -577,15 +546,17 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
 
         if ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS:
-            return self.scope.symbol_table.find_or_create_array(
-                "last_halo_cell_all_colours", 2,
-                ScalarType.Intrinsic.INTEGER,
-                tag="last_halo_cell_all_colours")
+            return self.scope.symbol_table.find_or_create(
+                "last_halo_cell_all_colours", tag="last_halo_cell_all_colours",
+                symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    2*[ArrayType.Extent.DEFERRED]))
 
-        return self.scope.symbol_table.find_or_create_array(
-            "last_edge_cell_all_colours", 1,
-            ScalarType.Intrinsic.INTEGER,
-            tag="last_edge_cell_all_colours")
+        return self.scope.symbol_table.find_or_create(
+            "last_edge_cell_all_colours", tag="last_edge_cell_all_colours",
+            symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]))
 
     @property
     def ncolours_var(self):
@@ -712,17 +683,17 @@ class LFRicKern(CodedKern):
         return self._base_name
 
     @property
-    def undf_name(self):
+    def undf_name(self) -> str:
         '''
         Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
-        :rtype: str
 
         '''
         field = self._arguments.iteration_space_arg()
-        return field.function_space.undf_name
+        return self.scope.symbol_table.lookup_with_tag(
+            field.function_space.undf_tag).name
 
     @property
     def argument_kinds(self):
@@ -765,8 +736,7 @@ class LFRicKern(CodedKern):
         stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        stub_routine = Routine.create(self._base_name+"_code",
-                                      symbol_table=LFRicSymbolTable())
+        stub_routine = Routine.create(self._base_name+"_code")
         stub_module.addchild(stub_routine)
         self._stub_symbol_table = stub_routine.symbol_table
 
@@ -1100,7 +1070,7 @@ class LFRicKern(CodedKern):
             # go beyond the L1 halo.
             if (parent_loop.upper_bound_name == "cell_halo" and
                     parent_loop.upper_bound_halo_depth != Literal(
-                        "1", INTEGER_TYPE)):
+                        "1", ScalarType.integer_type())):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "

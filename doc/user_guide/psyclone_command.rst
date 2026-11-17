@@ -1,38 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
 
 .. _psyclone_command:
 
@@ -56,7 +27,6 @@ by the command:
                     [-l {off,all,output}] [-p {invokes,routines,kernels}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
-                    [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [--keep-conditional-openmp-statements]
                     [-I INCLUDE] [-d DIRECTORY]
@@ -75,8 +45,6 @@ by the command:
       -v, --version         display version information
       -c CONFIG, --config CONFIG
                             config file with PSyclone specific options
-      -s SCRIPT, --script SCRIPT
-                            filename of a PSyclone optimisation recipe
       --enable-cache        whether to enable caching of imported module dependencies (if
                             enabled, it will generate a .psycache file of each imported module in
                             the same location as the imported source file).
@@ -98,12 +66,10 @@ by the command:
       -opsy OUTPUT_PSY_FILE
                             (psykal mode) filename of generated PSy-layer code
       -okern OUTPUT_KERNEL_PATH
-                            (psykal mode) directory in which to put transformed kernels, default
+                            (psykal mode) directory in which to put any generated kernels, default
                             is the current working directory
       -dm, --dist_mem       (psykal mode) generate distributed memory code
       -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
-      --kernel-renaming {multiple,single}
-                            (psykal mode) naming scheme to use when re-naming transformed kernels
       --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                             sets the level of the logging (defaults to OFF).
       --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
@@ -117,6 +83,12 @@ by the command:
                             at the input file extension).
       --fixed-form          forces PSyclone to parse this file as fixed format (default is to
                             look at the input file extension).
+
+    Transformation scripts:
+      -s SCRIPT, --script SCRIPT
+                            filename of a PSyclone optimisation recipe
+      --script-kwargs SCRIPT_KWARGS
+                            Keyword arguments for the transformation script.
 
     Directory management:
       -I INCLUDE, --include INCLUDE
@@ -389,6 +361,8 @@ For example the following command will generate GOcean PSyKAl code with DM:
 See :ref:`psyclone usage for PSyKAl <psykal_usage>` section for more information
 about how to use PSyKAl DSLs.
 
+.. _psykal-file-output:
+
 PSyKAl file output
 ^^^^^^^^^^^^^^^^^^
 
@@ -488,34 +462,6 @@ specified directory:
     directories as is required, with the constraint that there must be
     only one instance of the specified file within (or below) the
     specified directories.
-
-Transforming PSyKAl Kernels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-When transforming kernels there are two use-cases to consider:
-
- 1. a given kernel will be transformed only once and that version
-    then used from multiple, different Invokes and Algorithms;
- 2. a given kernel is used from multiple, different Invokes and
-    Algorithms and is transformed differently, depending on the
-    Invoke.
-
-Whenever PSyclone is used to transform a kernel, the new kernel must
-be re-named in order to avoid clashing with other possible calls to
-the original. By default (``--kernel-renaming multiple``), PSyclone
-generates a new, unique name for each kernel that is
-transformed. Since PSyclone is run on one Algorithm file at a time, it
-uses the chosen kernel output directory (``-okern``) to ensure that
-names created by different invocations do not clash.  Therefore, when
-building a single application, the same kernel output directory must
-be used for each separate invocation of PSyclone.
-
-Alternatively, in order to support use case 1, a user may specify
-``--kernel-renaming single``: now, before transforming a kernel,
-PSyclone will check the kernel output directory and if a transformed
-version of that kernel is already present then that will be
-used. Note, if the kernel file on disk does not match with what would
-be generated then PSyclone will raise an exception.
 
 Enabling the Logging Infrastructure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

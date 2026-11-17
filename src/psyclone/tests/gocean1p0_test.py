@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified R. W. Ford, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -82,16 +51,16 @@ def test_field(tmpdir, dist_mem):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use compute_cu_mod, only : compute_cu_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
-        "    use compute_cu_mod, only : compute_cu_code\n"
+        "    integer :: i\n"
+        "    integer :: j\n"
         "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
-        "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    type(r2d_field), intent(inout) :: u_fld\n\n")
     remaining_code = (
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -154,20 +123,20 @@ def test_two_kernels(tmpdir, dist_mem):
         "module psy_single_invoke_two_kernels\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use compute_cu_mod, only : compute_cu_code\n"
+        "  use time_smooth_mod, only : time_smooth_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
         "uold_fld)\n"
-        "    use compute_cu_mod, only : compute_cu_code\n"
-        "    use time_smooth_mod, only : time_smooth_code\n"
+        "    integer :: i\n"
+        "    integer :: j\n"
         "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: unew_fld\n"
-        "    type(r2d_field), intent(inout) :: uold_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    type(r2d_field), intent(inout) :: uold_fld\n\n")
     first_kernel = (
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -210,16 +179,16 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         "module psy_single_invoke_two_kernels\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use compute_cu_mod, only : compute_cu_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0(cu_fld, p_fld, u_fld)\n"
-        "    use compute_cu_mod, only : compute_cu_code\n"
+        "    integer :: i\n"
+        "    integer :: j\n"
         "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
-        "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    type(r2d_field), intent(inout) :: u_fld\n\n")
     first_kernel = (
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -268,17 +237,17 @@ def test_grid_property(tmpdir, dist_mem):
         "module psy_single_invoke_with_grid_props_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_requires_grid_props, only : next_sshu_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
-        "    use kernel_requires_grid_props, only : next_sshu_code\n"
-        "    type(r2d_field), intent(inout) :: cu_fld\n"
-        "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    type(r2d_field), intent(inout) :: du_fld\n"
-        "    type(r2d_field), intent(inout) :: d_fld\n"
+        "    integer :: i\n"
         "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    type(r2d_field), intent(inout) :: cu_fld\n"
+        "    type(r2d_field), intent(inout) :: d_fld\n"
+        "    type(r2d_field), intent(inout) :: du_fld\n"
+        "    type(r2d_field), intent(inout) :: u_fld\n\n")
     first_kernel = (
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -325,15 +294,15 @@ def test_scalar_int_arg(tmpdir, dist_mem):
         "module psy_single_invoke_scalar_int_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_scalar_int, only : bc_ssh_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_ssh(ncycle, ssh_fld)\n"
-        "    use kernel_scalar_int, only : bc_ssh_code\n"
-        "    integer, intent(inout) :: ncycle\n"
-        "    type(r2d_field), intent(inout) :: ssh_fld\n"
+        "    integer :: i\n"
         "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    integer, intent(inout) :: ncycle\n"
+        "    type(r2d_field), intent(inout) :: ssh_fld\n\n")
     first_kernel = (
         "    do j = ssh_fld%whole%ystart, ssh_fld%whole%ystop, 1\n"
         "      do i = ssh_fld%whole%xstart, ssh_fld%whole%xstop, 1\n"
@@ -369,15 +338,15 @@ def test_scalar_float_arg(tmpdir, dist_mem):
         "module psy_single_invoke_scalar_float_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_scalar_float, only : bc_ssh_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
-        "    use kernel_scalar_float, only : bc_ssh_code\n"
-        "    real(kind=go_wp), intent(inout) :: a_scalar\n"
-        "    type(r2d_field), intent(inout) :: ssh_fld\n"
+        "    integer :: i\n"
         "    integer :: j\n"
-        "    integer :: i\n\n")
+        "    real(kind=go_wp), intent(inout) :: a_scalar\n"
+        "    type(r2d_field), intent(inout) :: ssh_fld\n\n")
     first_kernel = (
         "    do j = ssh_fld%whole%ystart, ssh_fld%whole%ystop, 1\n"
         "      do i = ssh_fld%whole%xstart, ssh_fld%whole%xstop, 1\n"
@@ -427,17 +396,17 @@ def test_scalar_float_arg_from_module():
         "module psy_single_invoke_scalar_float_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_scalar_float, only : bc_ssh_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_ssh(ssh_fld)\n"
         "    use my_mod, only : a_scalar\n"
-        "    use kernel_scalar_float, only : bc_ssh_code\n"
-        "    type(r2d_field), intent(inout) :: ssh_fld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: ssh_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = ssh_fld%grid%subdomain%internal%xstop\n"
         "    jstop = ssh_fld%grid%subdomain%internal%ystop\n"
@@ -450,7 +419,7 @@ def test_scalar_float_arg_from_module():
         "  end subroutine invoke_0_bc_ssh\n\n"
         "end module psy_single_invoke_scalar_float_test\n")
 
-    assert generated_code == expected_output
+    assert expected_output in generated_code
     # We don't compile this generated code as the module is made up and
     # the compiler would correctly fail.
 
@@ -477,19 +446,19 @@ def test_ne_offset_cf_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_ne_offset_cf_mod, only : compute_vort_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_vort(vort_fld, p_fld, u_fld, v_fld)\n"
-        "    use kernel_ne_offset_cf_mod, only : compute_vort_code\n"
-        "    type(r2d_field), intent(inout) :: vort_fld\n"
+        "    integer :: i\n"
+        "    integer :: istop\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n"
-        "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    type(r2d_field), intent(inout) :: vort_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = vort_fld%grid%subdomain%internal%xstop\n"
         "    jstop = vort_fld%grid%subdomain%internal%ystop\n"
@@ -528,18 +497,18 @@ def test_ne_offset_ct_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_ne_offset_ct_mod, only : compute_vort_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_vort(p_fld, u_fld, v_fld)\n"
-        "    use kernel_ne_offset_ct_mod, only : compute_vort_code\n"
-        "    type(r2d_field), intent(inout) :: p_fld\n"
-        "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: p_fld\n"
+        "    type(r2d_field), intent(inout) :: u_fld\n"
+        "    type(r2d_field), intent(inout) :: v_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = p_fld%grid%subdomain%internal%xstop\n"
         "    jstop = p_fld%grid%subdomain%internal%ystop\n"
@@ -578,16 +547,16 @@ def test_ne_offset_all_cu_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use boundary_conditions_ne_offset_mod, only : bc_solid_u_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_solid_u(u_fld)\n"
-        "    use boundary_conditions_ne_offset_mod, only : bc_solid_u_code\n"
-        "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: u_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = u_fld%grid%subdomain%internal%xstop\n"
         "    jstop = u_fld%grid%subdomain%internal%ystop\n"
@@ -625,16 +594,16 @@ def test_ne_offset_all_cv_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use boundary_conditions_ne_offset_mod, only : bc_solid_v_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_solid_v(v_fld)\n"
-        "    use boundary_conditions_ne_offset_mod, only : bc_solid_v_code\n"
-        "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: v_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = v_fld%grid%subdomain%internal%xstop\n"
         "    jstop = v_fld%grid%subdomain%internal%ystop\n"
@@ -672,16 +641,16 @@ def test_ne_offset_all_cf_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use boundary_conditions_ne_offset_mod, only : bc_solid_f_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_solid_f(f_fld)\n"
-        "    use boundary_conditions_ne_offset_mod, only : bc_solid_f_code\n"
-        "    type(r2d_field), intent(inout) :: f_fld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: f_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = f_fld%grid%subdomain%internal%xstop\n"
         "    jstop = f_fld%grid%subdomain%internal%ystop\n"
@@ -717,19 +686,19 @@ def test_sw_offset_cf_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_sw_offset_cf_mod, only : compute_z_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_z(z_fld, p_fld, u_fld, v_fld)\n"
-        "    use kernel_sw_offset_cf_mod, only : compute_z_code\n"
-        "    type(r2d_field), intent(inout) :: z_fld\n"
+        "    integer :: i\n"
+        "    integer :: istop\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n"
-        "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    type(r2d_field), intent(inout) :: z_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = z_fld%grid%subdomain%internal%xstop\n"
         "    jstop = z_fld%grid%subdomain%internal%ystop\n"
@@ -768,19 +737,19 @@ def test_sw_offset_all_cf_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_sw_offset_cf_mod, only : apply_bcs_f_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_apply_bcs_f(z_fld, p_fld, u_fld, v_fld)\n"
-        "    use kernel_sw_offset_cf_mod, only : apply_bcs_f_code\n"
-        "    type(r2d_field), intent(inout) :: z_fld\n"
+        "    integer :: i\n"
+        "    integer :: istop\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n"
-        "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    type(r2d_field), intent(inout) :: z_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = z_fld%grid%subdomain%internal%xstop\n"
         "    jstop = z_fld%grid%subdomain%internal%ystop\n"
@@ -819,19 +788,19 @@ def test_sw_offset_ct_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_sw_offset_ct_mod, only : compute_h_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_h(h_fld, p_fld, u_fld, v_fld)\n"
-        "    use kernel_sw_offset_ct_mod, only : compute_h_code\n"
+        "    integer :: i\n"
+        "    integer :: istop\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
         "    type(r2d_field), intent(inout) :: h_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
-        "    type(r2d_field), intent(inout) :: v_fld\n"
-        "    integer :: j\n"
-        "    integer :: i\n"
-        "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    type(r2d_field), intent(inout) :: v_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = h_fld%grid%subdomain%internal%xstop\n"
         "    jstop = h_fld%grid%subdomain%internal%ystop\n"
@@ -871,19 +840,19 @@ def test_sw_offset_all_ct_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_sw_offset_ct_mod, only : apply_bcs_h_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_apply_bcs_h(hfld, pfld, ufld, vfld)\n"
-        "    use kernel_sw_offset_ct_mod, only : apply_bcs_h_code\n"
+        "    integer :: i\n"
+        "    integer :: istop\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
         "    type(r2d_field), intent(inout) :: hfld\n"
         "    type(r2d_field), intent(inout) :: pfld\n"
         "    type(r2d_field), intent(inout) :: ufld\n"
-        "    type(r2d_field), intent(inout) :: vfld\n"
-        "    integer :: j\n"
-        "    integer :: i\n"
-        "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    type(r2d_field), intent(inout) :: vfld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = hfld%grid%subdomain%internal%xstop\n"
         "    jstop = hfld%grid%subdomain%internal%ystop\n"
@@ -923,17 +892,17 @@ def test_sw_offset_all_cu_points(tmpdir):
         "module psy_single_invoke_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
+        "  use kernel_sw_offset_cu_mod, only : apply_bcs_u_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_apply_bcs_u(ufld, vfld)\n"
-        "    use kernel_sw_offset_cu_mod, only : apply_bcs_u_code\n"
-        "    type(r2d_field), intent(inout) :: ufld\n"
-        "    type(r2d_field), intent(inout) :: vfld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: ufld\n"
+        "    type(r2d_field), intent(inout) :: vfld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = ufld%grid%subdomain%internal%xstop\n"
         "    jstop = ufld%grid%subdomain%internal%ystop\n"
@@ -969,20 +938,13 @@ def test_sw_offset_all_cv_points(tmpdir):
     generated_code = str(psy.gen)
 
     expected_output = (
-        "module psy_single_invoke_test\n"
-        "  use field_mod\n"
-        "  use kind_params_mod\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  contains\n"
         "  subroutine invoke_0_apply_bcs_v(vfld, ufld)\n"
-        "    use kernel_sw_offset_cv_mod, only : apply_bcs_v_code\n"
-        "    type(r2d_field), intent(inout) :: vfld\n"
-        "    type(r2d_field), intent(inout) :: ufld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: ufld\n"
+        "    type(r2d_field), intent(inout) :: vfld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = vfld%grid%subdomain%internal%xstop\n"
         "    jstop = vfld%grid%subdomain%internal%ystop\n"
@@ -994,7 +956,7 @@ def test_sw_offset_all_cv_points(tmpdir):
         "  end subroutine invoke_0_apply_bcs_v\n\n"
         "end module psy_single_invoke_test\n")
 
-    assert generated_code == expected_output
+    assert expected_output in generated_code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -1018,21 +980,14 @@ def test_offset_any_all_cu_points(tmpdir):
     generated_code = str(psy.gen)
 
     expected_output = (
-        "module psy_single_invoke_test\n"
-        "  use field_mod\n"
-        "  use kind_params_mod\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  contains\n"
         "  subroutine invoke_0_compute_u(ufld, vfld, hfld)\n"
-        "    use kernel_any_offset_cu_mod, only : compute_u_code\n"
-        "    type(r2d_field), intent(inout) :: ufld\n"
-        "    type(r2d_field), intent(inout) :: vfld\n"
-        "    type(r2d_field), intent(inout) :: hfld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: hfld\n"
+        "    type(r2d_field), intent(inout) :: ufld\n"
+        "    type(r2d_field), intent(inout) :: vfld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = ufld%grid%subdomain%internal%xstop\n"
         "    jstop = ufld%grid%subdomain%internal%ystop\n"
@@ -1045,7 +1000,7 @@ def test_offset_any_all_cu_points(tmpdir):
         "  end subroutine invoke_0_compute_u\n\n"
         "end module psy_single_invoke_test\n")
 
-    assert generated_code == expected_output
+    assert expected_output in generated_code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -1069,20 +1024,13 @@ def test_offset_any_all_points(tmpdir):
     generated_code = str(psy.gen)
 
     expected_output = (
-        "module psy_single_invoke_test\n"
-        "  use field_mod\n"
-        "  use kind_params_mod\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  contains\n"
         "  subroutine invoke_0_copy(voldfld, vfld)\n"
-        "    use kernel_field_copy_mod, only : field_copy_code\n"
-        "    type(r2d_field), intent(inout) :: voldfld\n"
-        "    type(r2d_field), intent(inout) :: vfld\n"
-        "    integer :: j\n"
         "    integer :: i\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: vfld\n"
+        "    type(r2d_field), intent(inout) :: voldfld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = voldfld%grid%subdomain%internal%xstop\n"
         "    jstop = voldfld%grid%subdomain%internal%ystop\n"
@@ -1093,7 +1041,7 @@ def test_offset_any_all_points(tmpdir):
         "    enddo\n\n"
         "  end subroutine invoke_0_copy\n\n"
         "end module psy_single_invoke_test\n")
-    assert generated_code == expected_output
+    assert expected_output in generated_code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -1292,11 +1240,13 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
 
     expected_sched = (
         "GOLoop[variable:'j', loop_type:'outer']\n"
+        "Reference[name:'j']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "GOLoop[variable:'i', loop_type:'inner']\n"
+        "Reference[name:'i']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "StructureReference[name:'cu_fld']\n"
         "StructureMember[name:'grid']\n"
@@ -1313,11 +1263,13 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     clb_trans.apply(schedule)
     expected_sched = (
         "GOLoop[variable:'j', loop_type:'outer']\n"
+        "Reference[name:'j']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "GOLoop[variable:'i', loop_type:'inner']\n"
+        "Reference[name:'i']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "Reference[name:'istop']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"

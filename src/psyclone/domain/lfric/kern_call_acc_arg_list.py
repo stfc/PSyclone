@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages all of the data references
 that must be copied over to a GPU before executing the kernel. Ordering
@@ -228,10 +198,12 @@ class KernCallAccArgList(KernCallArgList):
         '''
         if not self._kern.iterates_over.endswith("cell_column"):
             return
-        self.append(function_space.undf_name, var_accesses)
+        sym = self._symtab.lookup_with_tag(function_space.undf_tag)
+        self.append(sym.name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class.
-        self.append(function_space.map_name, var_accesses)
+        sym = self._symtab.lookup_with_tag(function_space.map_tag)
+        self.append(sym.name, var_accesses)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add arrays that need to be uploaded for inter-grid kernels.
@@ -250,7 +222,8 @@ class KernCallAccArgList(KernCallArgList):
         arg = self._kern.arguments.get_arg_on_space(function_space)
         if arg.mesh == "gh_fine":
             # For the fine mesh, we need the *whole* dofmap
-            map_name = function_space.map_name
+            map_name = self._symtab.lookup_with_tag(
+                function_space.map_tag).name
             self.append(map_name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for

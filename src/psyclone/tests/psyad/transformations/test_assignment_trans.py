@@ -1,38 +1,9 @@
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by J. Remy, Université Grenoble Alpes, Inria
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''Module to test the psyad assignment transformation.'''
 
@@ -44,8 +15,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
     Literal, UnaryOperation, ArrayReference, Range, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    ScalarType, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -57,8 +27,10 @@ def index_str_fixture(request):
     return request.param
 
 
-def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
-                  tmpdir):
+def check_adjoint(tl_fortran: str,
+                  active_variable_names: list[str],
+                  expected_ad_fortran: str,
+                  tmpdir: str) -> None:
     '''Utility routine that takes tangent linear fortran code as input in
     the argument 'tl_fortran', transforms this code into its adjoint
     using the active variables specified in the
@@ -69,11 +41,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     To help keep the test code short this routine also adds the
     subroutine / end subroutine lines to the incoming code.
 
-    :param str tl_fortran: tangent linear code.
-    :param list of str active_variable_names: a list of active \
-        variable names.
-    :param str tl_fortran: the expected adjoint code to be produced.
-    :param str tmpdir: temporary directory created by pytest in which \
+    :param tl_fortran: tangent linear code.
+    :param active_variable_names: a list of active variable names.
+    :param tl_fortran: the expected adjoint code to be produced.
+    :param tmpdir: temporary directory created by pytest in which
         to perform compilation.
 
     '''
@@ -108,8 +79,6 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     writer = FortranWriter()
     ad_fortran = writer(psyir)
 
-    # Check that the code produced is the same as the expected code
-    # provided.
     assert ad_fortran == expected_output_code
 
     # Check that the code produced will compile.
@@ -157,8 +126,8 @@ def test_zero(tmpdir):
     active_variables = ["a"]
     ad_fortran = (
         "  integer, parameter :: n = 10\n"
-        "  real, dimension(n) :: a\n"
-        "  integer, dimension(n) :: b\n\n"
+        "  integer, dimension(n) :: b\n"
+        "  real, dimension(n) :: a\n\n"
         "  a(b(n)) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
     # Array range
@@ -230,7 +199,8 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
@@ -244,9 +214,11 @@ def test_single_assign(tmpdir):
         "  a(lookup(2*i)) = b(lookup(n)+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n  integer :: i\n"
-        "  integer, dimension(n) :: lookup\n\n"
+        "  integer :: i\n"
+        "  integer, parameter :: n = 10\n"
+        "  integer, dimension(n) :: lookup\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
         "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
         "  a(lookup(2 * i)) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -296,8 +268,8 @@ def test_single_assign_fail(tmpdir):
         "  a%data(2*i) = b%data(n+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
         "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 2\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
@@ -324,8 +296,9 @@ def test_single_valued_assign(tmpdir):
         "  a(i) = 3*n*b(j)\n")
     active_variables = ["A", "B"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -347,9 +320,9 @@ def test_multi_add(tmpdir):
         "  a(i+2) = (3/n)*b(j) + c(1)/(2*n) + d(n)\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        "  integer :: i\n  integer :: j\n  integer :: n\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  integer :: i\n  integer :: j\n  integer :: n\n\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n\n"
         "  b(j) = b(j) + (3 / n) * a(i + 2)\n"
         "  c(1) = c(1) + a(i + 2) / (2 * n)\n"
         "  d(n) = d(n) + a(i + 2)\n"
@@ -371,8 +344,9 @@ def test_multi_add_array_elements(tmpdir):
         "  a(i) = a(j) + 3*n*b(j)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  a(j) = a(j) + a(i)\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
@@ -395,8 +369,8 @@ def test_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 3\n"
         "  integer :: i\n"
+        "  integer, parameter :: n = 3\n"
         "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -417,8 +391,8 @@ def test_increment_mult(tmpdir, index_str):
         f"  A({index_str}) = 5*A({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  integer, parameter :: n = 4\n"
         f"  integer :: i\n"
+        f"  integer, parameter :: n = 4\n"
         f"  real, dimension(n) :: a\n\n"
         f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -438,9 +412,9 @@ def test_increment_add(tmpdir, index_str):
         f"  a({index_str}) = A({index_str})+B({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
+        f"  integer :: i\n"
         f"  real, dimension(10) :: a\n"
-        f"  real, dimension(10) :: b\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -463,10 +437,10 @@ def test_increment_add_reorder(tmpdir, index_str):
         f"  a({index_str}) = b({index_str})+k*a({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
-        f"  real, dimension(10) :: b\n"
         f"  integer :: i\n"
-        f"  integer :: k\n\n"
+        f"  integer :: k\n"
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
         f"  a({index_str}) = k * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -490,11 +464,12 @@ def test_increment_multi_add(tmpdir, index_str):
         f"y({index_str})*c({index_str})+d({index_str})*z\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        f"  integer :: i\n"
+        f"  real :: x\n  real :: z\n"
         f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         f"  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        f"  real, dimension(10) :: w\n  real :: x\n"
-        f"  real, dimension(10) :: y\n  real :: z\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: w\n"
+        f"  real, dimension(10) :: y\n\n"
         f"  b({index_str}) = b({index_str}) + x * a({index_str})\n"
         f"  c({index_str}) = c({index_str}) + y({index_str}) * "
         f"a({index_str})\n"
@@ -520,9 +495,9 @@ def test_multi_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})+x*a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
+        f"  integer :: i\n"
         f"  real :: x\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: a\n\n"
         f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -537,9 +512,9 @@ def test_unary_minus(tmpdir):
         "  a = -x * b\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: x\n"
         "  real :: a\n"
-        "  real :: b\n\n"
+        "  real :: b\n"
+        "  real :: x\n\n"
         "  b = b + (-x * a)\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -559,8 +534,8 @@ def test_single_valued_sub(tmpdir):
         "  a(i) = -b(j)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(j) = b(j) + (-a(i))\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -583,9 +558,10 @@ def test_multi_valued_sub(tmpdir):
         "  a(i) = -b(j)-x*(+c(i))+(-d(j))*y\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
+        "  integer :: i\n  integer :: j\n"
+        "  real :: x\n  real :: y\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
+        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n\n"
         "  b(j) = b(j) + (-a(i))\n"
         "  c(i) = c(i) - x * (+a(i))\n"
         "  d(j) = d(j) + (-a(i)) * y\n"
@@ -607,8 +583,8 @@ def test_inc_sub(tmpdir, index_str):
         f"  a({index_str}) = -a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n"
-        f"  integer :: i\n\n"
+        f"  integer :: i\n"
+        f"  real, dimension(10) :: a\n\n"
         f"  a({index_str}) = -a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -634,9 +610,9 @@ def test_multi_inc_sub(tmpdir, index_str):
         f"b({index_str})+a({index_str})/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         f"  integer :: i\n"
-        f"  real :: x\n  real :: y\n\n"
+        f"  real :: x\n  real :: y\n"
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
         f"  a({index_str}) = -a({index_str}) - x * a({index_str}) "
         f"+ a({index_str}) / y\n\n")
@@ -662,8 +638,8 @@ def test_multi_rhs(tmpdir):
         "  a = b + x*b + b/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: x\n  real :: y\n\n"
+        "  real :: x\n  real :: y\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b = b + a\n"
         "  b = b + x * a\n"
         "  b = b + a / y\n"
@@ -688,8 +664,8 @@ def test_different_indices(tmpdir):
         "  a(i) = a(i+1)+b(i)+b(i-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  a(i + 1) = a(i + 1) + a(i)\n"
         "  b(i) = b(i) + a(i)\n"
         "  b(i - 1) = b(i - 1) + a(i)\n"
@@ -712,8 +688,8 @@ def test_same_indices_ordering(tmpdir):
         "  a(i+1) = a(1+i)+b(i)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(i) = b(i) + a(i + 1)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -733,8 +709,8 @@ def test_same_indices_ordering2(tmpdir):
         "  a(2*i) = a(i+i)+b(i)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n\n"
+        "  integer :: i\n"
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n\n"
         "  b(i) = b(i) + a(2 * i)\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -756,8 +732,8 @@ def test_different_structures(tmpdir):
     active_variables = ["a"]
     ad_fortran = (
         "  use field_mod, only : field_type\n"
-        "  type(field_type) :: a\n"
-        "  integer :: n\n\n"
+        "  integer :: n\n"
+        "  type(field_type) :: a\n\n"
         "  a%data(n + 1) = a%data(n + 1) + a%data(n)\n"
         "  a%atad(n) = a%atad(n) + a%data(n)\n"
         "  a%data(n) = 0.0\n\n")
@@ -827,16 +803,18 @@ def test_unary_binary_minus(tmpdir):
 def test_array_ranges_match():
     ''' Test for the helper method that checks whether the array ranges match
     for a variable referenced on both the LHS and RHS of an assignment. '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
-    single_elem_ref = ArrayReference.create(lhs_symbol,
-                                            [Literal("1", INTEGER_TYPE)])
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
+    single_elem_ref = ArrayReference.create(
+        lhs_symbol, [Literal("1", ScalarType.integer_type())])
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(rhs_symbol), single_elem_ref)
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+    lhs = ArrayReference.create(
+        lhs_symbol,
+        [Range.create(Literal("2", ScalarType.integer_type()),
+                      Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     # If the rhs reference is not to the symbol on the LHS then the routine
@@ -858,8 +836,8 @@ def test_array_ranges_match():
             "is not supported." in str(err.value))
     # Repeat but with a range instead of a single array element. (This isn't
     # valid code but is sufficient for this test.)
-    wrong_range = Range.create(Literal("3", INTEGER_TYPE),
-                               Literal("6", INTEGER_TYPE))
+    wrong_range = Range.create(Literal("3", ScalarType.integer_type()),
+                               Literal("6", ScalarType.integer_type()))
     new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
     assign = Assignment.create(lhs.detach(), new_ref)
     with pytest.raises(NotImplementedError) as err:
@@ -869,9 +847,9 @@ def test_array_ranges_match():
             "is not supported." in str(err.value))
     # Repeat with a range where only the step size is wrong. (This isn't valid
     # code but is sufficient for this test.)
-    wrong_range = Range.create(Literal("2", INTEGER_TYPE),
-                               Literal("5", INTEGER_TYPE),
-                               Literal("2", INTEGER_TYPE))
+    wrong_range = Range.create(Literal("2", ScalarType.integer_type()),
+                               Literal("5", ScalarType.integer_type()),
+                               Literal("2", ScalarType.integer_type()))
     new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
     assign = Assignment.create(lhs.detach(), new_ref)
     with pytest.raises(NotImplementedError) as err:
@@ -888,7 +866,8 @@ def test_validate_node():
     argument is not a PSyIR Assignment node.
 
     '''
-    trans = AssignmentTrans(active_variables=[DataSymbol("x", REAL_TYPE)])
+    trans = AssignmentTrans(
+        active_variables=[DataSymbol("x", ScalarType.real_type())])
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
     assert ("Node argument in assignment transformation should be a PSyIR "
@@ -903,13 +882,14 @@ def test_validate_not_active():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
-        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
-        DataSymbol("ab", REAL_TYPE)])
+        DataSymbol("c", ScalarType.real_type()),
+        DataSymbol("aa", ScalarType.real_type()),
+        DataSymbol("ab", ScalarType.real_type())])
     trans.validate(assignment)
 
 
@@ -922,12 +902,13 @@ def test_validate_active_rhs():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
-        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
+        DataSymbol("c", ScalarType.real_type()),
+        DataSymbol("aa", ScalarType.real_type()),
         rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
@@ -942,16 +923,16 @@ def test_validate_rhs_zero():
     check these to make sure all are recognised as expected.
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     # Various forms of 0
     for zero_str in ["0.0", "0", "0.00", "0.", "0.e0"]:
-        rhs_literal = Literal(zero_str, REAL_TYPE)
+        rhs_literal = Literal(zero_str, ScalarType.real_type())
         assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
         trans.validate(assignment)
     # 0 with a kind value
-    real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
-                           initial_value=8)
+    real_kind = DataSymbol("r_def", ScalarType.integer_type(),
+                           is_constant=True, initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(real_kind))
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
@@ -971,9 +952,9 @@ def test_validate_rhs_term_active(operator, string):
     a = b - c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
     binary_op = BinaryOperation.create(
         operator, Reference(rhs_symbol1), Reference(rhs_symbol2))
     assignment = Assignment.create(Reference(lhs_symbol), binary_op)
@@ -998,8 +979,8 @@ def test_validate_rhs_assign():
     a = 1.0
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_node = Literal("1.0", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_node = Literal("1.0", ScalarType.real_type())
     assignment = Assignment.create(Reference(lhs_symbol), rhs_node)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as info:
@@ -1016,9 +997,9 @@ def test_validate_rhs_term_multi_active():
     a = b * c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
             rhs_symbol1), Reference(rhs_symbol2))
@@ -1040,8 +1021,8 @@ def test_validate_rhs_single_active_var():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol])
@@ -1063,10 +1044,10 @@ def test_validate_rhs_active_var_mul_div(operator):
     a = (x/y)*b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # x*b
     multiply = BinaryOperation.create(
@@ -1100,9 +1081,9 @@ def test_validate_rhs_active_divisor_direct():
     a = x/b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     divide = BinaryOperation.create(
         BinaryOperation.Operator.DIV, Reference(
             rhs_symbol2), Reference(rhs_symbol1))
@@ -1124,10 +1105,10 @@ def test_validate_rhs_active_divisor_indirect():
     a = x/(y*b)
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # y*b
     multiply = BinaryOperation.create(
@@ -1159,10 +1140,10 @@ def test_validate_rhs_active_multi_divisor():
     a = x/y/b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # y/b
     divide1 = BinaryOperation.create(
@@ -1185,9 +1166,9 @@ def test_validate_rhs_active_unary_minus():
     a = -x*b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     # x*b
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
@@ -1210,9 +1191,9 @@ def test_validate_rhs_active_var_no_mul():
     a = b**x
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     # b**x
     power = BinaryOperation.create(
         BinaryOperation.Operator.POW, Reference(
@@ -1238,11 +1219,11 @@ def test_validate_mixed_mul_add():
     a = x*(b+y) + c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol4 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol4 = DataSymbol("y", ScalarType.real_type())
     # b+y
     add1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(
@@ -1273,8 +1254,8 @@ def test_validate_unaryop():
     a = sqrt(b)
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     sqrt = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SQRT, [Reference(rhs_symbol)])
     assignment = Assignment.create(Reference(lhs_symbol), sqrt)
@@ -1293,16 +1274,18 @@ def test_validate_mismatched_array_ranges():
                       a(2:5) = x*a(1)
 
     '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
-            rhs_symbol), ArrayReference.create(lhs_symbol,
-                                               [Literal("1", INTEGER_TYPE)]))
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+            rhs_symbol), ArrayReference.create(
+                           lhs_symbol,
+                           [Literal("1", ScalarType.integer_type())]))
+    lhs = ArrayReference.create(
+        lhs_symbol, [Range.create(Literal("2", ScalarType.integer_type()),
+                                  Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(NotImplementedError) as err:
@@ -1311,11 +1294,12 @@ def test_validate_mismatched_array_ranges():
             "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'"
             in str(err.value))
     # Repeat but without a multiplier: a(2:5) = a(3:6).
-    assign = Assignment.create(lhs.detach(),
-                               ArrayReference.create(
-                                   lhs_symbol, [Range.create(
-                                       Literal("3", INTEGER_TYPE),
-                                       Literal("6", INTEGER_TYPE))]))
+    assign = Assignment.create(
+        lhs.detach(),
+        ArrayReference.create(
+            lhs_symbol, [Range.create(
+                Literal("3", ScalarType.integer_type()),
+                Literal("6", ScalarType.integer_type()))]))
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(NotImplementedError) as err:
         trans.validate(assign)
@@ -1329,15 +1313,17 @@ def test_validate_missing_array_indices():
     array access but the same symbol is referenced on the RHS without array
     notation. (The PSyIR permits this since arrays can be arguments to
     query functions.) '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(rhs_symbol),
         Reference(lhs_symbol))
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+    lhs = ArrayReference.create(
+        lhs_symbol,
+        [Range.create(Literal("2", ScalarType.integer_type()),
+                      Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as err:
@@ -1354,8 +1340,8 @@ def test_splitnodes_single():
     is nothing to split.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    node = Literal("0.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    node = Literal("0.0", ScalarType.real_type())
     node_list = trans._split_nodes(
         node, [BinaryOperation.Operator.ADD])
     assert isinstance(node_list, list)
@@ -1368,11 +1354,11 @@ def test_splitnodes_multi():
     are multiple things to split in both lhs and rhs.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0+2.0
     add_lhs = BinaryOperation.create(
         BinaryOperation.Operator.ADD, term1, term2)
@@ -1394,11 +1380,11 @@ def test_splitnodes_multiop():
     operators.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0+2.0
     add_lhs = BinaryOperation.create(
         BinaryOperation.Operator.ADD, term1, term2)
@@ -1419,11 +1405,11 @@ def test_splitnodes_different_op():
     expression has binary operators not specified in the list.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0*2.0
     mul_lhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, term1, term2)
@@ -1445,11 +1431,11 @@ def test_splitnodes_no_split():
     within other binary operators that are not specified in the list.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0*2.0
     mul_lhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, term1, term2)
@@ -1470,7 +1456,8 @@ def test_splitnodes_no_split():
 def test_str():
     ''' Test the str operation returns the expected result.'''
 
-    assignment_trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
+    assignment_trans = AssignmentTrans(
+        [DataSymbol("x", ScalarType.real_type())])
     assert (str(assignment_trans) == "Convert a tangent-linear PSyIR "
             "Assignment to its adjoint form")
 
@@ -1478,5 +1465,6 @@ def test_str():
 def test_name():
     ''' Test the name method returns the expected result.'''
 
-    assignment_trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
+    assignment_trans = AssignmentTrans(
+        [DataSymbol("x", ScalarType.real_type())])
     assert assignment_trans.name == "AssignmentTrans"

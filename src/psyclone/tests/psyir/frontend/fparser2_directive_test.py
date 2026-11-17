@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk, STFC Daresbury Lab
 
 """Performs pytest tests on the support for directives in the fparser2
 PSyIR front-end"""
@@ -40,7 +12,8 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    CodeBlock, IfBlock, UnknownDirective
+    ACCRoutineDirective, CodeBlock, IfBlock, OMPDeclareTargetDirective,
+    UnknownDirective
 )
 
 
@@ -76,7 +49,7 @@ def test_directive_in_decls():
     assert """  ! $omp firstprivate
   integer, dimension(100) :: i ! dir$ aligned""" in out
 
-    pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
+    pytest.xfail(reason="TODO #3517 PSyclone can't store directives in "
                         "declarations as directives.")
 
 
@@ -279,15 +252,15 @@ def test_unknowndirective(fortran_writer):
 
     assert len(pdirs) == 3
     assert pdirs[0].directive_string == "psy lowercase"
-    assert pdirs[1].directive_string == "psy uppercase"
-    assert pdirs[2].directive_string == "psy mixedcase"
+    assert pdirs[1].directive_string == "PSY Uppercase"
+    assert pdirs[2].directive_string == "PsY mixedCASE"
 
     # Check the output is also correct
     output = fortran_writer(psyir)
 
     assert "!$psy lowercase" in output
-    assert "!$psy uppercase" in output
-    assert "!$psy mixedcase" in output
+    assert "!$PSY Uppercase" in output
+    assert "!$PsY mixedCASE" in output
 
 
 def test_comments_on_directive_before_loop(fortran_writer):
@@ -419,11 +392,9 @@ Hey there!""")
 
       ! a comment
       !$pos dumm2
-    else
-      if (nn_e3f_typ == 1) then
-        ! case 1 inline comment
-        i = 2
-      end if
+    elseif (nn_e3f_typ == 1) then
+      ! case 1 inline comment
+      i = 2
     end if
   enddo"""
     assert correct in output
@@ -458,4 +429,73 @@ def test_comments_on_directive_before_where(fortran_writer):
       b(widx1) = a(widx1)
     end if
   enddo"""
+    assert correct in fortran_writer(psyir)
+
+
+def test_omp_declare_target_directive(fortran_writer):
+    '''Tests that an omp declare target directive is converted to the
+    corresponding directive node.'''
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$OMP declare target
+    a = b + 1
+    end subroutine x"""
+
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], OMPDeclareTargetDirective)
+    correct = """  !$omp declare target
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+
+def test_acc_routine_directive(fortran_writer):
+    '''Tests that acc routine directives give the corresponding directive
+    node unless the parallel declaration isn't understood.'''
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    # Test with undeclared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], ACCRoutineDirective)
+    assert routine.children[0].parallelism == "seq"
+
+    correct = """  !$acc routine seq
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+    # Test with declared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine vector
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], ACCRoutineDirective)
+    assert routine.children[0].parallelism == "vector"
+
+    correct = """  !$acc routine vector
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+    # Test with declared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine unknown
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], UnknownDirective)
+    correct = """  !$acc routine unknown
+  a = b + 1"""
     assert correct in fortran_writer(psyir)

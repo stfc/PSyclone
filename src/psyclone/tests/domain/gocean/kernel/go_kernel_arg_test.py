@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified R. W. Ford, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''Tests of handling of arguments for GOcean kernels.
 '''
@@ -52,7 +21,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
-                                    ScalarType, INTEGER_TYPE, REAL_TYPE,
+                                    ScalarType,
                                     ArgumentInterface, DataTypeSymbol)
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -84,9 +53,9 @@ def test_gokernelarguments_append():
 
     # Append well-constructed arguments
     var1 = symtab.new_symbol("var1", symbol_type=DataSymbol,
-                             datatype=REAL_TYPE)
+                             datatype=ScalarType.real_type())
     var2 = symtab.new_symbol("var2", symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE)
+                             datatype=ScalarType.integer_type())
     argument_list.append(var1.name, "go_r_scalar")
     argument_list.append(var2.name, "go_i_scalar")
 
@@ -126,7 +95,7 @@ def test_gokernelargument_infer_datatype():
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Integer
-    assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
+    assert argument_list.args[0].infer_datatype() == ScalarType.integer_type()
 
     # The second argument is a r2d_field (imported DataTypeSymbol)
     assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
@@ -280,10 +249,10 @@ def test_gokernelargument_type(monkeypatch):
     # the first two kernel arguments are nor scalar integers.
 
     symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     symbol_table.specify_argument_list([i_var, j_var])

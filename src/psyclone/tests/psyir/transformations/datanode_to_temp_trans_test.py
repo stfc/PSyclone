@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk STFC Daresbury Lab
 
 '''This module contains the tests for the DataNodeToTempTrans class.'''
 
@@ -40,10 +12,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Assignment, Reference
+    Assignment, Loop, Reference, Routine
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE
+    DataSymbol, ScalarType
 )
 from psyclone.psyir.transformations import (
     DataNodeToTempTrans, TransformationError
@@ -51,7 +23,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import Compile
 
 
-def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
+def test_datanodetotemptrans_validate(fortran_reader):
     """Tests the non-import related functionality of the validate
     function of the DataNodeToTempTrans."""
     dtrans = DataNodeToTempTrans()
@@ -62,10 +34,12 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node's datatype is an array of unknown size, so the "
             "DataNodeToTempTrans cannot be applied. Input node was "
             "'b + a'" in str(err.value))
+    assert ("PSyclone Warning: Input node's datatype is an array" in
+            assign.preceding_comment)
 
     code = """subroutine test
         use some_mod
@@ -74,26 +48,32 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the supplied node cannot be computed, so "
             "the DataNodeToTempTrans cannot be applied. Input node "
             "was 'b + a'. The following symbols in the input "
             "node have not been resolved by PSyclone: '['a', 'b']'. "
             "Setting RESOLVE_IMPORTS in the transformation script "
             "may enable resolution of these symbols." in str(err.value))
+    assert ("PSyclone Warning: The datatype of the supplied node " in
+            assign.preceding_comment)
+    assert ("Setting RESOLVE_IMPORTS in the transformation script" in
+            assign.preceding_comment)
 
     code = """subroutine test
-        character(len=25) :: a, b
+        byte :: a, b
 
         b = a
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the supplied node cannot be computed, "
             "so the DataNodeToTempTrans cannot be applied. Input node "
             "was 'a'" in str(err.value))
+    assert ("PSyclone Warning: The datatype of the supplied node " in
+            assign.preceding_comment)
 
     with pytest.raises(TypeError) as err:
         dtrans.validate("abc")
@@ -108,7 +88,7 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
             "provided types." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(Reference(DataSymbol("a", INTEGER_TYPE)))
+        dtrans.validate(Reference(DataSymbol("a", ScalarType.integer_type())))
     assert ("Input node to DataNodeToTempTrans has no ancestor Statement "
             "node which is not supported." in str(err.value))
 
@@ -128,11 +108,13 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[2]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node to DataNodeToTempTrans contains a call "
             "'some_func(a, b)' that is not "
             "guaranteed to be pure. Input node is 'a + some_func(a, b)'."
             in str(err.value))
+    assert ("PSyclone Warning: Input node to DataNodeToTempTrans contains a "
+            "call" in assign.preceding_comment)
 
 
 def test_datanodetotemptrans_validate_imports(
@@ -160,10 +142,12 @@ def test_datanodetotemptrans_validate_imports(
     psyir.children[0].symbol_table.resolve_imports()
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The type of the node supplied to DataNodeToTempTrans depends "
             "upon an imported symbol 'i' which has a name clash with a "
             "symbol in the current scope." in str(err.value))
+    assert ("PSyclone Warning: The type of the node supplied to "
+            in assign.preceding_comment)
 
     # This should work if the i in scope is imported from the
     # some_mod already.
@@ -240,11 +224,13 @@ def test_datanodetotemptrans_validate_imports(
     psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node contains an imported symbol 'i' whose containing "
             "module collides with an existing symbol. Colliding name is "
             "'tmpmod'."
             in str(err.value))
+    assert ("PSyclone Warning: Input node contains an imported symbol 'i' "
+            in assign.preceding_comment)
 
     filename = tmp_path / "some_other_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
@@ -264,14 +250,15 @@ end subroutine test
     psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the node suppled to DataNodeToTempTrans depends "
             "upon an imported symbol 'dim1' that is declared as private in "
             "its containing module, so cannot be imported." in str(err.value))
+    assert ("PSyclone Warning: The datatype of the node suppled to" in
+            assign.preceding_comment)
 
 
-def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
-                                   monkeypatch):
+def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     """Tests the apply function of the DataNodeToTempTrans without imported
     symbols."""
     dtrans = DataNodeToTempTrans()
@@ -284,13 +271,43 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs.operands[1])
+    # Check the tmp symbol is at the routine scope.
+    routine = psyir.walk(Routine)[0]
+    assert "tmp" in routine.symbol_table
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
+  integer, dimension(10,10) :: c
+  integer, dimension(10,10) :: d
+  integer, dimension(10,100) :: a
+  integer, dimension(100,10) :: b
 
-  ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
+  end if
   tmp = MATMUL(a, b)
   d = c + tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
+
+    # Check the symbol is still created if the assignment is in some other
+    # non-routine scope.
+    code = """subroutine test()
+    integer :: a, b, c
+    integer :: i
+
+    do i = 1, 100
+      a = b + c
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0].detach()
+    assign = loop.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    assert "tmp" in assign.scope.symbol_table
+    out = fortran_writer(loop)
+    assert """do i = 1, 100, 1
+  tmp = b + c
+  a = tmp
+enddo""" in out
 
     code = """subroutine test()
         real :: a
@@ -326,8 +343,10 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
   enddo""" in out
 
     code = """subroutine test()
+    integer, parameter :: i = 1
+    integer, parameter :: j = 3
     integer, dimension(2:6) :: a
-    integer, dimension(1:3) :: b
+    integer, dimension(i:j) :: b
 
     a(2:4) = 3 * b
 
@@ -336,9 +355,10 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  integer, allocatable, dimension(:) :: tmp
-
-  ALLOCATE(tmp(1:3))
+    assert "  integer, allocatable, dimension(:) :: tmp" in out
+    assert """  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(i:j))
+  end if
   tmp = 3 * b
   a(:4) = tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
@@ -395,9 +415,8 @@ def test_datanodetotemptrans_apply_imports(
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  integer, allocatable, dimension(:,:) :: tmp
+    assert """  integer, dimension(25,50) :: tmp
 
-  ALLOCATE(tmp(1:25,1:50))
   tmp = some_var
   b = tmp""" in out
 
@@ -421,10 +440,12 @@ def test_datanodetotemptrans_apply_imports(
     out = fortran_writer(psyir)
     assert """  use c_mod, only : some_var
   use some_mod, only : i
-  integer, dimension(25,50) :: b
   integer, allocatable, dimension(:,:) :: tmp
+  integer, dimension(25,50) :: b
 
-  ALLOCATE(tmp(1:25,1:i))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:25,1:i))
+  end if
   tmp = some_var
   b = tmp""" in out
 
@@ -462,7 +483,9 @@ def test_datanodetotemptrans_apply_imports(
   use f_mod, only : some_var
   integer, allocatable, dimension(:,:) :: tmp
 
-  ALLOCATE(tmp(1:25,1:i))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:25,1:i))
+  end if
   tmp = some_var
   j = tmp""" in out
 
@@ -493,6 +516,70 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
     out = fortran_writer(psyir)
     assert """real, allocatable, dimension(:,:,:) :: tmp
 
-    ALLOCATE(tmp(1:nie0 - nis0 + 1,1:nje0 - njs0 + 1,1:SIZE(rn2, dim=3)))
+    if (.NOT.ALLOCATED(tmp)) then
+      ALLOCATE(tmp(1:nie0 - nis0 + 1,1:nje0 - njs0 + 1,1:SIZE(rn2, dim=3)))
+    end if
     tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * \
-wmask(nis0:nie0,njs0:nje0,:)""" in out
+wmask(nis0:nie0,njs0:nje0,:)
+    call iom_put('estrat_k', tmp)""" in out
+
+
+def test_datanodetotemptrans_hoistable_array(fortran_reader,
+                                             fortran_writer):
+    '''
+    Takes an array sized datanode and ensures the allocate is hoisted out of
+    the containing loop if possible.
+    '''
+
+    code = """subroutine test
+        use some_mod, only: some_func
+        integer :: i, a, b
+        real, dimension(a,b) :: arr1, arr2
+
+        do i = 1, 100
+            call some_func(arr1*arr2)
+        end do
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    dtrans.apply(
+        psyir.children[0].children[0].loop_body.children[0].arguments[0]
+    )
+
+    out = fortran_writer(psyir)
+    assert """  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:a,1:b))
+  end if
+  do i = 1, 100, 1
+    tmp = arr1 * arr2
+    call some_func(tmp)
+  enddo""" in out
+
+    # If the shape of the result contains an array expression then we
+    # shouldn't hoist.
+
+    code = """subroutine test
+        use some_mod, only: some_func
+        integer :: i
+        real, dimension(100, 100) :: arr1, arr2
+        integer, dimension(100) :: arr3
+
+        do i = 1, 100
+            call some_func(arr1(1:arr3(i),:)*arr2(1:arr3(i),:))
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    dtrans.apply(
+        psyir.children[0].children[0].loop_body.children[0].arguments[0]
+    )
+
+    out = fortran_writer(psyir)
+    assert """  do i = 1, 100, 1
+    if (.NOT.ALLOCATED(tmp)) then
+      ALLOCATE(tmp(1:arr3(i),1:100))
+    end if
+    tmp = arr1(:arr3(i),:) * arr2(:arr3(i),:)
+    call some_func(tmp)
+  enddo""" in out

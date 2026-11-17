@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the preprocess.py
 file within the psyad/transformations directory
@@ -89,15 +60,15 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
     expected = (
         "program test\n"
         "  use other, only : g\n"
+        "  integer :: i\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n"
+        "  real, dimension(10) :: d\n"
         "  real, dimension(10,10) :: a\n"
         "  real, dimension(10,10) :: b\n"
         "  real, dimension(10,10) :: c\n"
         "  real, dimension(10,10) :: e\n"
-        "  real, dimension(10,10) :: f\n"
-        "  real, dimension(10) :: d\n"
-        "  integer :: i\n"
-        "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
+        "  real, dimension(10,10) :: f\n\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
@@ -132,11 +103,11 @@ def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
         "end program test\n")
     expected = (
         "program test\n"
-        "  real :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n"
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: a\n"
+        "  real :: res_dot_product\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = 1, 10, 1\n"
         "    res_dot_product = res_dot_product + b(i) * c(i)\n"
@@ -163,14 +134,14 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
         "end program test\n")
     expected = (
         "program test\n"
+        "  integer :: i\n"
+        "  integer :: i_1\n"
+        "  integer :: j\n"
         "  real :: a\n"
+        "  real :: res_dot_product\n"
         "  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n"
-        "  real, dimension(10,10) :: d\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: i_1\n"
-        "  real :: res_dot_product\n\n"
+        "  real, dimension(10,10) :: d\n\n"
         "  do i = 1, 10, 1\n"
         "    b(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
@@ -209,7 +180,15 @@ def test_preprocess_arrayassign2loop(tmpdir, fortran_reader, fortran_writer):
         "end program test\n")
     expected = (
         "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
+        "  integer :: idx_1\n"
+        "  integer, dimension(10) :: map\n"
+        "  integer, parameter :: i = 5\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  real, dimension(10,10,10) :: b\n"
+        "  real, dimension(10,10,10) :: c\n"
+        "  real, dimension(10,10,10) :: d\n"
+        "  real, dimension(10,10,10) :: e\n"
+        "  real, dimension(10,10,10) :: f\n\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,map(i) + 1,idx)\n"

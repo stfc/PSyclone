@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests for the _find_or_create_unresolved_symbol routine
@@ -47,7 +17,7 @@ from psyclone.psyir.nodes import (
     Reference, Container, Assignment, Literal, KernelSchedule,
     BinaryOperation)
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, SymbolTable, REAL_TYPE, ScalarType,
+    Symbol, DataSymbol, SymbolTable, ScalarType,
     UnresolvedInterface, RoutineSymbol, UnresolvedType)
 from psyclone.tests.utilities import get_invoke
 
@@ -127,13 +97,13 @@ def test_find_or_create_unresolved_symbol_2():
     symbols when appropriate. '''
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_type()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1])
-    xvar = DataSymbol("x", REAL_TYPE)
+    xvar = DataSymbol("x", ScalarType.real_type())
     xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(xref, Literal("1.0", ScalarType.real_type()))
     kernel1.addchild(assign)
     # OK to add
     orig_symbol = _find_or_create_unresolved_symbol(assign, "undefined")
@@ -159,9 +129,9 @@ def test_find_or_create_unresolved_scope_limit():
     kernel = KernelSchedule.create("mod_1", SymbolTable(), [])
     container = Container.create("container_name", SymbolTable(),
                                  [kernel])
-    xvar = DataSymbol("x", REAL_TYPE)
+    xvar = DataSymbol("x", ScalarType.real_type())
     xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(xref, Literal("1.0", ScalarType.real_type()))
     kernel.addchild(assign)
 
     # Add x to the kernel symbol table as no symbol exists
@@ -217,7 +187,8 @@ def test_find_or_create_change_symbol_type():
     sub_sym = symbol_table.new_symbol("my_sub")
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     _ = Container.create("container_name", symbol_table, [kernel1])
-    assign = Assignment.create(Reference(tmp_sym), Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(Reference(tmp_sym),
+                               Literal("1.0", ScalarType.real_type()))
     kernel1.addchild(assign)
     # Search for the 'tmp' symbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp")
@@ -226,10 +197,10 @@ def test_find_or_create_change_symbol_type():
     # Repeat but this time specify that we're expecting a DataSymbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp",
                                             symbol_type=DataSymbol,
-                                            datatype=REAL_TYPE)
+                                            datatype=ScalarType.real_type())
     assert sym is tmp_sym
     assert type(sym) is DataSymbol
-    assert sym.datatype == REAL_TYPE
+    assert sym.datatype == ScalarType.real_type()
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
     sym2 = _find_or_create_unresolved_symbol(assign, "my_sub",
                                              symbol_type=RoutineSymbol)

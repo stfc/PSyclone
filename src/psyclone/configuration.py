@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
-#           I. Kavcic, Met Office
-#           N. Nobre, STFC Daresbury Lab
 
 '''
 PSyclone configuration management module.
@@ -60,16 +29,9 @@ from psyclone.errors import PSycloneError, InternalError
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
-# The different naming schemes supported when transforming kernels:
-# multiple = Every transformed kernel is given a unique name. This permits
-#            multiple versions of the same kernel to be created.
-# single = If any given kernel (within a single Application) is transformed
-#          more than once then the same transformation must always be
-#          applied and only one version of the transformed kernel is created.
-VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
-
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
+SUPPORTED_FRONTENDS = ["fparser2", "treesitter"]
 
 
 # pylint: disable=too-many-lines
@@ -205,10 +167,6 @@ class Config:
         # True if reproducible reductions should be used.
         self._reproducible_reductions = None
 
-        # Padding size (number of array elements) to be used when
-        # reproducible reductions are created.
-        self._reprod_pad_size = None
-
         # Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
 
@@ -237,6 +195,9 @@ class Config:
 
         # The Fortran standard that fparser should use
         self._fortran_standard = None
+
+        # The Fortran parser that psyclone should use
+        self._frontend = 'fparser2'
 
         # By default, the PSyIR backends don't output argument names on (most)
         # IntrinsicCalls. This option controls that behaviour.
@@ -334,14 +295,6 @@ class Config:
         except ValueError as err:
             raise ConfigurationError(
                 f"Error while parsing REPRODUCIBLE_REDUCTIONS: {err}",
-                config=self) from err
-
-        try:
-            self._reprod_pad_size = self._config['DEFAULT'].getint(
-                'REPROD_PAD_SIZE')
-        except ValueError as err:
-            raise ConfigurationError(
-                f"error while parsing REPROD_PAD_SIZE: {err}",
                 config=self) from err
 
         if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
@@ -540,6 +493,27 @@ class Config:
                                  f"{_file_paths}")
 
     @property
+    def frontend(self) -> str:
+        '''
+        :returns: the frontend used to parse the input files.
+        '''
+        return self._frontend
+
+    @frontend.setter
+    def frontend(self, value: str) -> None:
+        '''
+        :param value: which frontend to use to parse the input files.
+
+        :raises ConfigurationError: the provided value is not a string.
+        :raises ConfigurationError: the provided value is not supported.
+        '''
+        if not isinstance(value, str) or value not in SUPPORTED_FRONTENDS:
+            raise ConfigurationError(
+                f"frontend must be one of {SUPPORTED_FRONTENDS} but got "
+                f"'{value}''")
+        self._frontend = value
+
+    @property
     def distributed_memory(self):
         '''
         Getter for whether or not distributed memory is enabled
@@ -672,17 +646,6 @@ class Config:
         return self._reproducible_reductions
 
     @property
-    def reprod_pad_size(self):
-        '''
-        Getter for the amount of padding to use for the array required
-        for reproducible OpenMP reductions
-
-        :returns: padding size (no. of array elements)
-        :rtype: int
-        '''
-        return self._reprod_pad_size
-
-    @property
     def psyir_root_name(self):
         '''
         Getter for the root name to use when creating PSyIR names.
@@ -721,31 +684,6 @@ class Config:
         :param str value: directory to which to write transformed kernels.
         '''
         self._kernel_output_dir = value
-
-    @property
-    def kernel_naming(self):
-        '''
-        :returns: what naming scheme to use when writing transformed kernels \
-                  to file.
-        :rtype: str
-        '''
-        return self._kernel_naming
-
-    @kernel_naming.setter
-    def kernel_naming(self, value):
-        '''
-        Setter for how to re-name kernels when writing transformed kernels
-        to file.
-
-        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
-        :raises ValueError: if the supplied value is not a recognised \
-                            kernel-renaming scheme.
-        '''
-        if value not in VALID_KERNEL_NAMING_SCHEMES:
-            raise ValueError(
-                f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}'"
-                f" but got '{value}'")
-        self._kernel_naming = value
 
     @property
     def include_paths(self):

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
@@ -51,8 +22,8 @@ from psyclone.tests.utilities import Compile
 
 CODE = (
     "program test\n"
-    "  real, dimension(10) :: a\n"
-    "  real :: b\n\n"
+    "  real :: b\n"
+    "  real, dimension(10) :: a\n\n"
     "  a = b\n"
     "end program test\n")
 
@@ -132,7 +103,7 @@ def test_rhs(fortran_reader, fortran_writer):
     '''Test that an array notation on the rhs also gets modified.'''
     code = CODE.replace("a = b", "a = b * c\n")
     code = code.replace(":: a", ":: a, b, c")
-    code = code.replace("  real :: b\n\n", "")
+    code = code.replace("  real :: b\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
     assert "a(:) = b(:) * c(:)\n" in result
 
@@ -143,7 +114,7 @@ def test_multid(fortran_reader, fortran_writer):
         "  real, dimension(10) :: a\n", "  integer :: n,m\n  real, "
         "dimension(n,m,10) :: a, b, c\n")
     code = code.replace("a = b", "a = b * c\n")
-    code = code.replace("  real :: b\n\n", "")
+    code = code.replace("  real :: b\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
     assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 
@@ -385,7 +356,7 @@ def test_unsupported_structure_references(fortran_reader):
 
     # Remove scalar2 code and add ptr to mytype. It cannot be done in the code
     # above because pointers and type inheritance are unsupported, and the
-    # reader converts the whole type into a Codeblock (TODO #3265)
+    # reader converts the whole type into a Codeblock
     comp = psyir.children[0].symbol_table.lookup("mytype").datatype.components
     del comp["scalar2"]
     comp["ptr"] = StructureType.ComponentType(

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code to insert profiling calls.
@@ -67,9 +37,9 @@ def test_profile_single_loop(fortran_reader, fortran_writer):
         "  use kind_mod, only : wp\n"
         "  use profile_psy_data_mod, only : profile_psydatatype\n" in code)
     assert (
+        "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         "  real, dimension(jpj) :: sto_tmp\n"
         "  real, dimension(jpj) :: sto_tmp2\n"
-        "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         in code)
     assert (
         "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
@@ -128,10 +98,10 @@ def test_profile_two_loops(fortran_reader, fortran_writer):
         in code)
     assert code.count("use profile_psy_data_mod") == 1
     assert (
-        "  real, dimension(jpj) :: sto_tmp\n"
-        "  real, dimension(jpj) :: sto_tmp2\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
+        "  real, dimension(jpj) :: sto_tmp\n"
+        "  real, dimension(jpj) :: sto_tmp2\n"
         in code)
     assert (
         "  call profile_psy_data_1 % prestart(\"do_loop\", \"r0\", 0, 0)\n"
@@ -311,7 +281,8 @@ def test_profiling_case(fortran_reader, fortran_writer):
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_2\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_3\n"
-        "\n"
+        in code)
+    assert (
         "  call profile_psy_data_3 % prestart(\"my_test\", \"r0\", 0, 0)\n"
         "  p_fld_crs(:,:) = 0.0\n" in code)
     assert ("      if (mje_crs(2) - mjs_crs(2) == 1) then\n"
@@ -428,8 +399,8 @@ def test_profiling_var_clash(fortran_reader, fortran_writer):
     schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0])
     code = fortran_writer(psyir).lower()
-    assert ("  integer :: profile_psy_data\n"
-            "  type(profile_psydatatype), save, target :: profile_psy_data_1"
+    assert "integer :: profile_psy_data\n" in code
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data_1"
             in code)
 
 

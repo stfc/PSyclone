@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
 
 '''
 This example inlines all kernels, fuses loops together, applies OpenMP
@@ -42,7 +14,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
-                                            LoopTiling2DTrans,
+                                            LoopTilingTrans,
                                             OMPParallelTrans)
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Loop, Reference, Routine)
@@ -131,13 +103,13 @@ def trans(psyir: FileContainer) -> None:
 
     fuse = LoopFuseTrans()
 
-    fuse.apply(lat_loops[0], lat_loops[1])
-    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    fuse.apply((lat_loops[0], lat_loops[1]))
+    fuse.apply((lat_loops[0].loop_body[0], lat_loops[0].loop_body[1]))
     # Remove fused loop from list of loops previously collected
     del lat_loops[1]
 
-    fuse.apply(lat_loops[0], lat_loops[1])
-    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    fuse.apply((lat_loops[0], lat_loops[1]))
+    fuse.apply((lat_loops[0].loop_body[0], lat_loops[0].loop_body[1]))
     # Remove fused loop from list of loops previously collected
     del lat_loops[1]
 
@@ -160,8 +132,8 @@ def trans(psyir: FileContainer) -> None:
     # Plus, the 4-times nested loop is too much for the dependency
     # analysis and would require an option to ignore (incorrectly)
     # detected dependencies for some variables.
-    tiling = LoopTiling2DTrans()
+    tiling = LoopTilingTrans()
     try:
-        tiling.apply(lat_loops[0])
+        tiling.apply(lat_loops[0], tiledims=[32, 32])
     except TransformationError as err:
         print(f"Cannot tile loop {lat_loops[0]}: {err.value}")

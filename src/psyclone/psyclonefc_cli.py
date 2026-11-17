@@ -1,35 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2025-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' PSyclone compiler wrapper implementation. '''
@@ -82,6 +55,10 @@ def compiler_wrapper(arguments):
     '''
     fortran_compiler = os.getenv("PSYCLONE_COMPILER", default=None)
     psyclone_options = os.getenv("PSYCLONE_OPTS", default="").split(' ')
+    # TODO #3012: How does this interact with the script FILES_TO_SKIP
+    psyclone_exclude_files = (
+        os.getenv("PSYCLONEFC_EXCLUDE_FILES", default="").split(',')
+    )
 
     # Validate mandatory PSYCLONE_COMPILER
     if fortran_compiler is None:
@@ -119,7 +96,12 @@ def compiler_wrapper(arguments):
     # And it will be followed by each of the original arguments ...
     for argument in arguments:
         # ... but for each fortran file:
-        if argument.endswith(FORTRAN_EXTENSIONS):
+
+        filename = Path(argument).name
+        if (
+            argument.endswith(FORTRAN_EXTENSIONS) and
+            (filename not in psyclone_exclude_files)
+        ):
             # 1) Run the preprocessor
             # TODO #3012: preprocessing is currently ignored, this is not a
             # problem for NEMO because the build system does the proprocessor
@@ -128,6 +110,8 @@ def compiler_wrapper(arguments):
             # 2) Run psyclone
             stem = Path(argument).stem
             suffix = Path(argument).suffix
+            # TODO #3012: Keeping the suffix is wrong as psyclone processed
+            # files are always free-form
             output = f"{stem}.psycloned{suffix}"
             # Always add an include to the current directory, because even if
             # it is the default, psyclone removes it when adding another -I.

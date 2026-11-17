@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Call node implementation.'''
@@ -59,6 +30,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol,
     Symbol,
     SymbolError,
+    SymbolTable,
     UnsupportedFortranType,
     UnresolvedType
 )
@@ -191,23 +163,20 @@ class Call(Statement, DataNode):
                 name, arg = arg
             call.append_named_arg(name, arg)
 
-    def append_named_arg(self, name, arg):
+    def append_named_arg(self,
+                         name: Union[str, None],
+                         arg: DataNode):
         '''Append a named argument to this call.
 
            :param name: the argument name.
-           :type name: Optional[str]
            :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
 
-           :raises ValueError: if the name argument is already used \
+           :raises ValueError: if the name argument is already used
                for an existing argument.
 
         '''
         if name is not None:
-            # Avoid circular import.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.frontend.fortran import FortranReader
-            FortranReader.validate_name(name)
+            SymbolTable.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -217,26 +186,24 @@ class Call(Statement, DataNode):
         self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
-    def insert_named_arg(self, name, arg, index):
+    def insert_named_arg(self,
+                         name: Union[str, None],
+                         arg: DataNode,
+                         index: int) -> None:
         '''Insert a named argument to the call.
 
            :param name: the argument name.
-           :type name: Optional[str]
            :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
-           :param int index: where in the argument list to insert the \
+           :param index: where in the argument list to insert the
                named argument.
 
-           :raises ValueError: if the name argument is already used \
+           :raises ValueError: if the name argument is already used
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
         '''
         if name is not None:
-            # Avoid circular import.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.frontend.fortran import FortranReader
-            FortranReader.validate_name(name)
+            SymbolTable.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -703,7 +670,10 @@ class Call(Statement, DataNode):
             ) -> None:
         """Checks whether the supplied call and routine arguments are
         compatible. This also supports 'optional' arguments by using
-        partial types.
+        partial types. Array arguments are only required to have the same
+        rank if we are dealing with an interface call (polymorphism) or
+        the dummy argument does not have an explicit shape (in which
+        case Fortran permits implicit reshaping).
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
@@ -726,8 +696,21 @@ class Call(Statement, DataNode):
         dummy_type = routine_arg.datatype
         if isinstance(actual_type, ArrayType) and isinstance(dummy_type,
                                                              ArrayType):
-            # Arguments must have the same shape.
-            if len(actual_type.shape) != len(dummy_type.shape):
+            # Is the dummy argument an explicit-shape array?
+            has_explicit_shape = all([
+                isinstance(dim, ArrayType.ArrayBounds) and
+                dim.lower is not ArrayType.Extent.ATTRIBUTE and
+                dim.upper is not ArrayType.Extent.ATTRIBUTE
+                for dim in dummy_type.shape])
+            # Arguments are only required to have the same rank if we are
+            # dealing with an interface call (polymorphism) or the dummy
+            # argument does not have an explicit shape (in which case
+            # Fortran permits implicit reshaping)
+            match_rank = (isinstance(self.routine.symbol,
+                                     GenericInterfaceSymbol) or
+                          not has_explicit_shape)
+            # Check that ranks of arguments match, if necessary
+            if match_rank and len(actual_type.shape) != len(dummy_type.shape):
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modifications: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple Python script showing how to create a PSyIR tree using the
 create methods. In order to use it you must first install
@@ -51,8 +22,7 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     Container, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
-    ImportInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE
+    ImportInterface
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
@@ -68,17 +38,18 @@ def create_psyir_tree():
     # Symbol table, symbols and scalar datatypes
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE,
+        symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     symbol_table.specify_argument_list([arg1])
-    tmp_symbol = symbol_table.new_symbol(symbol_type=DataSymbol,
-                                         datatype=REAL_DOUBLE_TYPE)
+    tmp_symbol = symbol_table.new_symbol(
+         symbol_type=DataSymbol,
+         datatype=ScalarType.real_double_type())
     index_symbol = symbol_table.new_symbol(root_name="i",
                                            symbol_type=DataSymbol,
-                                           datatype=INTEGER4_TYPE)
+                                           datatype=ScalarType.integer4_type())
     real_kind = symbol_table.new_symbol(root_name="RKIND",
                                         symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE,
+                                        datatype=ScalarType.integer_type(),
                                         is_constant=True,
                                         initial_value=8)
     routine_symbol = RoutineSymbol("my_sub")
@@ -91,19 +62,19 @@ def create_psyir_tree():
     # Make generators for nodes which do not have other Nodes as children,
     # with some predefined scalar datatypes
     def zero():
-        return Literal("0.0", REAL_TYPE)
+        return Literal("0.0", ScalarType.real_type())
 
     def one():
-        return Literal("1.0", REAL4_TYPE)
+        return Literal("1.0", ScalarType.real4_type())
 
     def two():
         return Literal("2.0", scalar_type)
 
     def int_zero():
-        return Literal("0", INTEGER_SINGLE_TYPE)
+        return Literal("0", ScalarType.integer_single_type())
 
     def int_one():
-        return Literal("1", INTEGER8_TYPE)
+        return Literal("1", ScalarType.integer8_type())
 
     def tmp1():
         return Reference(arg1)
@@ -173,7 +144,7 @@ def create_psyir_tree():
     # Import data from another container
     external_container = ContainerSymbol("some_mod")
     container_symbol_table.add(external_container)
-    external_var = DataSymbol("some_var", INTEGER_TYPE,
+    external_var = DataSymbol("some_var", ScalarType.integer_type(),
                               interface=ImportInterface(external_container))
     container_symbol_table.add(external_var)
     routine_symbol.interface = ImportInterface(external_container)
@@ -184,9 +155,10 @@ def create_psyir_tree():
     work_symbol = RoutineSymbol("work")
     container_symbol = ContainerSymbol("CONTAINER")
     work_symbol.interface = ImportInterface(container_symbol)
-    arg_symbol = program_symbol_table.new_symbol(root_name="arg",
-                                                 symbol_type=DataSymbol,
-                                                 datatype=REAL_TYPE)
+    arg_symbol = program_symbol_table.new_symbol(
+         root_name="arg",
+         symbol_type=DataSymbol,
+         datatype=ScalarType.real_type())
     program_symbol_table.add(container_symbol)
     program_symbol_table.add(work_symbol)
     call = Call.create(work_symbol, [Reference(arg_symbol)])

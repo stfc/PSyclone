@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Tests Fortran data statements in the fparser2 PSyIR front-end. Data
@@ -43,7 +14,7 @@ some stage we need more information.
 
 import pytest
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import (DataSymbol, StaticInterface,
+from psyclone.psyir.symbols import (DataSymbol, StaticInterface, StructureType,
                                     UnresolvedType, UnsupportedFortranType)
 
 
@@ -60,13 +31,23 @@ def test_simple_data_statement(fortran_reader):
 
     routine = psyir.walk(Routine)[0]
     symtab = routine.symbol_table
-    assert isinstance(symtab.lookup("a").interface, StaticInterface)
-    assert isinstance(symtab.lookup("b").interface, StaticInterface)
-    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    asym = symtab.lookup("a")
+    assert isinstance(asym.interface, StaticInterface)
+    bsym = symtab.lookup("b")
+    assert isinstance(bsym.interface, StaticInterface)
+    csym = symtab.lookup("c")
+    assert isinstance(csym.interface, StaticInterface)
 
     # There is a data_stmt in the symbol table:
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
+    # The data stmt symbol is given a fake datatype to capture its
+    # dependencies (so that we get the ordering correct when generating
+    # declarations in the backend).
+    assert isinstance(data.datatype.partial_datatype, StructureType)
+    all_syms = data.datatype.get_all_accessed_symbols()
+    assert all(sym in all_syms for sym in [asym, bsym, csym])
+
     assert data.datatype.declaration == "DATA a / 1 /, b / 2 /, c / 3 /"
 
     # Test with a single data statement
@@ -128,10 +109,12 @@ def test_data_statement_implicit_loop(fortran_reader):
     routine = psyir.walk(Routine)[0]
     symtab = routine.symbol_table
 
-    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    csym = symtab.lookup("c")
+    assert isinstance(csym.interface, StaticInterface)
     # There is a data_stmt in the symbol table:
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
+    assert csym in data.datatype.get_all_accessed_symbols()
     assert (data.datatype.declaration ==
             "DATA (c(i), i = 1, 5) / 5, 4, 3, 2, 1 /")
 

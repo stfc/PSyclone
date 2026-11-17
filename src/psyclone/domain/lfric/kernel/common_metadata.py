@@ -1,45 +1,19 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing the CommonMetadata base class which captures the
 common functionality for LFRic kernel metadata.
 
 '''
 from abc import ABC, abstractmethod
+from typing import Union
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError, FortranSyntaxError
 
@@ -99,7 +73,9 @@ class CommonMetadata(ABC):
                 f"but found '{value}'.")
 
     @staticmethod
-    def create_fparser2(fortran_string, encoding):
+    def create_fparser2(fortran_string: str,
+                        encoding: Union[tuple[Fortran2003.Base],
+                                        Fortran2003.Base]) -> Fortran2003.Base:
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
         argument if the string conforms to the encoding, otherwise an
@@ -108,32 +84,35 @@ class CommonMetadata(ABC):
         TODO: issue #1965: relocate this method as it is not specific
         to metadata processing.
 
-        :param str fortran_string: a string containing the metadata in \
-           Fortran.
-        :param encoding: the parent class with which we will encode the \
-            Fortran string.
-        :type encoding: subclass of :py:class:`fparser.two.Fortran2003.Base`
+        :param fortran_string: a string containing the metadata in Fortran.
+        :param encoding: the fparser2 class(es) with which we will attempt
+                         to match the Fortran string.
 
-        :returns: an fparser2 tree containing a metadata \
-            argument.
-        :rtype: subclass of :py:class:`fparser.two.Fortran2003.Base`
+        :returns: an fparser2 tree containing a metadata argument.
 
-        :raises ValueError: if the Fortran string is not in the \
-            expected form.
+        :raises ValueError: if the Fortran string is not in the expected form.
 
         '''
         std = Config.get().fortran_standard
         _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
-        match = True
-        try:
-            fparser2_tree = encoding(reader)
-        except (NoMatchError, FortranSyntaxError):
-            match = False
+        match = False
+        if isinstance(encoding, tuple):
+            classes = encoding
+        else:
+            classes = [encoding]
+        for enc in classes:
+            try:
+                fparser2_tree = enc(reader)
+                match = True
+                break
+            except (NoMatchError, FortranSyntaxError):
+                continue
         if not match or not fparser2_tree:
+            text = " or ".join(enc.__name__ for enc in classes)
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran "
-                f"{encoding.__name__}, but found '{fortran_string}'.")
+                f"{text}, but found '{fortran_string}'.")
         return fparser2_tree
 
     @classmethod

@@ -1,35 +1,9 @@
 ! -----------------------------------------------------------------------------
-! BSD 3-Clause License
-!
-! Copyright (c) 2024-2026, Science and Technology Facilities Council.
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
-! Author J. Henrichs, Bureau of Meteorology
 
 
 !> An implementation of the PSyData API for profiling which wraps the use of Vernier.
@@ -42,7 +16,7 @@ module profile_psy_data_mod
 
   type :: profile_PSyDataType
      ! The opaque Vernier handle for a specific region
-     integer (kind=vik) :: vernier_handle
+     integer (kind=vik), allocatable :: vernier_handle(:)
      ! The name of the subroutine and module to be used by Vernier
      character(:), allocatable :: name
      ! True if this instance of PSyDataType has the name already
@@ -86,19 +60,28 @@ contains
                       num_post_vars)
 
     use vernier_mod, only : vernier_start
+!$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
+    integer :: nthreads, thread_id
 
+!$omp critical
     if (.not. this%initialised) then
-      ! Venier only supports a single name, so we store the concatenated
+      ! Vernier only supports a single name, so we store the concatenated
       ! strings to reduce runtime overhead
       this%name = module_name//":"//region_name
+      nthreads = 1
+!$    nthreads = omp_get_max_threads()
+      allocate(this%vernier_handle(nthreads))
       this%initialised = .true.
     endif
-    call vernier_start(this%vernier_handle, this%name)
+!$omp end critical
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    call vernier_start(this%vernier_handle(thread_id), this%name)
 
   end subroutine PreStart
 
@@ -110,12 +93,16 @@ contains
   subroutine PostEnd(this)
 
     use vernier_mod, only : vernier_stop
+!$  use omp_lib, only : omp_get_thread_num
 
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
+    integer :: thread_id
 
-    call vernier_stop(this%vernier_handle)
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    call vernier_stop(this%vernier_handle(thread_id))
 
   end subroutine PostEnd
 

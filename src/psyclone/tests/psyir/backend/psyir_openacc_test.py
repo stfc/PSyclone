@@ -1,52 +1,18 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by: J. G. Wallwork, Met Office / University of Cambridge
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
    psyclone.psyir.backend.fortran and c modules. '''
 
 import pytest
-from psyclone.psyGen import TransInfo
-from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
-                                  Schedule)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.nodes import Assignment, Loop, Directive, Schedule
 from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations.acc_loop_trans import ACCLoopTrans
 from psyclone.transformations import (ACCDataTrans, ACCParallelTrans)
 from psyclone.tests.utilities import get_invoke
 
@@ -78,7 +44,6 @@ DOUBLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 
-# ----------------------------------------------------------------------------
 def test_acc_data_region(fortran_reader, fortran_writer):
     ''' Test that an ACCDataDirective node generates the expected code. '''
     # Generate PSyIR from Fortran code.
@@ -104,7 +69,6 @@ def test_acc_data_region(fortran_reader, fortran_writer):
             "  do i = 1, 20, 2\n" in result)
 
 
-# ----------------------------------------------------------------------------
 def test_acc_data_region_contains_struct(fortran_reader, fortran_writer):
     '''
     Test that we generate correct code if a data region includes references
@@ -141,7 +105,6 @@ end module test''')
             "  !$acc end data\n" in gen)
 
 
-# ----------------------------------------------------------------------------
 @pytest.mark.parametrize("default_present, expected",
                          [(True, " default(present)"), (False, "")])
 def test_acc_kernels(default_present, expected, fortran_reader,
@@ -168,7 +131,6 @@ def test_acc_kernels(default_present, expected, fortran_reader,
     assert correct in result
 
 
-# ----------------------------------------------------------------------------
 def test_acc_parallel(fortran_reader):
     '''Tests that an OpenACC parallel directive is handled correctly.
     '''
@@ -197,12 +159,11 @@ def test_acc_parallel(fortran_reader):
     assert correct in result
 
 
-# ----------------------------------------------------------------------------
 def test_acc_loop(fortran_reader, fortran_writer):
     ''' Tests that an OpenACC loop directive is handled correctly. '''
     psyir = fortran_reader.psyir_from_source(DOUBLE_LOOP)
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
@@ -254,27 +215,6 @@ def test_acc_loop(fortran_reader, fortran_writer):
                 " gang or vector clauses." in str(err.value))
 
 
-# ----------------------------------------------------------------------------
-def replace_child_with_assignment(node):
-    '''Since at this stage not all node types are supported,
-    this function is used to replace the first child of the
-    given node with a simple assignment statement ('a=b').
-    This allows all tests to compare all output of the visitor
-    pattern (even though in some cases the code might not
-    compile, e.g. assignment as child of an OMP DO directive)
-    # TODO #440 tracks this
-    :param node: the node whose child is replaced.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
-    '''
-
-    # Create a simple 'a=b' assignment statement for all tests
-    lhs = Reference(DataSymbol('a', REAL_TYPE))
-    rhs = Reference(DataSymbol('b', REAL_TYPE))
-    assignment = Assignment.create(lhs, rhs)
-    node.children[0] = assignment
-
-
-# ----------------------------------------------------------------------------
 def test_gocean_acc_parallel():
     '''Test that an ACC PARALLEL directive in a 'classical' API (gocean here)
     is created correctly.
@@ -286,25 +226,10 @@ def test_gocean_acc_parallel():
     ptrans = ACCParallelTrans()
     ptrans.apply(invoke.schedule[0])
 
-    # Now remove the GOKern (since it's not yet supported in the
-    # visitor pattern) and replace it with a simple assignment
-    # TODO: #440 tracks this
-    replace_child_with_assignment(invoke.schedule[0].dir_body)
-
     # omp_sched is a GOInvokeSchedule, which is not yet supported.
     # So only convert starting from the OMPParallelDirective. Also, disable
     # node validation so as to avoid the need for a data region.
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$acc parallel default(present)
-a = b
-!$acc end parallel'''
-    assert correct in result
-
-    cvisitor = CWriter(check_global_constraints=False)
-    correct = '''#pragma acc parallel default(present)
-{
-  a = b;
-}'''
-    result = cvisitor(invoke.schedule[0])
-    assert correct in result
+    assert "!$acc parallel default(present)\ndo j =" in result
+    assert "enddo\n!$acc end parallel" in result

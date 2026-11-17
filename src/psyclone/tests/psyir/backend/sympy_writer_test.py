@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
-#           A. R. Porter, STFC Daresbury Lab
-#           S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests the SymPy writer.'''
 
@@ -50,8 +19,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
         Assignment, Literal, Node, IntrinsicCall, Reference, Call
 )
-from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
-                                    INTEGER_TYPE, SymbolTable)
+from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
 def test_sym_writer_constructor():
@@ -81,7 +49,7 @@ def test_sym_writer_lowering_disabled(monkeypatch):
         raise NotImplementedError()
 
     monkeypatch.setattr(Literal, "lower_to_language_level", error)
-    lit = Literal("true", BOOLEAN_TYPE)
+    lit = Literal("true", ScalarType.boolean_type())
     sympy_writer = SymPyWriter()
     sympy_writer(lit)  # No error should be raised here
 
@@ -96,9 +64,9 @@ def test_sym_writer_boolean():
     '''Test that booleans are written in the way that SymPy accepts.
     '''
     sympy_writer = SymPyWriter()
-    lit = Literal("true", BOOLEAN_TYPE)
+    lit = Literal("true", ScalarType.boolean_type())
     assert sympy_writer._to_str(lit) == "True"
-    lit = Literal("false", BOOLEAN_TYPE)
+    lit = Literal("false", ScalarType.boolean_type())
     assert sympy_writer._to_str(lit) == "False"
 
 
@@ -106,7 +74,7 @@ def test_sym_writer_character():
     '''Test that characters are rejected.
     '''
     sympy_writer = SymPyWriter()
-    lit = Literal("bla", CHARACTER_TYPE)
+    lit = Literal("bla", ScalarType.character_type())
 
     with pytest.raises(TypeError) as err:
         sympy_writer(lit)
@@ -482,8 +450,8 @@ def test_gen_indices():
 
     sympy_writer = SymPyWriter()
     # Test using array bounds and DEFERRED:
-    arr_bounds = ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
-                                       Literal("5", INTEGER_TYPE))
+    arr_bounds = ArrayType.ArrayBounds(Literal("2", ScalarType.integer_type()),
+                                       Literal("5", ScalarType.integer_type()))
     gen_ind = sympy_writer.gen_indices([arr_bounds, ArrayType.Extent.DEFERRED])
     assert gen_ind == ["2", "5", "1", "sympy_lower", "sympy_upper", "1"]
 

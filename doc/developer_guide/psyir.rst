@@ -1,40 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-..          J. Henrichs, Bureau of Meteorology
-..          L. Turner, Met Office
 
 
 The PSyclone Intermediate Representation (PSyIR)
@@ -159,7 +128,7 @@ child, we would write something like:
 
     .. literalinclude:: code_snippets/newnode.py
         :language: python
-        :lines: 47-60
+        :lines: 19-32
 
 This implementation already provides the basic PSyIR functionality and the
 node can be integrated and used in the PSyIR tree:
@@ -167,10 +136,10 @@ node can be integrated and used in the PSyIR tree:
 ::
 
     >>> from psyclone.psyir.nodes import Literal, Schedule
-    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from psyclone.psyir.symbols import ScalarType
     >>> from code_snippets.newnode import MyNode
-    >>> mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
-    >>> mynode.children.append(Literal("2", INTEGER_TYPE))
+    >>> mynode = MyNode(children=[Literal("1", ScalarType.integer_type())])
+    >>> mynode.children.append(Literal("2", ScalarType.integer_type()))
     Traceback (most recent call last):
        ...
     psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
@@ -552,14 +521,12 @@ Data Type of an Operation Node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Table 7.2 of the Fortran2008 standard specifies the rules governing
-the types of operands and their results. The PSyIR follows these rules
-with the exception that there is no support for symbols of complex
-(imaginary) type (see
-`#1590 <https://github.com/stfc/PSyclone/issues/1590>`_). For unary operations,
+the types of operands and their results. The PSyIR follows these rules.
+For unary operations,
 the type of the result is just that of the operand.  For a numeric,
-binary operation, these rules boil down to saying that if either argument
-is real then the result is real but if both arguments are integer then the
-result is integer. 
+binary operation, these rules boil down to saying that the result type
+is equal to the "maximum" type of the arguments under the ordering
+complex > real > integer.
 
 If the precisions of the operands are the same, then the result must
 also be of that precision. Otherwise, Section 7.1.9.3 of the Fortran2008

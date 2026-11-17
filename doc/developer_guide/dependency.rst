@@ -1,38 +1,9 @@
 .. -----------------------------------------------------------------------------
-   BSD 3-Clause License
-
-   Copyright (c) 2021-2026, Science and Technology Facilities Council.
-   All rights reserved.
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
-
-   * Redistributions of source code must retain the above copyright notice,
-     this list of conditions and the following disclaimer.
-
-   * Redistributions in binary form must reproduce the above copyright notice,
-     this list of conditions and the following disclaimer in the documentation
-     and/or other materials provided with the distribution.
-
-   * Neither the name of the copyright holder nor the names of its
-     contributors may be used to endorse or promote products derived from
-     this software without specific prior written permission.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-   INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-   BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-   POSSIBILITY OF SUCH DAMAGE.
-   -----------------------------------------------------------------------------
-   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-            J. Henrichs, Bureau of Meteorology
+.. SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
+.. -----------------------------------------------------------------------------
 
 .. testsetup::
 
@@ -262,7 +233,7 @@ per field vector index. For example::
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-    ... ... CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
+    ... ... CodedKern testkern_stencil_vector_code(f1,f2)
 
 In the above PSyIR schedule, the field `f1` is a vector field and the
 `CodedKern` `testkern\_stencil\_vector\_code` is assumed to access data in
@@ -299,7 +270,7 @@ in a kernel and also requires halo exchanges e.g.::
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-         CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
+         CodedKern testkern_stencil_vector_code(f1,f2)
 
 In this case the PSyIR loop node needs to know about all 3 halo
 exchanges before its access is fully `covered`. This functionality is
@@ -461,7 +432,7 @@ thread-private. Note that this code does not handle the usage of
       # the access information as well as from the symbol table
       # into account.
       access_sequence = var_accesses[signature]
-      if symbol.is_array_access(access_info=access_info):
+      if symbol.is_array_access(access_info=access_sequence):
           # It's not a scalar variable, so it will not be private
           continue
 
@@ -504,7 +475,7 @@ until we find accesses that would prevent parallelisation:
    for next_statement in statements:
        # Add the variable accesses of the next statement to
        # the existing accesses:
-       next_statement.reference_accesses(accesses)
+       accesses = next_statement.reference_accesses()
        # Stop when the next statement can not be parallelised
        # together with the previous accesses:
        if not can_be_parallelised(accesses):
@@ -581,7 +552,7 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+    Error: The write access to 'a(i,i)' in 'a(i,i) = j + k' and the read access to 'a(i + 1,i + 1)' in 'a(i,i) = a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
 
 .. _defusechain:
 
@@ -610,3 +581,7 @@ At the moment the DefinitionUseChain assumes that any control flow could not be 
 any code inside a Loop or If statement is not guaranteed to occur. These dependencies
 will be found, but will not limit further searching into the tree.
 Additionally, GOTO statements are not supported and if found, will throw an Exception.
+
+Also, the DefinitionUseChain does reference the whole Loop when there is a dependency
+to the loop variable (because we didn't have it on the tree before). This will be
+fixed by #3486.

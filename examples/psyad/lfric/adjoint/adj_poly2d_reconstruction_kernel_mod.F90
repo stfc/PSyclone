@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 module adj_poly2d_reconstruction_kernel_mod
   use argument_mod, only : any_discontinuous_space_1, any_discontinuous_space_2, any_discontinuous_space_3, arg_type, cell_column, &
        func_type, gh_field, gh_integer, gh_read, gh_readwrite, &

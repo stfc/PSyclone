@@ -1,52 +1,26 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
-# Modifications: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
-from fparser.two import Fortran2003
+
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
     Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
+from psyclone.tests.utilities import min_version_3_10
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -85,15 +59,23 @@ end subroutine my_sub
 '''
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
     attributes. '''
     freader = FortranReader()
-    assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
     # Check that the initialised parser can parse Fortran 2008 standard,
     # the return value of this function is tested in the following tests
+    freader.psyir_from_source(ONLY_2008_CODE)
+
+    # Now repeat the process with treesitter
+    Config.get().frontend = "treesitter"
+    freader = FortranReader()
+    assert isinstance(freader._processor, FortranTreeSitterReader)
     freader.psyir_from_source(ONLY_2008_CODE)
 
 
@@ -270,7 +252,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
         wfile.write("this is not Fortran")
     with pytest.raises(ValueError) as err:
         file_container = fortran_reader.psyir_from_file(filename)
-    assert "Failed to parse source in file" in str(err.value)
+    assert "Failed to parse" in str(err.value)
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

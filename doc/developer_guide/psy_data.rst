@@ -1,37 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by J. Henrichs, Bureau of Meteorology
 
 .. highlight:: fortran
 
@@ -214,12 +186,6 @@ perhaps to switch on/off output of data for on-line visualisation. As
 with the initialisation and shutdown subroutines, any PSyData library
 should include implementations of these routines, even if they are
 empty.
-
- .. note::
-    Currently only the profiling wrapper libraries and
-    read-only-verification libraries implement the Start and Stop
-    routines. Wider support for all PSyData-based APIs will be addressed
-    in Issue #824.
 
 
 Init and Shutdown Functions
@@ -476,24 +442,17 @@ from a derived node to the ``PSyDataNode`` base class.
 
 Passing Parameters From the User to the Node Constructor
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Options can be passed from the user via the
-transformation to the node that will create the code.
-This is done by using the ``options`` dictionary that is
-a standard parameter for all ``validate`` and
-``apply`` calls of a transformation (see
-:ref:`transformations_application`). Besides using
-this dictionary for validation and application parameters,
-``PSyDataTrans`` passes it to the constructor
-of the node that is being inserted. An example
-of a parameter is the ``region_name``, where the user
-can overwrite the default name given to a region (which
-can be somewhat cryptic due to the need to be unique).
-The region name is validated by ``PSyDataTrans``, and
-then passed to the node constructor. The ``PSyDataNode``
-stores the name as an instance attribute, so that they can
-be used at code creation time (PSyIR lowering).
-Below is the list of all options that the PSyData
-node supports in the option dictionary:
+Parameters can be passed as keyword arguments to the transformation's
+``apply`` method (see :ref:`transformations_application`). For example,
+``trans.apply(nodes, region_name=("my_module", "my_region"))`` overrides
+the automatically generated region name. ``PSyDataTrans`` validates these
+parameters and passes the node-construction arguments to the node factory.
+
+The ``PSyDataNode`` constructor and ``create`` factory accept the following
+keyword arguments. The node stores their values as instance attributes
+for use at code creation time (PSyIR lowering). Direct node calls must use
+keyword arguments, for example
+``PSyDataNode(prefix="profile", region_name=("my_module", "my_region"))``.
 
 .. table::
     :widths: 2,10
@@ -519,15 +478,16 @@ node supports in the option dictionary:
 
 Passing Parameter From a Derived Node to the ``PSyDataNode``
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-The ``PSyDataNode.lower_to_language_level`` function also accepts
-an option dictionary, which is used by derived nodes to control code
-creation.
-The ``lower_to_language_level`` function is called internally, not
-directly by the user. If the ``lower_to_language_level`` function of a
-node derived from ``PSyDataNode`` is called, it can define this
-option directory to pass the parameters to the ``PSyDataNode``'s
-``lower_to_language_level`` function. Here are the options that are
-currently supported by ``PSyDataNode``:
+The ``PSyDataNode.lower_to_language_level`` function accepts keyword
+arguments that derived nodes use to control code creation. This function
+is called internally during lowering. A derived node can pass its variable
+lists directly, for example::
+
+    return super().lower_to_language_level(
+        pre_var_list=read_write_info.read_list,
+        post_var_list=read_write_info.write_list)
+
+The following keyword arguments are supported:
 
 ================ =========================================
 Parameter Name   Description
@@ -1062,9 +1022,6 @@ only needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
-.. note:: The infrastructure is required at compile
-    and link time for now, since the kernel contains metadata. Issue
-    #2049 tracks a solution for this.
 
 The following changes are applied by the ``GOceanDriverCreator`` and
 the base class ``DriverCreator`` in order to generate stand-alone
@@ -1169,8 +1126,8 @@ When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
 variables (see :ref:`extraction_libraries`). ATM this
-driver will still depend on the LFRic infrastructure library (see issue
-#1991) and needs the PSyData ReadKernelData library (i.e.
+driver will still depend on the LFRic infrastructure library and
+needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
@@ -1223,8 +1180,6 @@ value is stored in ``field``, the expected output value is ``field1_post``.
 After calling the kernel, the results of the kernel call in ``field1`` are
 compared with the expected values in ``field1_post``.
 
-.. note:: For now the created driver still depends on the infrastructure
-    library and any other modules used. Issue #1991 improves this.
 
 The LFRic driver creation utilises the :ref:`module_manager` to find
 and inline all modules required by the driver.

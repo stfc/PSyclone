@@ -1,46 +1,16 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the sum2loop transformation.'''
 
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ScalarType)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import Sum2LoopTrans, TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -58,8 +28,8 @@ def test_initialise():
 def test_loop_body():
     '''Test that the _loop_body method works as expected.'''
     trans = Sum2LoopTrans()
-    lhs = Reference(DataSymbol("i", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
+    lhs = Reference(DataSymbol("i", ScalarType.real_type()))
+    rhs = Literal("1.0", ScalarType.real_type())
     result = trans._loop_body(lhs, rhs)
     assert "i + 1.0" in result.debug_string()
 
@@ -67,7 +37,8 @@ def test_loop_body():
 @pytest.mark.parametrize("name,precision,zero", [
     (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "0.0"),
     (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "0"),
-    (ScalarType.Intrinsic.REAL, Reference(DataSymbol("r_def", INTEGER_TYPE)),
+    (ScalarType.Intrinsic.REAL,
+     Reference(DataSymbol("r_def", ScalarType.integer_type())),
      "0.0_r_def")])
 def test_init_var(name, precision, zero):
     '''Test that the _init_var method works as expected. Test with real,
@@ -141,3 +112,59 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_nested_sums_error_cases(fortran_reader):
+    '''Test that the transformation fails correctly if we have nested sums
+    as the reference can't be converted to an arrayreference as the reference
+    is inside a non-elemental function.'''
+    code = """subroutine sum_test()
+    integer :: n, m
+    real , dimension(:, :) :: array
+    real :: result
+
+    result = sum(sum(array, dim=2)) * array(n,m)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_node = psyir.children[0].children[0].rhs.children[0]
+    trans = Sum2LoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(intrinsic_node)
+    assert ("Can't apply Sum2LoopTrans to SUM(SUM(array, 2)) due "
+            "to no ArrayReference nodes present." in str(err.value))
+
+    code = """subroutine sum_test()
+    integer :: n, m
+    real, dimension(:, :) :: array
+    real :: result
+
+    result = sum(sum(array  + array(:,:), dim=2))
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_node = psyir.children[0].children[0].rhs
+    trans = Sum2LoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(intrinsic_node)
+    assert ("Transformation Error: ArrayAssignment2LoopsTrans does not "
+            "support statements containing dependencies that would generate "
+            "loop-carried dependencies when naively converting them to a "
+            "loop, but found" in str(err.value))
+
+    code = """subroutine sum_test()
+    integer :: n, m
+    real, dimension(:, :) :: array
+    integer, dimension(1) :: dimensions
+    real :: result
+    result = sum(sum(array, dim=dimensions(2)))
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_node = psyir.children[0].children[0].rhs
+    trans = Sum2LoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(intrinsic_node)
+    assert ("Transformation Error: Error in ArrayAssignment2LoopsTrans "
+            "transformation. The LHS of the supplied Assignment node "
+            "should contain an array accessor with at least one of its "
+            "dimensions being a Range, but none were found in "
+            "'dimensions(2) = SUM(array, dimensions(2))"
+            in str(err.value))
