@@ -19,7 +19,8 @@ from psyclone.domain.lfric.kernel.metadata import (
     ScalarArgMetadata,
     ScalarArrayArgMetadata,
 )
-from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
+from psyclone.domain.lfric.kernel.lfric_kernel_container import (
+    LFRicKernelContainer)
 
 __all__ = [
     "ColumnwiseOperatorArgMetadata",

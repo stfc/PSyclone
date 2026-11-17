@@ -18,7 +18,8 @@ from psyclone.domain.gocean.kernel.metadata import (
     GOceanScalarArgMetadata,
     GOceanStencilMetadata,
 )
-from psyclone.domain.gocean.kernel.psyir import GOceanKernelContainer
+from psyclone.domain.gocean.kernel.gocean_kernel_container import (
+    GOceanKernelContainer)
 
 __all__ = [
     "GOceanKernelContainer",
