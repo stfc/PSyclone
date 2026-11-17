@@ -10,9 +10,11 @@
 
 
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017, Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise
 !-----------------------------------------------------------------------------
 !
 !>
@@ -33,9 +35,9 @@ module function_space_mod
   use log_mod,              only : log_event, log_scratch_space,               &
                                    LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR,           &
                                    LOG_LEVEL_INFO
-  use fs_continuity_mod,    only : W0, W1, W2, W3, Wtheta, W2broken, W2trace,  &
-                                   W2Htrace, W2Vtrace, W2V, W2H, Wchi,         &
-                                   W2Hbroken
+  use fs_continuity_mod,    only : W0, W1, W1V, W1H, W2, W3, Wtheta, W2broken, &
+                                   W2trace, W2Htrace, W2Vtrace, W2V, W2H,      &
+                                   Wchi, W2Hbroken
   use function_space_constructor_helper_functions_mod, &
                             only : ndof_setup, basis_setup, dofmap_setup,      &
                                    levels_setup, generate_fs_id,               &
@@ -507,7 +509,7 @@ contains
       self%dim_space = 1  ! Scalar field
       self%dim_space_diff = 3  ! Vector field
 
-    case (W1)
+    case (W1, W1V, W1H)
       self%dim_space = 3  ! Vector field
       self%dim_space_diff = 3  ! Vector field
 

@@ -13,6 +13,8 @@
 ! Copyright (c) 2017, Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise
 !-----------------------------------------------------------------------------
 !> @brief Holds support routines for instantiating a function space.
 !>
@@ -21,10 +23,10 @@ module function_space_constructor_helper_functions_mod
   use constants_mod,         only: i_def, i_halo_index, r_def, IMDI, l_def
   use local_mesh_mod,        only: local_mesh_type
   use mesh_mod,              only: mesh_type
-  use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
-                                   W2broken, W2trace,      &
-                                   W2Hbroken,              &
-                                   W2Vtrace, W2Htrace,     &
+  use fs_continuity_mod,     only: W0, W1, W1V, W1H, W2, W2V, W2H,   &
+                                   W2broken, W2trace,                &
+                                   W2Hbroken,                        &
+                                   W2Vtrace, W2Htrace,               &
                                    W3, Wtheta, Wchi
   use reference_element_mod, only: reference_element_type, &
                                    V,                      &
@@ -57,10 +59,13 @@ contains
   ! mesh[in]          Mesh on which the entities reside.
   ! entity_all[out]   All the entities available on the mesh.
   ! entity_theta[out] Entities on a theta field.
+  ! entity_w1h[out]   Entities on a w1h field.
+  ! entity_w1v[out]   Entities on a w1v field.
   ! entity_w2h[out]   Entities on a w2h field.
   ! entity_w2v[out]   Entities on a w2v field.
   !
   subroutine setup_select_entities( mesh, entity_all, entity_theta, &
+                                    entity_w1h, entity_w1v,         &
                                     entity_w2h, entity_w2v )
 
     implicit none
@@ -68,6 +73,8 @@ contains
     type(mesh_type),          intent(in)  :: mesh
     type(select_entity_type), intent(out) :: entity_all
     type(select_entity_type), intent(out) :: entity_theta
+    type(select_entity_type), intent(out) :: entity_w1v
+    type(select_entity_type), intent(out) :: entity_w1h
     type(select_entity_type), intent(out) :: entity_w2v
     type(select_entity_type), intent(out) :: entity_w2h
 
@@ -97,6 +104,26 @@ contains
     entity_theta%faces = (/ IMDI, IMDI, IMDI, IMDI, B, T /)
     entity_theta%edges = IMDI
     entity_theta%verts = IMDI
+
+    allocate( entity_w1v%faces(number_of_faces) )
+    allocate( entity_w1v%edges(number_of_edges) )
+    allocate( entity_w1v%verts(number_of_vertices) )
+
+    ! Higher-order W1 elements have DoFs on faces, so these are not all IMDI
+    entity_w1v%faces = (/ W, S, E, N, IMDI, IMDI /)
+    entity_w1v%edges = (/ IMDI, IMDI, IMDI, IMDI, SW, SE, NE, NW,              &
+                          IMDI, IMDI, IMDI, IMDI /)
+    entity_w1v%verts = IMDI
+
+    allocate( entity_w1h%faces(number_of_faces) )
+    allocate( entity_w1h%edges(number_of_edges) )
+    allocate( entity_w1h%verts(number_of_vertices) )
+
+    ! Higher-order W1 elements have DoFs on faces, so these are not all IMDI
+    entity_w1h%faces = (/ W, S, E, N, B, T /)
+    entity_w1h%edges = (/ WB, SB, EB, NB, IMDI, IMDI, IMDI, IMDI,              &
+                          WT, ST, ET, NT /)
+    entity_w1h%verts = IMDI
 
     allocate( entity_w2v%faces(number_of_faces) )
     allocate( entity_w2v%edges(number_of_edges) )
@@ -291,6 +318,35 @@ contains
                   + k_h*k_h*(k_v + 1)
       ndof_cell   = 2*(k_h + 1)*(k_h + 2)*(k_v + 2)                            &
                   + (k_h + 2)*( k_h + 2)*(k_v + 1)
+
+    case (W1V)
+      ! Dofs are located at the vertical components of W1, giving variables
+      ! the values of the second term in the sums in the W1 case.
+      !
+      ! On a side face, only the vertical-tangent component (degree k_h in
+      ! the horizontal, perpendicular direction) belongs to W1V; horizontal
+      ! (top/bottom) faces carry no vertical-tangent dofs.
+      ndof_edge_h = 0
+      ndof_edge_v = (k_v + 1)
+      ndof_face_h = k_h*(k_v + 1)
+      ndof_face_v = 0
+      ndof_vol    = k_h*k_h*(k_v + 1)
+      ndof_cell   = (k_h + 2)*(k_h + 2)*(k_v + 1)
+
+    case (W1H)
+      ! Dofs are located at the horizontal components of W1, giving variables
+      ! the values of the first term in the sums in the W1 case.
+      !
+      ! On a side face, only the horizontal-tangent component (degree k_v in
+      ! the vertical, perpendicular direction) belongs to W1H; on top/bottom
+      ! faces both tangential components are horizontal-tangent, so both
+      ! belong to W1H.
+      ndof_edge_h = (k_h + 1)
+      ndof_edge_v = 0
+      ndof_face_h = k_v*(k_h + 1)
+      ndof_face_v = 2*(k_h + 1)*k_h
+      ndof_vol    = 2*k_h*(k_h + 1)*k_v
+      ndof_cell   = 2*(k_h + 1)*(k_h + 2)*(k_v + 2)
 
     case (W2)
       ! Dofs are located on faces for vector fields
@@ -692,7 +748,8 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2Hbroken, W2trace, W2Vtrace, W2Htrace)
+    case (W1, W1V, W1H, W2, W2H, W2V, W2broken, W2Hbroken, W2trace,            &
+          W2Vtrace, W2Htrace)
       allocate( unit_vec(3, ndof_cell) )
     end select
 
@@ -928,6 +985,270 @@ contains
         ! If edge vertical loop to k_v+1
         else
           k_switch = k_v
+        end if
+
+        do j1 = 1, k_switch + 1
+          j(1) = j1
+          j(2) = edge_idx(i, 1)
+          j(3) = edge_idx(i, 2)
+          lx(idx) = j(j2l_edge(i, 1))
+          ly(idx) = j(j2l_edge(i, 2))
+          lz(idx) = j(j2l_edge(i, 3))
+          call reference_element%get_tangent_to_edge(i, unit_vec(:, idx))
+          if (i <= number_2d_edges) dof_on_vert_boundary(idx, 1) = 0
+          if (i > number_edges - number_2d_edges) &
+            dof_on_vert_boundary(idx, 2) = 0
+          ! Label edge degrees of freedom
+          entity_dofs(idx) = reference_element%get_edge_entity(i)
+          idx = idx + 1
+        end do
+      end do
+
+      do i = 1, ndof_cell
+
+        nodal_coords(1, i) = abs(unit_vec(1, i)) * x2h(lx(i)) &
+        + (1.0_r_def - abs(unit_vec(1, i))) * x1h(lx(i))
+
+        nodal_coords(2, i) = abs(unit_vec(2, i)) * x2h(ly(i)) &
+        + (1.0_r_def - abs(unit_vec(2, i))) * x1h(ly(i))
+
+        nodal_coords(3, i) = abs(unit_vec(3, i)) * x2v(lz(i)) &
+        + (1.0_r_def - abs(unit_vec(3, i))) * x1v(lz(i))
+
+        basis_order(1, i) = (k_h + 1) - int(abs(unit_vec(1, i)))
+        basis_order(2, i) = (k_h + 1) - int(abs(unit_vec(2, i)))
+        basis_order(3, i) = (k_v + 1) - int(abs(unit_vec(3, i)))
+
+        basis_x(:, 1, i) = abs(unit_vec(1, i)) * x2h(:) &
+                         + (1.0_r_def - abs(unit_vec(1, i))) * x1h(:)
+
+        basis_x(:, 2, i) = abs(unit_vec(2, i)) * x2h(:) &
+                         + (1.0_r_def - abs(unit_vec(2, i))) * x1h(:)
+
+        basis_z(:, i)    = abs(unit_vec(3, i)) * x2v(:) &
+                         + (1.0_r_def - abs(unit_vec(3, i))) * x1v(:)
+
+        do j1 = 1, size(basis_vector, 1)
+          basis_vector(j1, i) = unit_vec(j1, i)
+        end do
+
+      end do
+
+      basis_index(1,:) = lx(1:ndof_cell)
+      basis_index(2,:) = ly(1:ndof_cell)
+      basis_index(3,:) = lz(1:ndof_cell)
+
+    case (W1V)
+      !-------------------------------------------------------------------------
+      ! Section for test/trial functions of W1V space
+      !-------------------------------------------------------------------------
+
+      do idx = 1, ndof_cell
+        do i = 1, 3
+          unit_vec(i, idx) = 0.0_r_def
+        end do
+      end do
+
+      ! Compute indices of functions
+      idx = 1
+
+      ! dofs in volume - (w only)
+      do jz = 1, k_v + 1
+        do jy = 2, k_h + 1
+          do jx = 2, k_h + 1
+            lx(idx) = jx
+            ly(idx) = jy
+            lz(idx) = jz
+            call reference_element%get_tangent_to_edge(B, unit_vec(:, idx))
+            ! Label volume degrees of freedom
+            entity_dofs(idx) = V
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      ! dofs on faces - only the vertical-tangent component, only on side
+      ! faces (top/bottom faces carry no vertical-tangent dofs)
+      do i = 1, number_faces_h
+        k_switch = k_v
+
+        do j1 = 1, k_switch + 1
+          do j2 = 2, k_h + 1
+            j(1) = j1
+            j(2) = j2
+            j(3) = face_idx(i)
+            lx(idx) = j(j2l_face(i, 1))
+            ly(idx) = j(j2l_face(i, 2))
+            lz(idx) = j(j2l_face(i, 3))
+            call reference_element%get_edge_on_face(i, edges_on_face)
+            call reference_element%get_tangent_to_edge(edges_on_face(2), &
+            unit_vec(:, idx))
+            ! Label face degrees of freedom
+            entity_dofs(idx) = reference_element%get_face_entity(i)
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      ! dofs on edges - only the vertical edges
+      do i = number_2d_edges + 1, number_edges - number_2d_edges
+        k_switch = k_v
+
+        do j1 = 1, k_switch + 1
+          j(1) = j1
+          j(2) = edge_idx(i, 1)
+          j(3) = edge_idx(i, 2)
+          lx(idx) = j(j2l_edge(i, 1))
+          ly(idx) = j(j2l_edge(i, 2))
+          lz(idx) = j(j2l_edge(i, 3))
+          call reference_element%get_tangent_to_edge(i, unit_vec(:, idx))
+          ! Label edge degrees of freedom
+          entity_dofs(idx) = reference_element%get_edge_entity(i)
+          idx = idx + 1
+        end do
+      end do
+
+      do i = 1, ndof_cell
+
+        nodal_coords(1, i) = abs(unit_vec(1, i)) * x2h(lx(i)) &
+        + (1.0_r_def - abs(unit_vec(1, i))) * x1h(lx(i))
+
+        nodal_coords(2, i) = abs(unit_vec(2, i)) * x2h(ly(i)) &
+        + (1.0_r_def - abs(unit_vec(2, i))) * x1h(ly(i))
+
+        nodal_coords(3, i) = abs(unit_vec(3, i)) * x2v(lz(i)) &
+        + (1.0_r_def - abs(unit_vec(3, i))) * x1v(lz(i))
+
+        basis_order(1, i) = (k_h + 1) - int(abs(unit_vec(1, i)))
+        basis_order(2, i) = (k_h + 1) - int(abs(unit_vec(2, i)))
+        basis_order(3, i) = (k_v + 1) - int(abs(unit_vec(3, i)))
+
+        basis_x(:, 1, i) = abs(unit_vec(1, i)) * x2h(:) &
+                         + (1.0_r_def - abs(unit_vec(1, i))) * x1h(:)
+
+        basis_x(:, 2, i) = abs(unit_vec(2, i)) * x2h(:) &
+                         + (1.0_r_def - abs(unit_vec(2, i))) * x1h(:)
+
+        basis_z(:, i)    = abs(unit_vec(3, i)) * x2v(:) &
+                         + (1.0_r_def - abs(unit_vec(3, i))) * x1v(:)
+
+        do j1 = 1, size(basis_vector, 1)
+          basis_vector(j1, i) = unit_vec(j1, i)
+        end do
+
+      end do
+
+      basis_index(1,:) = lx(1:ndof_cell)
+      basis_index(2,:) = ly(1:ndof_cell)
+      basis_index(3,:) = lz(1:ndof_cell)
+
+    case (W1H)
+      !-------------------------------------------------------------------------
+      ! Section for test/trial functions of W1H space
+      !-------------------------------------------------------------------------
+
+      do idx = 1, ndof_cell
+        do i = 1, 3
+          unit_vec(i, idx) = 0.0_r_def
+        end do
+      end do
+
+      ! Compute indices of functions
+      idx = 1
+
+      ! dofs in volume
+      ! u components
+      do jz = 2, k_v + 1
+        do jy = 2, k_h + 1
+          do jx = 1, k_h + 1
+            lx(idx) = jx
+            ly(idx) = jy
+            lz(idx) = jz
+            call reference_element%get_tangent_to_edge(S, unit_vec(:, idx))
+            ! Label volume degrees of freedom
+            entity_dofs(idx) = V
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      ! v components
+      do jz = 2, k_v + 1
+        do jy = 1, k_h + 1
+          do jx = 2, k_h + 1
+            lx(idx) = jx
+            ly(idx) = jy
+            lz(idx) = jz
+            call reference_element%get_tangent_to_edge(W, unit_vec(:, idx))
+            ! Label volume degrees of freedom
+            entity_dofs(idx) = V
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      ! dofs on faces - the horizontal-tangent component on every face (on
+      ! side faces this is only one of the two tangential components; on
+      ! top/bottom faces both tangential components are horizontal-tangent)
+      do i = 1, number_faces
+        ! For side faces loop over vertical then horizontal orders
+        if (i <= number_faces_h) then
+          k_switch = k_v
+        ! For top/bottom faces loop over horizontal order twice
+        else
+          k_switch = k_h
+        end if
+
+        do j1 = 2, k_switch + 1
+          do j2 = 1, k_h + 1
+            j(1) = j1
+            j(2) = j2
+            j(3) = face_idx(i)
+            lx(idx) = j(j2l_face(i, 1))
+            ly(idx) = j(j2l_face(i, 2))
+            lz(idx) = j(j2l_face(i, 3))
+            call reference_element%get_edge_on_face(i, edges_on_face)
+            call reference_element%get_tangent_to_edge(edges_on_face(1), &
+            unit_vec(:, idx))
+            if (i == number_faces - 1) dof_on_vert_boundary(idx, 1) = 0
+            if (i == number_faces)     dof_on_vert_boundary(idx, 2) = 0
+            ! Label face degrees of freedom
+            entity_dofs(idx) = reference_element%get_face_entity(i)
+            idx = idx + 1
+          end do
+        end do
+
+        ! Top/bottom faces also carry the second tangential component, which
+        ! is horizontal-tangent there too
+        if (i > number_faces_h) then
+          do j1 = 1, k_switch + 1
+            do j2 = 2, k_h + 1
+              j(1) = j1
+              j(2) = j2
+              j(3) = face_idx(i)
+              lx(idx) = j(j2l_face(i, 1))
+              ly(idx) = j(j2l_face(i, 2))
+              lz(idx) = j(j2l_face(i, 3))
+              call reference_element%get_edge_on_face(i, edges_on_face)
+              call reference_element%get_tangent_to_edge(edges_on_face(2), &
+              unit_vec(:, idx))
+              if (i == number_faces - 1) dof_on_vert_boundary(idx, 1) = 0
+              if (i == number_faces)     dof_on_vert_boundary(idx, 2) = 0
+              ! Label face degrees of freedom
+              entity_dofs(idx) = reference_element%get_face_entity(i)
+              idx = idx + 1
+            end do
+          end do
+        end if
+      end do
+
+      ! dofs on edges - only the horizontal edges
+      do i = 1, number_edges
+        if ((i <= number_2d_edges) .OR.           &
+            (i > number_edges - number_2d_edges)) then
+          k_switch = k_h
+        else
+          cycle
         end if
 
         do j1 = 1, k_switch + 1
@@ -1664,7 +1985,8 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2Hbroken, W2trace, W2Vtrace, W2Htrace)
+    case (W1, W1V, W1H, W2, W2H, W2V, W2broken, W2Hbroken, W2trace,            &
+          W2Vtrace, W2Htrace)
       deallocate(unit_vec)
     end select
 
@@ -1824,6 +2146,8 @@ contains
 
     type(select_entity_type), target :: select_entity_all,   &
                                         select_entity_theta, &
+                                        select_entity_w1h,   &
+                                        select_entity_w1v,   &
                                         select_entity_w2h,   &
                                         select_entity_w2v
     type(select_entity_type), pointer :: select_entity => null()
@@ -1889,6 +2213,8 @@ contains
     call setup_select_entities( mesh,                &
                                 select_entity_all,   &
                                 select_entity_theta, &
+                                select_entity_w1h,   &
+                                select_entity_w1v,   &
                                 select_entity_w2h,   &
                                 select_entity_w2v )
 
@@ -1942,6 +2268,10 @@ contains
       select_entity => select_entity_all
     case(WTHETA)
       select_entity => select_entity_theta
+    case(W1H)
+      select_entity => select_entity_w1h
+    case(W1V)
+      select_entity => select_entity_w1v
     case(W2H, W2Htrace, W2Hbroken)
       select_entity => select_entity_w2h
     case(W2V, W2Vtrace)
@@ -2318,6 +2648,12 @@ contains
     if (allocated(select_entity_theta%faces)) deallocate(select_entity_theta%faces)
     if (allocated(select_entity_theta%edges)) deallocate(select_entity_theta%edges)
     if (allocated(select_entity_theta%verts)) deallocate(select_entity_theta%verts)
+    if (allocated(select_entity_w1v%faces)) deallocate(select_entity_w1v%faces)
+    if (allocated(select_entity_w1v%edges)) deallocate(select_entity_w1v%edges)
+    if (allocated(select_entity_w1v%verts)) deallocate(select_entity_w1v%verts)
+    if (allocated(select_entity_w1h%faces)) deallocate(select_entity_w1h%faces)
+    if (allocated(select_entity_w1h%edges)) deallocate(select_entity_w1h%edges)
+    if (allocated(select_entity_w1h%verts)) deallocate(select_entity_w1h%verts)
     if (allocated(select_entity_w2v%faces)) deallocate(select_entity_w2v%faces)
     if (allocated(select_entity_w2v%edges)) deallocate(select_entity_w2v%edges)
     if (allocated(select_entity_w2v%verts)) deallocate(select_entity_w2v%verts)
