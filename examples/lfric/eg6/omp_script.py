@@ -12,6 +12,7 @@ generator.py script.'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
@@ -28,21 +29,22 @@ def trans(psyir):
 
     # Get first invoke subroutine
     schedule = psyir.children[0].children[0]
+    loops = schedule.walk(LFRicLoop)
 
     config = Config.get()
     if config.api_conf("lfric").compute_annexed_dofs and \
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops
-        otrans.apply(schedule.children[0])
-        otrans.apply(schedule.children[1])
+        otrans.apply(loops[0])
+        otrans.apply(loops[1])
     else:
         # Loop fuse the two built-in kernels. The 'same_space' flag needs to
         # be set as built-ins are over ANY_SPACE.
-        ftrans.apply(schedule[0:2], same_space=True)
+        ftrans.apply(loops[0:2], same_space=True)
 
         # Add an OpenMP parallel do directive to the resultant loop-fused loop
-        otrans.apply(schedule.children[0])
+        otrans.apply(schedule.walk(LFRicLoop)[0])
 
     # take a look at what we've done
     print(schedule.view())

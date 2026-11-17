@@ -1,3 +1,5 @@
+*.cl
+
 gocean/eg1/invoke_0_dag
 gocean/eg1/invoke_0_dag.png
 gocean/eg2/inc_field_?_mod.f90

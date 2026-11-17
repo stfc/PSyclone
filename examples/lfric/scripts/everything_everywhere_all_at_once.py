@@ -10,7 +10,7 @@ DistributedMemory, OpenMP coloring and serial transformations possible.
 
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
@@ -50,7 +50,7 @@ def trans(psyir):
 
     for subroutine in psyir.walk(InvokeSchedule):
         if ENABLE_LOOP_FUSION:
-            loops = subroutine.loops()
+            loops = subroutine.walk(LFRicLoop)
             num_loops = len(loops)
             current_index = 0
             num_fused = 0
@@ -74,7 +74,7 @@ def trans(psyir):
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.
-            for loop in subroutine.loops():
+            for loop in subroutine.walk(LFRicLoop):
                 if loop.iteration_space == "dof":
                     if len(loop.kernels()) == 1:
                         if loop.kernels()[0].name in ["setval_c", "setval_x"]:
@@ -101,14 +101,14 @@ def trans(psyir):
         if ENABLE_OMP_COLOURING:
             # Colour loops over cells unless they are on discontinuous
             # spaces or over dofs
-            for loop in subroutine.loops():
+            for loop in subroutine.walk(LFRicLoop):
                 if loop.iteration_space.endswith("cell_column") \
                     and loop.field_space.orig_name \
                         not in const.VALID_DISCONTINUOUS_NAMES:
                     ctrans.apply(loop)
 
             # Add OpenMP to loops unless they are over colours or are null
-            for loop in subroutine.loops():
+            for loop in subroutine.walk(LFRicLoop):
                 if loop.loop_type not in ["colours", "null"]:
                     oregtrans.apply(loop)
                     otrans.apply(loop, options={"reprod": True})

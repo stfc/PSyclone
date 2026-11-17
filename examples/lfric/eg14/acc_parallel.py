@@ -13,7 +13,7 @@ Routine directive. PSyclone can apply this transformation script via its
 
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.psyGen import CodedKern, InvokeSchedule
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
@@ -44,13 +44,13 @@ def trans(psyir):
 
         # Colour loops over cells unless they are on discontinuous
         # spaces or over dofs
-        for loop in subroutine.loops():
+        for loop in subroutine.walk(LFRicLoop):
             if loop.iteration_space.endswith("cell_column"):
                 if (loop.field_space.orig_name not in
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
 
-        for loop in subroutine.loops():
+        for loop in subroutine.walk(LFRicLoop):
             if loop.loop_type not in ["colours", "null"]:
                 kernel_trans.apply(loop)
 
