@@ -70,10 +70,10 @@ def test_transform_kern_with_interface(tmp_path, fortran_writer):
     assert "subroutine mixed_code_32_inlined_" in contents
     assert "subroutine mixed_code_64_inlined_" in contents
     # But they have been transformed.
-    assert ('''real*4, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
+    assert ('''real*4, dimension(undf_w3), intent(inout) :: field_w3
 
     !$acc routine seq''' in contents)
-    assert ('''real*8, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
+    assert ('''real*8, dimension(undf_w3), intent(inout) :: field_w3
 
     !$acc routine seq''' in contents)
     assert LFRicBuild(tmp_path).code_compiles(psy)

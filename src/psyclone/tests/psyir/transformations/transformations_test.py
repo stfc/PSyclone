@@ -370,9 +370,9 @@ def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     ompdeclaretargettrans.apply(routine)
     expected = '''\
 subroutine my_subroutine()
-  integer, dimension(10,10) :: a
   integer :: i
   integer :: j
+  integer, dimension(10,10) :: a
 
   !$omp declare target
   do i = 1, 10, 1
@@ -899,6 +899,7 @@ def test_profile_trans_name(options):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
+    # TODO #2668: Deprecate options dictionary
     if options:
         profile_trans.apply(schedule.children, options=options)
     else:

@@ -21,7 +21,8 @@ from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.domain.lfric.lfric_builtins import (
     BUILTIN_DEFINITIONS_FILE as fname)
 from psyclone.errors import InternalError
-from psyclone.expression import ExpressionNode, FunctionVar, NamedArg
+from psyclone.expression import (
+    ExpressionNode, FunctionVar, LiteralArray, NamedArg)
 from psyclone.parse.kernel import (
     KernelType, get_kernel_metadata, get_kernel_interface, KernelProcedure,
     Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath,
@@ -546,18 +547,36 @@ def test_kerneltype_dimensions():
 
 
 def test_kerneltype_brackets():
-    '''Test that an exception is raised if the metadata is supplied within
-    square brackets as this is not supported within the parser.
+    '''Test that an square brackets in the constant array definition of the
+    arguments works as expected.
 
     '''
     my_code = CODE.replace("(/", "[")
     my_code = my_code.replace("/)", "]")
     parse_tree = parse(my_code)
+    kernel = KernelType(parse_tree)
 
-    with pytest.raises(ParseError) as excinfo:
-        _ = KernelType(parse_tree)
-    assert ("Parser does not currently support '[...]' initialisation for "
-            "'meta_args', please use '(/.../)' instead.") in str(excinfo.value)
+    # There is no public method we can use to access the output
+    # of getkerneldescriptors
+    assert isinstance(kernel._inits, LiteralArray)
+    assert len(kernel._inits.expr) == 1
+
+    orig_kernel = KernelType(parse(CODE))
+    # Make sure that nothing has changed in PSyclone that might make this
+    # test incomplete
+    assert len(kernel._inits.expr) == len(orig_kernel._inits.expr)
+
+    # Can't directly compare the two _inits members, so we do it in steps:
+    assert orig_kernel._inits.expr[0].name == kernel._inits.expr[0].name
+    assert (orig_kernel._inits.expr[0].args[0].name ==
+            kernel._inits.expr[0].args[0].name)
+    assert (len(orig_kernel._inits.expr[0].args) ==
+            len(kernel._inits.expr[0].args))
+    for i, orig_arg in enumerate(orig_kernel._inits.expr[0].args):
+        assert (orig_arg.name ==
+                kernel._inits.expr[0].args[i].name)
+        assert (orig_arg.args ==
+                kernel._inits.expr[0].args[i].args)
 
 
 def test_kerneltype_nargs():
@@ -695,17 +714,22 @@ def test_get_char_value():
     '''
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as err:
-        _ = get_char_value(enode, "nlevels")
-    assert "not a valid nlevels specifier (expected" in str(err.value)
+        _ = get_char_value(enode, "nlayers")
+    assert "not a valid nlayers specifier (expected" in str(err.value)
     # Value must be a quoted string
-    node = NamedArg(["nlevels", "=", "1"])
+    node = NamedArg(["nlayers", "=", "1"])
     with pytest.raises(ParseError) as err:
-        _ = get_char_value(node, "nlevels")
-    assert ("nlevels must be specified as a quoted string but got nlevels=1"
+        _ = get_char_value(node, "nlayers")
+    assert ("nlayers must be specified as a quoted string but got nlayers=1"
             in str(err.value))
-    node2 = NamedArg(["nlevels", "=", "'1'"])
-    value = get_char_value(node2, "nlevels")
+    node2 = NamedArg(["nlayers", "=", "'1'"])
+    value = get_char_value(node2, "nlayers")
     assert value == "1"
+    node3 = NamedArg(["nlayers", "=", "'not a valid name'"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(node3, "nlayers")
+    assert ("A string value assigned to 'nlayers' must be a valid Fortran "
+            "name but 'not a valid name' is not" in str(err.value))
 
 
 def test_get_integer_variable_err():

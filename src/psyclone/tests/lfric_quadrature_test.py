@@ -20,7 +20,9 @@ from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -60,51 +62,51 @@ def test_field_xyoz(tmpdir):
         "    use mesh_mod, only : mesh_type\n"
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
         in generated_code)
-    assert """
-    type(field_type), intent(in) :: f1
-    type(field_type), intent(in) :: f2
-    type(field_type), intent(in) :: m1
-    real(kind=r_def), intent(in) :: a
-    type(field_type), intent(in) :: m2
-    integer(kind=i_def), intent(in) :: istp
-    type(quadrature_xyoz_type), intent(in) :: qr
+    assert ("""
     integer(kind=i_def) :: cell
-    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: diff_dim_w2
+    integer(kind=i_def) :: diff_dim_w3
+    integer(kind=i_def) :: dim_w1
+    integer(kind=i_def) :: dim_w3
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
+    integer(kind=i_def) :: ndf_w1
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: nlayers_f1
+    integer(kind=i_def) :: np_xy_qr
+    integer(kind=i_def) :: np_z_qr
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: undf_w2
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def), intent(in) :: istp
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), intent(in) :: a
+    real(kind=r_def), pointer :: weights_xy_qr(:) => null()
+    real(kind=r_def), pointer :: weights_z_qr(:) => null()
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def) :: nlayers_f1
-    integer(kind=i_def) :: ndf_w1
-    integer(kind=i_def) :: undf_w1
-    integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: undf_w2
-    integer(kind=i_def) :: ndf_w3
-    integer(kind=i_def) :: undf_w3
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
     type(field_proxy_type) :: m2_proxy
-    integer(kind=i_def) :: np_xy_qr
-    integer(kind=i_def) :: np_z_qr
-    real(kind=r_def), pointer :: weights_xy_qr(:) => null()
-    real(kind=r_def), pointer :: weights_z_qr(:) => null()
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2
+    type(mesh_type), pointer :: mesh => null()
     type(quadrature_xyoz_proxy_type) :: qr_proxy
-    integer(kind=i_def) :: dim_w1
-    integer(kind=i_def) :: diff_dim_w2
-    integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: diff_dim_w3
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
-""" in generated_code
+    type(quadrature_xyoz_type), intent(in) :: qr
+""" in generated_code)
     init_output = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
@@ -274,55 +276,53 @@ def test_face_qr(tmpdir, dist_mem):
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n")
     assert output_decls in generated_code
     assert """\
-    type(field_type), intent(in) :: f1
-    type(field_type), intent(in) :: f2
-    type(field_type), intent(in) :: m1
-    type(field_type), intent(in) :: m2
-    type(quadrature_face_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
-""" in generated_code
+    integer(kind=i_def) :: diff_dim_w2
+    integer(kind=i_def) :: diff_dim_w3
+    integer(kind=i_def) :: dim_w1
+    integer(kind=i_def) :: dim_w3
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop""" in generated_code
 
     if dist_mem:
-        assert """\
-
-    type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: max_halo_depth_mesh""" in generated_code
+        assert "type(mesh_type), pointer :: mesh => null()\n" in generated_code
+        assert "integer(kind=i_def) :: max_halo_depth_mesh" in generated_code
 
     assert """\
-    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def) :: nlayers_f1
     integer(kind=i_def) :: ndf_w1
-    integer(kind=i_def) :: undf_w1
     integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: undf_w2
     integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: nfaces_qr
+    integer(kind=i_def) :: nlayers_f1
+    integer(kind=i_def) :: np_xyz_qr
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: undf_w2
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
     integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr => null()
+
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
     type(field_proxy_type) :: m2_proxy
-    integer(kind=i_def) :: np_xyz_qr
-    integer(kind=i_def) :: nfaces_qr
-    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr => null()
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2""" in generated_code
 
+    assert """\
     type(quadrature_face_proxy_type) :: qr_proxy
-    integer(kind=i_def) :: dim_w1
-    integer(kind=i_def) :: diff_dim_w2
-    integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: diff_dim_w3
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
-""" in generated_code
+    type(quadrature_face_type), intent(in) :: qr""" in generated_code
+
     init_output = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
@@ -453,31 +453,38 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     code = str(psy.gen)
 
     # Check that the qr-related variables are all declared
-    assert ("    type(quadrature_face_type), intent(in) :: qr_face\n"
-            "    type(quadrature_edge_type), intent(in) :: qr_edge\n"
-            in code)
+    assert "type(quadrature_face_type), intent(in) :: qr_face\n" in code
+    assert "type(quadrature_edge_type), intent(in) :: qr_edge\n" in code
     assert """
-    real(kind=r_def), allocatable :: basis_w1_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w1_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr_edge(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_w1_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr_edge(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_w3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w2_qr_edge(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w2_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w3_qr_edge(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w3_qr_face(:,:,:,:)
 """ in code
-    assert """
-    integer(kind=i_def) :: np_xyz_qr_face
-    integer(kind=i_def) :: nfaces_qr_face
-    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face => null()
 
+    assert """
+    type(quadrature_edge_proxy_type) :: qr_edge_proxy
+    type(quadrature_edge_type), intent(in) :: qr_edge
     type(quadrature_face_proxy_type) :: qr_face_proxy
-    integer(kind=i_def) :: np_xyz_qr_edge
+    type(quadrature_face_type), intent(in) :: qr_face""" in code
+
+    assert """
     integer(kind=i_def) :: nedges_qr_edge
+    integer(kind=i_def) :: nfaces_qr_face
+    integer(kind=i_def) :: nlayers_f1
+    integer(kind=i_def) :: np_xyz_qr_edge
+    integer(kind=i_def) :: np_xyz_qr_face""" in code
+
+    assert """\
     real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_edge => null()
 
-    type(quadrature_edge_proxy_type) :: qr_edge_proxy
-    """ in code
+    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face => null()
+""" in code
+
     # Allocation and computation of (some of) the basis functions
     assert """
     ! Allocate basis/diff-basis arrays
@@ -497,6 +504,7 @@ nfaces_qr_face))
     ALLOCATE(basis_w3_qr_edge(dim_w3,ndf_w3,np_xyz_qr_edge,nedges_qr_edge))
     ALLOCATE(diff_basis_w3_qr_edge(diff_dim_w3,ndf_w3,np_xyz_qr_edge,\
 nedges_qr_edge))""" in code
+
     assert ("    call qr_face%compute_function(BASIS, m2_proxy%vspace, "
             "dim_w3, ndf_w3, basis_w3_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, m2_proxy%vspace, "
@@ -545,6 +553,7 @@ def test_internal_qr_err(monkeypatch):
     as expected '''
     # Monkeypatch the list of valid quadrature and evaluator shapes so we
     # get past some of the earlier checks
+    LFRicConstants()
     monkeypatch.setattr(LFRicConstants, "VALID_EVALUATOR_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
@@ -572,7 +581,7 @@ def test_lfricbasisfunctions(monkeypatch):
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     with pytest.raises(InternalError) as excinfo:
-        _ = qr_basis_alloc_args("size1", basis_dict)
+        _ = qr_basis_alloc_args(SymbolTable(), "size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
             in str(excinfo.value))
 
@@ -644,7 +653,9 @@ def test_lfricbasisfns_initialise(monkeypatch):
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
             "one of " in str(err.value))
     # Break the internal list of basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf.initialise(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
@@ -660,6 +671,9 @@ def test_lfricbasisfns_compute(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
+    # Add an expected symbol to the internal table.
+    dinf.symtab.add(DataSymbol("dim1", ScalarType.integer_type()),
+                    tag="dim:w1")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -668,7 +682,9 @@ def test_lfricbasisfns_compute(monkeypatch):
             "Should be one of: ['gh_quadrature_xyoz', "
             in str(err.value))
     # Now supply an invalid type for one of the basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf._compute_basis_fns(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
@@ -788,8 +804,8 @@ module dummy_mod
   public
 
   contains
-  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, \
-field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
+  subroutine dummy_code(cell, nlayers_field_1, field_1_w0, op_2_ncell_3d, \
+op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
 field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, op_10_ncell_3d, op_10, \
 field_11_w2htrace, op_12_ncell_3d, op_12, ndf_w0, undf_w0, map_w0, \
 basis_w0_qr_xyoz, ndf_w1, basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, \
@@ -800,92 +816,94 @@ ndf_wchi, undf_wchi, map_wchi, basis_wchi_qr_xyoz, ndf_w2trace, \
 basis_w2trace_qr_xyoz, ndf_w2htrace, undf_w2htrace, map_w2htrace, \
 basis_w2htrace_qr_xyoz, ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, \
 np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
-    use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_w0
-    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
-    integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-    integer(kind=i_def), intent(in) :: ndf_w2htrace
-    integer(kind=i_def), dimension(ndf_w2htrace), intent(in) :: map_w2htrace
-    integer(kind=i_def), intent(in) :: ndf_w2v
-    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
-    integer(kind=i_def), intent(in) :: ndf_wchi
-    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
-    integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
-    integer(kind=i_def), intent(in) :: undf_w0
-    integer(kind=i_def), intent(in) :: ndf_w1
-    integer(kind=i_def), intent(in) :: undf_w2
-    integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in) :: undf_wtheta
-    integer(kind=i_def), intent(in) :: ndf_w2h
-    integer(kind=i_def), intent(in) :: undf_w2v
-    integer(kind=i_def), intent(in) :: ndf_w2broken
-    integer(kind=i_def), intent(in) :: undf_wchi
-    integer(kind=i_def), intent(in) :: ndf_w2trace
-    integer(kind=i_def), intent(in) :: undf_w2htrace
-    integer(kind=i_def), intent(in) :: ndf_w2vtrace
-    real(kind=r_def), dimension(undf_w0), intent(inout) :: field_1_w0
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
-    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: field_5_wtheta
-    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
-    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
-    real(kind=r_def), dimension(undf_w2htrace), intent(inout) :: \
-field_11_w2htrace
+    use constants_mod""" in generated_code
+
+    assert """\
     integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
-:: op_2
-    integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
-:: op_4
-    integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), intent(inout) \
-:: op_6
-    integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
-intent(inout) :: op_8
-    integer(kind=i_def), intent(in) :: op_10_ncell_3d
-    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
-intent(inout) :: op_10
-    integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
-intent(in) :: op_12
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: ndf_w2broken
+    integer(kind=i_def), intent(in) :: ndf_w2h
+    integer(kind=i_def), intent(in) :: ndf_w2htrace
+    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2vtrace
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: ndf_wchi
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
     integer(kind=i_def), intent(in) :: np_z_qr_xyoz
+    integer(kind=i_def), intent(in) :: op_10_ncell_3d
+    integer(kind=i_def), intent(in) :: op_12_ncell_3d
+    integer(kind=i_def), intent(in) :: op_2_ncell_3d
+    integer(kind=i_def), intent(in) :: op_4_ncell_3d
+    integer(kind=i_def), intent(in) :: op_6_ncell_3d
+    integer(kind=i_def), intent(in) :: op_8_ncell_3d
+    integer(kind=i_def), intent(in) :: undf_w0
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: undf_w2htrace
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: undf_wchi
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_w2htrace), intent(in) :: map_w2htrace
+    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(1,ndf_w0,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w0_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_w2htrace,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w2htrace_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_w2trace,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w2trace_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_w2vtrace,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w2vtrace_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w3_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_wchi,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_wchi_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_wtheta_qr_xyoz
     real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w1_qr_xyoz
     real(kind=r_def), dimension(3,ndf_w2,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w2_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w3_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_wtheta_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w2broken,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w2broken_qr_xyoz
     real(kind=r_def), dimension(3,ndf_w2h,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w2h_qr_xyoz
     real(kind=r_def), dimension(3,ndf_w2v,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w2v_qr_xyoz
-    real(kind=r_def), dimension(3,ndf_w2broken,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w2broken_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_wchi,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_wchi_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_w2trace,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w2trace_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_w2htrace,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w2htrace_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_w2vtrace,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w2vtrace_qr_xyoz
     real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
 weights_xy_qr_xyoz
     real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: weights_z_qr_xyoz
+    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
+intent(inout) :: op_10
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
+intent(in) :: op_12
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
+:: op_2
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
+:: op_4
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), intent(inout) \
+:: op_6
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
+intent(inout) :: op_8
+    real(kind=r_def), dimension(undf_w0), intent(inout) :: field_1_w0
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_w2htrace), intent(inout) :: \
+field_11_w2htrace
+    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
+    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
+    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: field_5_wtheta
 
 
   end subroutine dummy_code
 
-end module dummy_mod\n""" == generated_code
+end module dummy_mod\n""" in generated_code
 
 
 def test_stub_basis_wrong_shape(monkeypatch):

@@ -197,7 +197,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f0, f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f1__1, undf_ads1_f1__1, "
+        "map_ads1_f1__1(:,cell))")
     assert output1 in result
     # Use a different stencil dofmap
     output2 = (
@@ -205,8 +206,9 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f3, f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f4, undf_ads1_f4, map_ads1_f4(:,cell), "
-        "ndf_ads2_f5, undf_ads2_f5, map_ads2_f5(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell), ndf_ads2_f5__1, undf_ads2_f5__1, "
+        "map_ads2_f5__1(:,cell))")
     assert output2 in result
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
@@ -423,9 +425,9 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
     assert ("  use flux_direction_mod, only : x_direction, y_direction\n"
             in result)
     assert (
+        "    integer(kind=i_def), intent(in) :: f2_direction\n"
         "    integer(kind=i_def), intent(in) :: f2_extent\n"
-        "    integer(kind=i_def), intent(in) :: f2_direction\n") \
-        in result
+        in result)
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_stencil_size => "
             "null()\n" in result)
     assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
@@ -659,8 +661,8 @@ def test_single_stencil_xory1d(dist_mem, tmpdir):
     assert ("use flux_direction_mod, only : x_direction, y_direction\n"
             in result)
     output3 = (
-        "    integer(kind=i_def), intent(in) :: f2_extent\n"
-        "    integer(kind=i_def), intent(in) :: f2_direction\n")
+        "    integer(kind=i_def), intent(in) :: f2_direction\n"
+        "    integer(kind=i_def), intent(in) :: f2_extent\n")
     assert output3 in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: "
             "f2_stencil_size => null()\n" in result)
@@ -957,8 +959,8 @@ def test_multiple_stencils(dist_mem, tmpdir):
             in result)
     output3 = (
         "    integer(kind=i_def), intent(in) :: f2_extent\n"
-        "    integer(kind=i_def), intent(in) :: f3_extent\n"
-        "    integer(kind=i_def), intent(in) :: f3_direction\n")
+        "    integer(kind=i_def), intent(in) :: f3_direction\n"
+        "    integer(kind=i_def), intent(in) :: f3_extent\n")
     assert output3 in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f4_stencil_size"
             " => null()\n" in result)
@@ -1116,10 +1118,8 @@ def test_multiple_stencil_same_name(dist_mem, tmpdir):
         "  subroutine invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
         "f4, extent, f3_direction)")
     assert output1 in result
-    output2 = (
-        "    integer(kind=i_def), intent(in) :: extent\n"
-        "    integer(kind=i_def), intent(in) :: f3_direction\n")
-    assert output2 in result
+    assert "integer(kind=i_def), intent(in) :: extent\n" in result
+    assert "integer(kind=i_def), intent(in) :: f3_direction\n" in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f4_stencil_size"
             " => null()\n" in result)
     assert ("type(stencil_dofmap_type), pointer :: f4_stencil_map => "
@@ -1182,8 +1182,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4, extent, direction)")
     assert output1 in result
     output2 = (
-        "    integer(kind=i_def), intent(in) :: extent\n"
-        "    integer(kind=i_def), intent(in) :: direction\n")
+        "    integer(kind=i_def), intent(in) :: direction\n"
+        "    integer(kind=i_def), intent(in) :: extent\n")
     assert output2 in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f4_stencil_size"
             " => null()\n" in result)
@@ -1240,8 +1240,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4_data, f4_stencil_size(cell), direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_ads1_f4, undf_ads1_f4, "
-        "map_ads1_f4(:,cell))")
+        "map_w2(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell))")
     assert output5 in result
 
     # Check compilation
@@ -1597,7 +1597,7 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
 
 
 def test_stencil_extent_specified():
-    ''' The function stencil_unique_str() raises an error if a stencil
+    ''' The function tag_name() raises an error if a stencil
     with an extent provided in the metadata is passed in. This is because
     this is not currently supported. This test checks that the appropriate
     error is raised.
@@ -1616,7 +1616,7 @@ def test_stencil_extent_specified():
     stencil_arg.descriptor.stencil['extent'] = 1
     stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
-        stencils.stencil_unique_str(stencil_arg, "")
+        stencils.tag_name(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
             "This is not coded for." in str(err.value))
 
@@ -1639,8 +1639,8 @@ def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
         "f0, f1, f2, f3, f4, extent, direction)")
     assert output1 in result
     output2 = (
-        "    integer(kind=i_def), intent(in) :: extent\n"
-        "    integer(kind=i_def), intent(in) :: direction\n")
+        "    integer(kind=i_def), intent(in) :: direction\n"
+        "    integer(kind=i_def), intent(in) :: extent\n")
     assert output2 in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f3_stencil_size "
             "=> null()\n" in result)
@@ -1721,15 +1721,15 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))")
+        "ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell))")
     assert output2 in result
     output3 = (
         "      call testkern_different_anyspace_stencil_code(nlayers_f3, "
         "f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_as2_f5, "
-        "undf_as2_f5, map_as2_f5(:,cell))")
+        "ndf_as1_f4__1, undf_as1_f4__1, map_as1_f4__1(:,cell), ndf_as2_f5__1, "
+        "undf_as2_f5__1, map_as2_f5__1(:,cell))")
     # Use a different stencil dofmap
     assert output3 in result
 

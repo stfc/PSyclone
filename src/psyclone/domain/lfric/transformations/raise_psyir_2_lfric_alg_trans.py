@@ -10,6 +10,8 @@ we transform PSyIR invoke calls to LFRic algorithm-layer-specific
 invoke calls which uses specialised classes.
 
 '''
+from typing import Any, Optional
+
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
@@ -24,15 +26,16 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
     nodes.
 
     '''
-    def apply(self, call: Call, index: int, options=None, **kwargs) -> None:
+    def apply(self, call: Call, index: int,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         ''' Apply the transformation to the supplied node.
 
         :param call: a PSyIR call node capturing an invoke call in
             generic PSyIR.
-        :param int index: the position of this invoke call relative to
+        :param index: the position of this invoke call relative to
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options, **kwargs)

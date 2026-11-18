@@ -710,7 +710,7 @@ class LFRicLoop(PSyLoop):
                 # If a kernel updates fields on both continuous and
                 # discontinuous spaces then the iteration space is taken to be
                 # the continuous one.
-                iter_arg = self.kernel.arguments.iteration_space_arg()
+                iter_arg = self.kernels()[0].arguments.iteration_space_arg()
                 if (not arg.discontinuous and
                         not iter_arg.discontinuous and
                         self.kernel.iterates_over == "cell_column" and

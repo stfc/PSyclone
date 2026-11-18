@@ -442,24 +442,17 @@ from a derived node to the ``PSyDataNode`` base class.
 
 Passing Parameters From the User to the Node Constructor
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Options can be passed from the user via the
-transformation to the node that will create the code.
-This is done by using the ``options`` dictionary that is
-a standard parameter for all ``validate`` and
-``apply`` calls of a transformation (see
-:ref:`transformations_application`). Besides using
-this dictionary for validation and application parameters,
-``PSyDataTrans`` passes it to the constructor
-of the node that is being inserted. An example
-of a parameter is the ``region_name``, where the user
-can overwrite the default name given to a region (which
-can be somewhat cryptic due to the need to be unique).
-The region name is validated by ``PSyDataTrans``, and
-then passed to the node constructor. The ``PSyDataNode``
-stores the name as an instance attribute, so that they can
-be used at code creation time (PSyIR lowering).
-Below is the list of all options that the PSyData
-node supports in the option dictionary:
+Parameters can be passed as keyword arguments to the transformation's
+``apply`` method (see :ref:`transformations_application`). For example,
+``trans.apply(nodes, region_name=("my_module", "my_region"))`` overrides
+the automatically generated region name. ``PSyDataTrans`` validates these
+parameters and passes the node-construction arguments to the node factory.
+
+The ``PSyDataNode`` constructor and ``create`` factory accept the following
+keyword arguments. The node stores their values as instance attributes
+for use at code creation time (PSyIR lowering). Direct node calls must use
+keyword arguments, for example
+``PSyDataNode(prefix="profile", region_name=("my_module", "my_region"))``.
 
 .. table::
     :widths: 2,10
@@ -485,15 +478,16 @@ node supports in the option dictionary:
 
 Passing Parameter From a Derived Node to the ``PSyDataNode``
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-The ``PSyDataNode.lower_to_language_level`` function also accepts
-an option dictionary, which is used by derived nodes to control code
-creation.
-The ``lower_to_language_level`` function is called internally, not
-directly by the user. If the ``lower_to_language_level`` function of a
-node derived from ``PSyDataNode`` is called, it can define this
-option directory to pass the parameters to the ``PSyDataNode``'s
-``lower_to_language_level`` function. Here are the options that are
-currently supported by ``PSyDataNode``:
+The ``PSyDataNode.lower_to_language_level`` function accepts keyword
+arguments that derived nodes use to control code creation. This function
+is called internally during lowering. A derived node can pass its variable
+lists directly, for example::
+
+    return super().lower_to_language_level(
+        pre_var_list=read_write_info.read_list,
+        post_var_list=read_write_info.write_list)
+
+The following keyword arguments are supported:
 
 ================ =========================================
 Parameter Name   Description

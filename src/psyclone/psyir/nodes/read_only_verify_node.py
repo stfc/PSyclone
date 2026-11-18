@@ -61,10 +61,9 @@ class ReadOnlyVerifyNode(PSyDataNode):
         read_write_info = ReadWriteInfo()
         ctu.get_input_parameters(read_write_info, [self],
                                  include_non_data_accesses=True)
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.read_list}
-
-        return super().lower_to_language_level(options)
+        return super().lower_to_language_level(
+            pre_var_list=read_write_info.read_list,
+            post_var_list=read_write_info.read_list)
 
 
 # ============================================================================

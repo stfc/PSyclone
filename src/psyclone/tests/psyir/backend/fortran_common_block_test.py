@@ -8,6 +8,7 @@
 '''Performs pytest tests on PSyIR Fortran Backend for CommonBlocks '''
 
 import pytest
+from textwrap import dedent
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Routine
@@ -40,18 +41,21 @@ def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
     assert routine.symbol_table.lookup("a").is_commonblock  # Sanity check
 
     code = fortran_writer(routine)
-    assert code == (
-        "subroutine sub()\n"
-        "  integer :: c\n"
-        "  integer :: b\n"
-        "  integer :: a\n"
-        "  real :: d\n"
-        "  real :: e\n"
-        "  real :: f\n"
-        "  common /name1/ a, b, c\n"
-        "  common /name2/ d\n"
-        "  common // e, f\n\n\n"
-        "end subroutine sub\n")
+    assert code == dedent("""\
+    subroutine sub()
+      integer :: a
+      integer :: b
+      integer :: c
+      real :: d
+      real :: e
+      real :: f
+      common // e, f
+      common /name1/ a, b, c
+      common /name2/ d
+
+
+    end subroutine sub
+    """)
     assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
 
 
@@ -69,5 +73,5 @@ def test_fw_common_block_duplicate_positions(fortran_writer):
     with pytest.raises(VisitorError) as err:
         _ = fortran_writer(routine)
 
-    assert ("Common block 'somegroup' has Symbols with duplicate positions: "
-            "[0, 0]." in str(err.value))
+    assert ("common block 'somegroup' has symbols with duplicate positions: "
+            "[0, 0]." in str(err.value).lower())

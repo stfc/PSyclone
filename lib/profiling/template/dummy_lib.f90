@@ -68,6 +68,7 @@ contains
     endif
 
     call this%PSyDataBaseType%PreStart(module_name, region_name, 0, 0)
+!$omp critical
     if (is_enabled) then
        write(*,*) "PreStart called for module '", module_name,  &
                   "' region '", region_name, "'"
@@ -75,6 +76,7 @@ contains
        write(*,*) "PreStart called for module '", module_name,  &
                   "' region '", region_name, "', but profiling is disabled"
     endif
+!$omp end critical
 
   end subroutine PreStart
 
@@ -89,6 +91,7 @@ contains
 
     class(profile_PSyDataType), intent(inout), target :: this
 
+!$omp critical
     if (is_enabled) then
        write(*,*) "PostEnd called for module '", trim(this%module_name), &
                   "' region '", trim(this%region_name), "'"
@@ -96,6 +99,7 @@ contains
        write(*,*) "PostEnd called for module '", trim(this%module_name), &
                   "' region '", trim(this%region_name), "', but profiling is disabled"
     endif
+!$omp end critical
 
   end subroutine PostEnd
 

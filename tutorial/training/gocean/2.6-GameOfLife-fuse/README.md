@@ -98,7 +98,7 @@ to the fuse transformation to combine the loops:
     # print(schedule.view())
 
     # Now merge the first two loops
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply((schedule[0], schedule[1]))
 
     # print(schedule.view())
 
@@ -151,7 +151,7 @@ In order to fuse the inner loops. you need to access the schedule
 of the outer loop. This schedule can be accessed using the
 `loop_body` attribute, e.g.:
 
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply((schedule[0].loop_body[0], schedule[0].loop_body[1]))
 
 Adding this loop fusion to the script will generate the following output
 (again shortened):

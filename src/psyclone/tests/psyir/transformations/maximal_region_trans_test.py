@@ -97,6 +97,18 @@ def test_validate(fortran_reader):
     assert ("Error in MaxParTrans transformation: supplied nodes are not "
             "children of the same parent" in str(err.value))
 
+    # Parent validation also rejects expressions outside a Schedule.
+    with pytest.raises(TransformationError,
+                       match="Cannot apply transformation to the immediate"):
+        trans.validate(routine.children[3].condition)
+
+    # Parent validation must enforce excluded node types too.
+    trans.excluded_node_types = (Assignment,)
+    with pytest.raises(TransformationError,
+                       match="Nodes of type 'Assignment' cannot be enclosed"):
+        trans.validate(routine.children)
+    trans.validate(routine.children, node_type_check=False)
+
 
 def test_apply(fortran_reader):
     '''Test the apply function of MaxParallelRegionTrans.'''

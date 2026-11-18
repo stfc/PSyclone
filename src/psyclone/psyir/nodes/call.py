@@ -30,6 +30,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol,
     Symbol,
     SymbolError,
+    SymbolTable,
     UnsupportedFortranType,
     UnresolvedType
 )
@@ -162,23 +163,20 @@ class Call(Statement, DataNode):
                 name, arg = arg
             call.append_named_arg(name, arg)
 
-    def append_named_arg(self, name, arg):
+    def append_named_arg(self,
+                         name: Union[str, None],
+                         arg: DataNode):
         '''Append a named argument to this call.
 
            :param name: the argument name.
-           :type name: Optional[str]
            :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
 
-           :raises ValueError: if the name argument is already used \
+           :raises ValueError: if the name argument is already used
                for an existing argument.
 
         '''
         if name is not None:
-            # Avoid circular import.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.frontend.fortran import FortranReader
-            FortranReader.validate_name(name)
+            SymbolTable.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -188,26 +186,24 @@ class Call(Statement, DataNode):
         self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
-    def insert_named_arg(self, name, arg, index):
+    def insert_named_arg(self,
+                         name: Union[str, None],
+                         arg: DataNode,
+                         index: int) -> None:
         '''Insert a named argument to the call.
 
            :param name: the argument name.
-           :type name: Optional[str]
            :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
-           :param int index: where in the argument list to insert the \
+           :param index: where in the argument list to insert the
                named argument.
 
-           :raises ValueError: if the name argument is already used \
+           :raises ValueError: if the name argument is already used
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
         '''
         if name is not None:
-            # Avoid circular import.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.frontend.fortran import FortranReader
-            FortranReader.validate_name(name)
+            SymbolTable.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(

@@ -9,8 +9,9 @@
 kernel based on the kernel metadata.
 
 '''
-from typing import TYPE_CHECKING
-from psyclone.core import AccessType
+from typing import Optional, TYPE_CHECKING
+
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -80,14 +81,12 @@ class KernelInterface(ArgOrdering):
         # as arguments.
         self._forced_symtab = SymbolTable()
 
-    def generate(self, var_accesses=None):
+    def generate(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Call the generate base class then add the argument list as it can't
         be appended as we go along.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         super().generate(var_accesses=var_accesses)
@@ -113,14 +112,14 @@ class KernelInterface(ArgOrdering):
                         mode=mapping[symbol.interface.access])
         self._arglist = self._arglist[:len_arglist]
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(self,
+                      var_accesses: Optional[VariablesAccessMap] = None
+                      ) -> None:
         '''Create an LFRic cell-position object and add it to the symbol table
         and argument list.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         symbol = self._symtab.find_or_create_tag(
@@ -128,20 +127,53 @@ class KernelInterface(ArgOrdering):
             interface=self._read_access)
         self._arglist.append(symbol)
 
-    def mesh_height(self, var_accesses=None):
-        '''Create an LFRic mesh height object and add it to the symbol table
-        and argument list.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None
+                    ) -> None:
+        '''Create LFRic mesh height (nlayers) objects and add to the
+        symbol table and argument list.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
+        # By default we always pass the nlayers value associated with the first
+        # field or operator argument.
         symbol = self._symtab.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol"),
+            f"nlayers_{self._kern.arguments.first_field_or_operator.name}",
+            symbol_type=LFRicTypes("MeshHeightDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
+
+        # Check for arguments that specify a different value for nlayers
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self._symtab.find_or_create_tag(
+                    f"nlayers_label:{arg.nlayers}",
+                    root_name=f"nlayers_{arg.nlayers}",
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"),
+                    interface=self._read_access)
+                if sym not in self._arglist:
+                    self._arglist.append(sym)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add any distinct values of ndata (number of data values per dof)
+        required by field arguments to the argument list. Also add these
+        accesses to `var_accesses` if supplied.
+
+        :param var_accesses: an unused optional argument for interface
+                             consistency.
+        '''
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self._symtab.find_or_create_tag(
+                    f"ndata:{arg.ndata}",
+                    root_name=f"ndata_{arg.ndata}",
+                    symbol_type=LFRicTypes("NumberOfValuesPerDofDataSymbol"),
+                    interface=self._read_access)
+                if sym not in self._arglist:
+                    self._arglist.append(sym)
 
     def _mesh_ncell2d(self, var_accesses=None):
         '''Not implemented.
@@ -518,10 +550,9 @@ class KernelInterface(ArgOrdering):
 
         :param function_space: the function space for this basis function.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         basis_name_func = function_space.get_basis_name
@@ -756,7 +787,7 @@ class KernelInterface(ArgOrdering):
             # Create the qr tag by appending the last part of the shape
             # name to "qr_".
             quad_name = shape.split("_")[-1]
-            basis_tag = basis_name_func(qr_var="qr_"+quad_name)
+            basis_name, basis_tag = basis_name_func(qr_var="qr_"+quad_name)
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symtab.find_or_create_tag(
                     "nqp_xy",
@@ -768,9 +799,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_xyoz"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp_xy),
-                                Reference(nqp_z)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp_xy),
+                                 Reference(nqp_z)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
                 nfaces = self._symtab.find_or_create_tag(
@@ -784,9 +815,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_face"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp),
-                                Reference(nfaces)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp),
+                                 Reference(nfaces)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
                 nedges = self._symtab.find_or_create_tag(
@@ -800,9 +831,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_edge"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp),
-                                Reference(nedges)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp),
+                                 Reference(nedges)],
                     fs_name, interface=self._read_access)
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a (diff) basis array for each target space upon

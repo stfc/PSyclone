@@ -53,7 +53,7 @@ jobs:
     steps:
     - run: echo "REPOSITORY_NAME=${{ github.repository }}"
       shell: bash
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v7
       with:
         fetch-depth: '0'
     # Start ssh-agent but set it to use the same ssh_auth_sock value.

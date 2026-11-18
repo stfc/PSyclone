@@ -226,7 +226,7 @@ class LFRicInvoke(Invoke):
             except FieldNotFoundError:
                 pass
         raise GenerationError(
-            f"No argument found on '{fspace.mangled_name}' space")
+            f"No argument found on '{fspace.tag_name}' space")
 
     def unique_fss(self):
         '''
@@ -241,9 +241,9 @@ class LFRicInvoke(Invoke):
         for kern_call in self.schedule.kernels():
             kern_fss = kern_call.arguments.unique_fss
             for fspace in kern_fss:
-                if fspace.mangled_name not in unique_fs_names:
+                if fspace.tag_name not in unique_fs_names:
                     unique_fs.append(fspace)
-                    unique_fs_names.append(fspace.mangled_name)
+                    unique_fs_names.append(fspace.tag_name)
         return unique_fs
 
     @property

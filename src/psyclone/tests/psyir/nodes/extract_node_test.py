@@ -25,22 +25,37 @@ from psyclone.tests.utilities import get_invoke
 
 def test_extract_node_constructor():
     '''Tests the constructor of the ExtractNode. '''
-    # The constructor must have a read_write_info key
+    # Read/write information is optional.
     en = ExtractNode()
     assert en.post_name == "_post"
     assert en._read_write_info is None
 
-    en = ExtractNode(options={'read_write_info': 1})
+    en = ExtractNode(read_write_info=1)
     assert en._post_name == "_post"
     assert en._read_write_info == 1
 
-    ex_node = ExtractNode(options={"post_var_postfix": "_my_own_post"})
+    ex_node = ExtractNode(post_var_postfix="_my_own_post")
     assert ex_node._post_name == "_my_own_post"
 
     # Add a schedule and test that we get the same object as extract body:
     schedule = Schedule()
     en.children.append(schedule)
     assert en.extract_body is schedule
+
+
+@pytest.mark.parametrize("prefix, expected",
+                         [(None, "extract_"), ("", ""),
+                          ("profile", "profile_")])
+def test_extract_node_create_keywords(prefix, expected):
+    """The inherited factory forwards keywords and preserves defaults."""
+    read_write_info = ReadWriteInfo()
+    node = ExtractNode.create(
+        [], SymbolTable(), prefix=prefix, region_name=("module", "region"),
+        post_var_postfix="_output", read_write_info=read_write_info)
+    assert node.prefix == expected
+    assert node.region_identifier == ("module", "region")
+    assert node.post_name == "_output"
+    assert node._read_write_info is read_write_info
 
 
 # ---------------------------------------------------------------------------

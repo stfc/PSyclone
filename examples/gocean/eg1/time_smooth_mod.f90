@@ -6,7 +6,7 @@
 ! -----------------------------------------------------------------------------
 
 module time_smooth_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use grid_mod
   use field_mod
   use kernel_mod

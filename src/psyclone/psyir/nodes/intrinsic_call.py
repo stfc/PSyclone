@@ -5157,21 +5157,18 @@ class IntrinsicCall(Call):
                                            interface_arg_names)])
 
     @classmethod
-    def create(cls, intrinsic, arguments=()):
+    def create(cls, intrinsic: IntrinsicCall.Intrinsic,
+               arguments: Iterable[Union[DataNode, tuple[str, DataNode]]] = ()
+               ) -> IntrinsicCall:
         '''Create an instance of this class given the type of intrinsic and a
         list of nodes (or name-and-node tuples) for its arguments. Any
         named arguments *must* come after any required arguments.
 
         :param intrinsic: the Intrinsic being called.
-        :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
         :param arguments: list of arguments for this intrinsic, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
-        :type arguments: Optional[Iterable[\
-            Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
-                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of this class.
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises TypeError: if any of the arguments are of the wrong type.
         :raises ValueError: if any optional arguments have incorrect names

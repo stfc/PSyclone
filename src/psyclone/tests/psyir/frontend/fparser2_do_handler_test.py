@@ -196,10 +196,10 @@ def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
 
     output = fortran_writer(psyir)
     correct = '''subroutine test_subroutine()
-  integer :: j
-  integer :: iu_stdout
-  integer :: range_bands
   integer :: i
+  integer :: iu_stdout
+  integer :: j
+  integer :: range_bands
 
   i = 0
   do while (.true.)

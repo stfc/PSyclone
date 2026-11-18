@@ -21,10 +21,9 @@ from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, StructureType, UnsupportedFortranType)
+    DataTypeSymbol, StructureType, UnsupportedFortranType, SymbolTable)
 
 
 class GOceanContainer(Container):
@@ -422,15 +421,15 @@ class GOceanKernelMetadata():
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str) -> None:
         '''
-        :param str value: set the name of the symbol that will contain \
+        :param value: set the name of the symbol that will contain
             the metadata when lowering.
 
         :raises ValueError: if the name is not valid.
 
         '''
-        FortranReader.validate_name(value)
+        SymbolTable.validate_name(value)
         self._name = value
 
     @property
@@ -504,16 +503,16 @@ class GOceanKernelMetadata():
         return self._procedure_name
 
     @procedure_name.setter
-    def procedure_name(self, value):
+    def procedure_name(self, value: str) -> None:
         '''
-        :param str value: set the procedure name specified in the
+        :param value: set the procedure name specified in the
             metadata to the specified value.
 
         :raises ValueError: if the supplied procedure name is invalid.
 
         '''
         try:
-            FortranReader.validate_name(value)
+            SymbolTable.validate_name(value)
         except (TypeError, ValueError) as err:
             raise ValueError(
                 f"Expected procedure_name to be a valid value but found "

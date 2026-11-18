@@ -126,12 +126,14 @@ contains
     ! Locals
     integer(C_INT) :: range_id
 
+!$omp critical
     if (.not. this%initialised) then
        ! This is the first time we've seen this region. Construct and
        ! save its name to save on future string operations.
        this%initialised = .true.
        this%name = trim(module_name)//":"//trim(region_name)//C_NULL_CHAR
     end if
+!$omp end critical
 
     range_id = roctxRangePushA(this%name)
 

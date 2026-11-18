@@ -49,9 +49,9 @@ class ScalarisationTrans(LoopTrans):
     program test
       integer :: i
       integer :: j
+      real :: a_scalar
       real, dimension(100) :: a
       real, dimension(100) :: b
-      real :: a_scalar
     <BLANKLINE>
       do i = 1, 100, 1
         a_scalar = i
@@ -336,6 +336,7 @@ class ScalarisationTrans(LoopTrans):
 
         '''
         self.validate_options(**kwargs)
+        super().validate(node, **kwargs)
 
     def apply(self, node: Loop, **kwargs) -> None:
         '''
