@@ -16,9 +16,12 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import sys
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
+
+import yaml
 
 from psyclone.generator import main as psyclone_main
+from psyclone.parse import ModuleManager
 from psyclone.scripts.psyclone_control import (
     PsycloneControl,
     PsyclonePhase,
@@ -30,6 +33,10 @@ LOGGER = logging.getLogger(__name__)
 
 class RunPsyclone:
     """Process source files selected by the PSyclone control files."""
+
+    # A phase with this file_pattern does not process the matching files
+    # themselves, but the source files of the modules listed in them.
+    CALLING_YAML_PATTERN = "*.calling.yaml"
 
     def __init__(
             self,
@@ -94,9 +101,12 @@ class RunPsyclone:
 
             matched_files = self.get_phase_files(phase)
 
-            jobs = []
-            for source_file in matched_files:
+            jobs: list[tuple[Path, Path, Optional[Path], dict, str ]] = []
+            for source_file, file_kwargs in matched_files:
                 script, params = phase.get_script(source_file)
+                # Additional information about the file (e.g. module name,
+                # routines and symbols) is passed on as script parameters.
+                params = {**params, **file_kwargs}
                 destination = phase.get_output_path(
                     source_file, self._input_path, self._output_path)
                 if script == PsyclonePhase.RESULT_EXCLUDE:
@@ -143,15 +153,23 @@ class RunPsyclone:
         LOGGER.info("All configured phases have been processed")
 
     def get_phase_files(
-            self, phase: PsyclonePhase) -> list[Path]:
+            self, phase: PsyclonePhase) -> list[tuple[Path, dict[str, Any]]]:
         """
         Determine the list of source files to work on. This default
         implementation uses the file_pattern from the phase to search
-        for matching files in the input directory. It handles the
+        for matching files in the input directory. If the file_pattern is
+        `CALLING_YAML_PATTERN`, the matching files are read, and the source
+        files of the modules listed in them are returned instead.
 
-        :param phase: the information about the pase for which to
+        :param phase: the information about the phase for which to
             collect the source files.
 
+        :returns: a list of tuples, each containing a source file and a
+            dictionary of keyword arguments for this file. The dictionary is
+            empty, except for files found using calling yaml files, where it
+            contains the keys `module_name`, `routines` and `symbols`.
+
+        :raises ValueError: if the phase has no file_pattern.
         """
         if not phase.file_pattern:
             raise ValueError("Cannot find phase files without a file_pattern")
@@ -160,7 +178,7 @@ class RunPsyclone:
             path for path in self._input_path.rglob(phase.file_pattern)
             if path.is_file()
         )
-        if phase.file_pattern == ".calling.yaml":
+        if phase.file_pattern == self.CALLING_YAML_PATTERN:
             # Special case to handling *.calling.yaml files. These files
             # contain list of external modules that are being used. In order
             # to find the list of files, you need to read all these yaml files
@@ -173,10 +191,62 @@ class RunPsyclone:
             len(matched_files),
             phase.file_pattern,
         )
-        return matched_files
+        return [(path, {}) for path in matched_files]
 
-    def _get_files_from_calling_yaml(self, matched_files):
-        pass
+    def _get_files_from_calling_yaml(
+            self, matched_files: Sequence[Path]
+            ) -> list[tuple[Path, dict[str, Any]]]:
+        """
+        Reads the *.calling.yaml files and combines their information. Each
+        file has module names as outer keys, each with a list of `routines`
+        and a list of `symbols` used from that module. The information for
+        modules that are listed in several files is merged. The module
+        manager is then used to find the source file of each module.
+
+        :param matched_files: the *.calling.yaml files to read.
+
+        :returns: a list with one tuple for each module, sorted by module
+            name, containing the filename and a dictionary with the keys
+            `module_name`, `routines` and `symbols` (the latter two are
+            sorted lists). Modules that the module manager is configured to
+            ignore are skipped.
+
+        :raises FileNotFoundError: if the source file of a module cannot be
+            found.
+        """
+
+        # This is done in two steps: first, cummulate the various yaml files
+        # using a dictionary for fast loopup of existing information.
+        modules: dict[str, dict[str, set[str]]] = {}
+        for yaml_file in matched_files:
+            with open(yaml_file, "r", encoding="utf-8") as stream:
+                content = yaml.safe_load(stream) or {}
+            for module_name, info in content.items():
+                info = info or {}
+                entry = modules.setdefault(
+                    module_name.lower(),
+                    {"routines": set(), "symbols": set()})
+                entry["routines"].update(info.get("routines") or [])
+                entry["symbols"].update(info.get("symbols") or [])
+
+        # Then convert the module names to actual file paths using the
+        # # module manager.
+        mod_manager = ModuleManager.get()
+        mod_manager.add_search_path([self._input_path], recursive=True)
+
+        result: list[tuple[Path, dict[str, Union[str, list[str]]]]] = []
+        for module_name in sorted(modules):
+            mod_info = mod_manager.get_module_info(module_name)
+            if mod_info is None:
+                LOGGER.info("Ignoring module '%s'", module_name)
+                continue
+            routines = sorted(modules[module_name]["routines"])
+            symbols = sorted(modules[module_name]["symbols"])
+            result.append((Path(mod_info.filename),
+                           {"module_name": module_name,
+                            "routines": routines,
+                            "symbols": symbols}))
+        return result
 
     def _execute_psyclone(
             self,

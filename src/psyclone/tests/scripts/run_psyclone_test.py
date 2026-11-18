@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+from psyclone.parse import ModuleManager
 from psyclone.scripts import run_psyclone
 from psyclone.scripts.psyclone_control import PsyclonePhase
 from psyclone.scripts.run_psyclone import RunPsyclone
@@ -430,3 +431,82 @@ transmute:
     assert len(calls) == 1
     assert calls[0][calls[0].index("-o") + 1] == str(
         tmp_path / "output" / "nested" / "file.psyclonified.f90")
+
+
+def test_get_files_from_calling_yaml(tmp_path):
+    """Check that calling.yaml files are merged and module files found."""
+    src = tmp_path / "src"
+    src.mkdir()
+    for name in ("a_mod", "b_mod"):
+        (src / f"{name}.f90").write_text(
+            f"module {name}\nend module {name}\n", encoding="utf-8")
+    first = tmp_path / "first.calling.yaml"
+    first.write_text("a_mod:\n  routines: [r2, r1]\n  symbols: [s1]\n"
+                     "b_mod:\n  routines: []\n  symbols: []\n",
+                     encoding="utf-8")
+    second = tmp_path / "second.calling.yaml"
+    second.write_text("a_mod:\n  routines: [r1, r3]\n  symbols: [s2, s1]\n",
+                      encoding="utf-8")
+
+    ModuleManager._instance = None
+    try:
+        runner = RunPsyclone(src, [])
+        result = runner._get_files_from_calling_yaml([first, second])
+    finally:
+        ModuleManager._instance = None
+
+    resolved = src.resolve()
+    assert result == [
+        (resolved / "a_mod.f90",
+         {"module_name": "a_mod", "routines": ["r1", "r2", "r3"],
+          "symbols": ["s1", "s2"]}),
+        (resolved / "b_mod.f90",
+         {"module_name": "b_mod", "routines": [], "symbols": []}),
+    ]
+
+
+def test_get_phase_files_returns_kwargs(tmp_path):
+    """Check the (file, kwargs) tuples for normal and calling yaml phases."""
+    (tmp_path / "a_mod.f90").write_text("module a_mod\nend module a_mod\n",
+                                        encoding="utf-8")
+    (tmp_path / "x.calling.yaml").write_text(
+        "a_mod:\n  routines: [r]\n  symbols: []\n", encoding="utf-8")
+    runner = RunPsyclone(tmp_path, [])
+
+    phase = PsyclonePhase("normal", [], tmp_path)
+    phase.update({"file_pattern": "*.f90"})
+    assert runner.get_phase_files(phase) == [(tmp_path / "a_mod.f90", {})]
+
+    phase = PsyclonePhase("calling", [], tmp_path)
+    phase.update({"file_pattern": RunPsyclone.CALLING_YAML_PATTERN})
+    ModuleManager._instance = None
+    try:
+        files = runner.get_phase_files(phase)
+    finally:
+        ModuleManager._instance = None
+    assert files == [(tmp_path.resolve() / "a_mod.f90",
+                      {"module_name": "a_mod", "routines": ["r"],
+                       "symbols": []})]
+
+
+def test_get_files_from_calling_yaml_skips_ignored_modules(tmp_path, caplog):
+    """Check that modules ignored by the module manager are skipped."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a_mod.f90").write_text("module a_mod\nend module a_mod\n",
+                                   encoding="utf-8")
+    calling = tmp_path / "x.calling.yaml"
+    calling.write_text("a_mod:\n  routines: [r]\n  symbols: []\n"
+                       "ignored_mod:\n  routines: [r]\n  symbols: []\n",
+                       encoding="utf-8")
+    caplog.set_level("INFO", logger="psyclone.scripts.run_psyclone")
+
+    ModuleManager._instance = None
+    try:
+        ModuleManager.get().add_ignore_module("Ignored_Mod")
+        result = RunPsyclone(src, [])._get_files_from_calling_yaml([calling])
+    finally:
+        ModuleManager._instance = None
+
+    assert [info["module_name"] for _, info in result] == ["a_mod"]
+    assert "Ignoring module 'ignored_mod'" in caplog.text
