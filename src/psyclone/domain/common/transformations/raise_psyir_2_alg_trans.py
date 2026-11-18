@@ -11,10 +11,9 @@ which uses specialised classes.
 
 '''
 
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Call, Literal, Routine
 from psyclone.psyir.symbols import (
-    Symbol, DataTypeSymbol, StructureType, ScalarType)
+    Symbol, DataTypeSymbol, StructureType, ScalarType, SymbolTable)
 from psyclone.domain.common.algorithm import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.psyGen import Transformation
@@ -106,7 +105,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                         f"is a named argument, it must take the form name"
                         f"='str', but found '{node.debug_string()}'.")
                 try:
-                    FortranReader.validate_name(arg.value)
+                    SymbolTable.validate_name(arg.value)
                 except (TypeError, ValueError) as err:
                     raise TransformationError(
                         f"Problem with invoke name: {err}") from err

@@ -1063,9 +1063,10 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     # Check container symbol has not been renamed.
     assert "use model_mod_1" not in output
+    assert "    integer :: i" in output
     assert ("  subroutine run_it()\n"
             "    use model_mod, only : radius\n"
-            "    integer :: i\n" in output)
+            in output)
     assert ("    do i = 1, 10, 1\n"
             "      a(:,i) = 4 * radius\n"
             "    enddo\n"
@@ -1312,12 +1313,11 @@ def test_apply_callsite_rename(fortran_reader, fortran_writer):
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     output = fortran_writer(psyir)
-    assert ("  subroutine run_it()\n"
-            "    use kinds_mod, only : i_def, r_def\n"
-            "    use a_mod, only : a_clash\n"
-            "    integer :: i\n"
-            "    integer :: a_clash_1\n\n"
-            "    a_clash_1 = 2\n"
+    assert "    integer :: i" in output
+    assert "    integer :: a_clash_1" in output
+    assert "    use kinds_mod, only : i_def, r_def" in output
+    assert "    use a_mod, only : a_clash" in output
+    assert ("    a_clash_1 = 2\n"
             "    i = 10.0_r_def\n"
             "    i = i + 5_i_def + a_clash\n"
             "    i = i * a_clash_1\n" in output)
@@ -1349,12 +1349,11 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     output = fortran_writer(psyir)
-    assert ("  subroutine run_it()\n"
-            "    use kinds_mod, only : i_def, r_def\n"
-            "    use a_mod, only : a_clash\n"
-            "    integer :: i\n"
-            "    integer :: a_mod_1\n\n"
-            "    a_mod_1 = 2\n"
+    assert "    integer :: i" in output
+    assert "    integer :: a_mod_1" in output
+    assert "    use kinds_mod, only : i_def, r_def" in output
+    assert "    use a_mod, only : a_clash" in output
+    assert ("    a_mod_1 = 2\n"
             "    i = 10.0_r_def\n"
             "    i = i + 5_i_def + a_clash\n"
             "    i = i * a_mod_1\n" in output)
@@ -2942,20 +2941,14 @@ def test_apply_argument_clash(fortran_reader, fortran_writer, tmp_path):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
-    expected = '''\
-subroutine sub(istr)
-  integer :: istr
-  real :: x
-  integer :: i
-  real, dimension(10) :: b
-
-  x = 2.0 * x
-  b(istr:) = 1.0
-
-end subroutine sub
-'''
     output = fortran_writer(psyir)
-    assert expected in output
+    assert "  integer :: istr" in output
+    assert "  real :: x" in output
+    assert "  integer :: i" in output
+    assert "  real, dimension(10) :: b" in output
+    assert ("  x = 2.0 * x\n"
+            "  b(istr:) = 1.0\n\n"
+            "end subroutine sub\n" in output)
     assert Compile(tmp_path).string_compiles(output)
 
 

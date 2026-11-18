@@ -15,7 +15,7 @@ from fparser.two import Fortran2003
 from fparser.two import utils as fp_utils
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
-from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.symbols import SymbolTable
 
 
 class CommonArgMetadata(CommonMetadata):
@@ -151,7 +151,7 @@ class CommonArgMetadata(CommonMetadata):
                     label = text[1:-1].lower()
                     if not label.isnumeric():
                         try:
-                            FortranReader.validate_name(label)
+                            SymbolTable.validate_name(label)
                         except (ValueError, TypeError) as err:
                             raise ValueError(
                                 f"A string value assigned to a named metadata "

@@ -298,6 +298,29 @@ def test_fw_unsupported_with_directive(fortran_reader, fortran_writer):
     assert "!$omp declare target(unsupported)" in output
 
 
+def test_fw_unsupported_data_stmt(fortran_reader,
+                                  fortran_writer,
+                                  tmp_path) -> None:
+    '''Check that the writer correctly re-generates a DATA statement
+    and allows for dependencies on other symbols.'''
+    code = '''
+    module my_mod
+      integer, dimension(5) :: zzz
+      data zzz / 5*1 /
+      integer :: aa
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    # Check DATA statement comes *after* declaration of symbol
+    assert '''\
+  integer, dimension(5), save, public :: zzz
+  integer, public :: aa
+  DATA zzz / 5 * 1 /
+''' in output
+    assert Compile(tmp_path).string_compiles(output)
+
+
 def test_fw_unsupported_type_components_with_visibility(
             fortran_reader, fortran_writer):
     ''' Check that the writer can handler type declarations with unsupported
