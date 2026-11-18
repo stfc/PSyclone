@@ -401,14 +401,12 @@ class LFRicAlg:
         LFRicKern object.
 
         :param psyir: language-level PSyIR for the LFRic kernel.
-        :type psyir: :py:class:`psyclone.psyir.nodes.Node`
-        :param str kernel_name: the name of the kernel contained in the \
+        :param str kernel_name: the name of the kernel contained in the
             supplied parse tree for which an LFRicKern is to be created.
 
         :returns: an LFRicKern object describing the LFRic kernel.
-        :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
-        :raises ValueError: if an LFRic kernel with the specified name cannot \
+        :raises ValueError: if an LFRic kernel with the specified name cannot
                             be found in the supplied parse tree.
         '''
         try:
