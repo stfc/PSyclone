@@ -27,7 +27,7 @@ import psyclone.expression as expr
 from psyclone.errors import InternalError
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.parse.utils import check_api, check_line_length, ParseError
-from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
 def get_kernel_filepath(module_name, kernel_paths, alg_filename):
@@ -398,7 +398,7 @@ def get_char_value(metadata: expr.NamedArg,
 
     if not result.isnumeric():
         try:
-            FortranReader.validate_name(result)
+            SymbolTable.validate_name(result)
         except (ValueError, TypeError) as err:
             raise ParseError(
                 f"A string value assigned to '{keyword}' must be a valid "

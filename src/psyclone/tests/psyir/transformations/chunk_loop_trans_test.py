@@ -391,10 +391,8 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
         chunktrans.apply(loop)
     writer = FortranWriter()
     result = writer(psyir)
-    correct_vars = \
-        '''integer :: i_out_var
-  integer :: j_out_var'''
-    assert correct_vars in result
+    assert "integer :: i_out_var" in result
+    assert "integer :: j_out_var" in result
 
     correct = \
         '''do i_out_var = 1, end, 32

@@ -673,8 +673,8 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
     correct = '''subroutine sub()
   integer :: ji
   integer :: jj
-  integer :: n
   integer :: jk
+  integer :: n
   integer, dimension(10,10) :: s
   integer, dimension(10,10) :: t
 

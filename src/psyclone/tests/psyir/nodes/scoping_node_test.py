@@ -201,15 +201,15 @@ module module
 
   contains
   subroutine routine(a)
-    integer(kind=wp), intent(inout) :: a
     integer :: i
+    integer(kind=wp), intent(inout) :: a
 
     a = b_global(i)
 
   end subroutine routine
   subroutine routine2(a)
-    integer(kind=wp), intent(inout) :: a
     integer :: i_new
+    integer(kind=wp), intent(inout) :: a
 
     a = b_global(i_new)
 

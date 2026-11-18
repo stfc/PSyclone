@@ -170,42 +170,39 @@ class KernStubArgList(ArgOrdering):
             self.append("dims_" + scalar_arg.name, var_accesses)
             self.append(scalar_arg.name, var_accesses)
 
-    def field_vector(self, argvect, var_accesses=None):
+    def field_vector(self,
+                     argvect: "LFRicKernelArgument",
+                     var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
         for idx in range(1, argvect.vector_size+1):
-            text = (argvect.name + "_" +
-                    argvect.function_space.mangled_name +
-                    "_v" + str(idx))
-            self.append(text, var_accesses)
+            text = f"{argvect.name}_{argvect.function_space.tag_name}_v{idx}"
+            self.append(self._symtab.create_valid_name(text), var_accesses)
 
-    def field(self, arg, var_accesses=None):
+    def field(self,
+              arg: "LFRicKernelArgument",
+              var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        text = arg.name + "_" + arg.function_space.mangled_name
-        self.append(text, var_accesses, mode=arg.access)
+        text = f"{arg.name}_{arg.function_space.tag_name}"
+        self.append(self._symtab.create_valid_name(text),
+                    var_accesses, mode=arg.access)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the

@@ -58,10 +58,10 @@ class DebugChecksumTrans(RegionTrans):
     >>> DebugChecksumTrans().apply(loop)
     >>> print(FortranWriter()(psyir))
     subroutine mysubroutine()
-      integer, dimension(10,10) :: a
+      integer :: PSYCLONE_INTERNAL_line_
       integer :: i
       integer :: j
-      integer :: PSYCLONE_INTERNAL_line_
+      integer, dimension(10,10) :: a
     <BLANKLINE>
       do i = 1, 10, 1
         do j = 1, 10, 1

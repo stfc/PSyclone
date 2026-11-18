@@ -14,7 +14,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
-                                            LoopTiling2DTrans,
+                                            LoopTilingTrans,
                                             OMPParallelTrans)
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Loop, Reference, Routine)
@@ -132,8 +132,8 @@ def trans(psyir: FileContainer) -> None:
     # Plus, the 4-times nested loop is too much for the dependency
     # analysis and would require an option to ignore (incorrectly)
     # detected dependencies for some variables.
-    tiling = LoopTiling2DTrans()
+    tiling = LoopTilingTrans()
     try:
-        tiling.apply(lat_loops[0])
+        tiling.apply(lat_loops[0], tiledims=[32, 32])
     except TransformationError as err:
         print(f"Cannot tile loop {lat_loops[0]}: {err.value}")
