@@ -371,8 +371,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.nprocs < 1:
         parser.error("--nprocs must be at least 1")
 
+    LOGGER.setLevel(logging.INFO)
+
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR,
         format="%(levelname)s: %(message)s",
         stream=sys.stdout,
     )
