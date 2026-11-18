@@ -189,12 +189,7 @@ class IfBlock(Statement):
             refs.append(ref)
         chain = DefinitionUseChain(refs)
         var_accesses = chain.find_forward_accesses()
-        results = []
-        for sig in var_accesses:
-            for access in var_accesses[sig]:
-                if all(x is not access for x in results):
-                    results.append(access)
-        self._merge_accesses(next_accesses, results)
+        self._merge_accesses_dict(next_accesses, var_accesses)
 
         return next_accesses
 
@@ -221,11 +216,6 @@ class IfBlock(Statement):
             refs.append(ref)
         chain = DefinitionUseChain(refs)
         var_accesses = chain.find_backward_accesses()
-        results = []
-        for sig in var_accesses:
-            for access in var_accesses[sig]:
-                if all(x is not access for x in results):
-                    results.append(access)
-        self._merge_accesses(prev_accesses, results)
+        self._merge_accesses_dict(prev_accesses, var_accesses)
 
         return prev_accesses

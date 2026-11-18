@@ -7,7 +7,7 @@
 
 ''' This module contains the Statement abstract node implementation.'''
 
-
+from psyclone.core import Signature
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.commentable_mixin import CommentableMixin
 
@@ -23,15 +23,20 @@ class Statement(Node, CommentableMixin):
             for.
         :returns: The combined next_accesses of the input nodes.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.schedule import Schedule
         next_accesses = []
         for node in sub_nodelist:
-            var_accesses = node.next_accesses()
+            if isinstance(node, Schedule):
+                var_accesses = self._get_next_accesses(node.children[:])
+            else:
+                var_accesses = node.next_accesses()
             self._merge_accesses(next_accesses, var_accesses)
         return next_accesses
 
     def next_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the next_accesses of a statement.
+        Method for finding the next_accesses of a statement.
         Subclasses should override this according to their own structure to
         return future accesses to any References contained in the statement.
 
@@ -45,21 +50,48 @@ class Statement(Node, CommentableMixin):
             previous_accesses for.
         :returns: The combined previous_accesses of the input nodes.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.schedule import Schedule
         prev_accesses = []
         for node in sub_nodelist:
-            var_accesses = node.previous_accesses()
+            if isinstance(node, Schedule):
+                var_accesses = self._get_prev_accesses(node.children[:])
+            else:
+                var_accesses = node.previous_accesses()
             self._merge_accesses(prev_accesses, var_accesses)
         return prev_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the previous_accesses of a statement.
+        Method for finding the previous_accesses of a statement.
         Subclasses should override this according to their own structure to
         return previous accesses to any References contained in the statement.
 
         :returns: an empty list.
         '''
         return self._get_prev_accesses(self.children[:])
+
+    def _merge_accesses_dict(
+        self, current_accesses: list[Node],
+        access_dict: dict[Signature, list[Node]]
+    ) -> None:
+        '''
+        Helper function to flatten and merge an access_dict from the
+        DefinitionUseChains into the list of current_accesses for the
+        next/previous_access functions.
+
+        :param current_accesses: The list of currently computed dependent
+            accesses for this node.
+        :param access_dict: The access_dict to merge into
+            current_accesses.
+        '''
+        # Flatten the access_dict into a list.
+        results = []
+        for sig in access_dict:
+            for access in access_dict[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(current_accesses, results)
 
     def _merge_accesses(
         self, current_accesses: list[Node], new_accesses: list[Node]

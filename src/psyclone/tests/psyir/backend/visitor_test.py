@@ -184,12 +184,6 @@ def test_psyirvisitor_lower_dsl_concepts():
             self.replace_with(new_node)
             return new_node
 
-        def next_accesses(self):
-            '''Needed on all Statement subclasses.'''
-
-        def previous_accesses(self):
-            '''Needed on all Statement subclasses.'''
-
     class MyVisitor(PSyIRVisitor):
         ''' Simple Visitor for Schedules and Return statements '''
 

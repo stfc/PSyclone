@@ -557,9 +557,43 @@ def test_psy_data_node_gocean_inside_of_loop(fortran_writer):
     assert re.search(correct_re, code, re.I) is not None
 
 
-def test_psy_data_node_accesses():
+def test_psy_data_node_accesses(fortran_reader):
     '''Test that the next/previous_accesses methods of PSyDataNode
-    return empty lists.'''
-    psy_node = PSyDataNode()
-    assert psy_node.next_accesses() == []
-    assert psy_node.previous_accesses() == []
+    return the correct results.'''
+    code = """subroutine test
+    integer :: i, j, k, l
+    integer, dimension(100) :: arr
+    do i = 1, 100
+        arr(i) = j * k + l + i
+    end do
+
+    arr(3) = k
+    j = 4
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # Apply the transformation to the loop and check the accesses are computed
+    # correctly.
+    data_trans = PSyDataTrans()
+    data_trans.apply(routine.children[0])
+
+    data_node = routine.children[0]
+    loop = data_node.children[0].children[0]
+
+    # The PSyDataNode next_accesses should be the same as its child(ren).
+    assert data_node.next_accesses() == loop.next_accesses()
+
+    # Apply the transformation to the assignments and check the prev accesses.
+    data_trans.apply(routine.children[1:3])
+    data_node = routine.children[1]
+    loop_body = loop.loop_body
+
+    prev_accesses = data_node.previous_accesses()
+    assert prev_accesses[0] is loop_body.children[0].lhs
+    print(loop_body.children[0].rhs.view())
+    # The next access is the k in j * k + l + i
+    assert (prev_accesses[1] is
+            loop_body.children[0].rhs.children[0].children[0].children[1])
+    # The last accesses is the j in j * k + l + i
+    assert (prev_accesses[2] is
+            loop_body.children[0].rhs.children[0].children[0].children[0])

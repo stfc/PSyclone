@@ -73,6 +73,12 @@ class DefinitionUseChain:
                     f"list of References but found "
                     f"'{type(ref).__name__}'."
                 )
+
+        # If there are no references we skip the remainder of the setup, as
+        # we should not crash and the functions.
+        if len(references) == 0:
+            self._references = references
+            return
         # We need all the references to have the same ancestor Schedule and
         # belong to the same child of the Schedule.
         # Skip this check if we only have 1 input.
@@ -216,6 +222,8 @@ class DefinitionUseChain:
         :returns: the forward accesses of the references given to this
                   DefinitionUseChain
         """
+        if len(self._references) == 0:
+            return {}
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
@@ -1242,6 +1250,8 @@ class DefinitionUseChain:
         :returns: the backward accesses of the reference given to this
                   DefinitionUseChain
         """
+        if len(self._references) == 0:
+            return {}
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
