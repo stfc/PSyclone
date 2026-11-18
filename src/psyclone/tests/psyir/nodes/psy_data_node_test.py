@@ -11,6 +11,7 @@ import os
 import re
 import pytest
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
@@ -471,7 +472,7 @@ def test_psy_data_node_name_clash():
                              "symbols.f90", api, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
@@ -504,7 +505,7 @@ def test_psy_data_node_lfric_inside_of_loop():
                              api="lfric", dist_mem=False, idx=0)
 
     data_trans = PSyDataTrans()
-    data_trans.apply(invoke.schedule[0].loop_body)
+    data_trans.apply(invoke.schedule.walk(LFRicLoop)[0].loop_body)
 
     # Replace newlines so we can use simple regex
     code = str(psy.gen).replace("\n", "")

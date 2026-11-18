@@ -11,6 +11,7 @@
 import pytest
 
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, ValueRangeCheckNode, Schedule
 from psyclone.psyir.transformations import (ValueRangeCheckTrans,
@@ -151,7 +152,7 @@ def test_value_range_check_lfric():
                              idx=0, dist_mem=False)
 
     value_range_check = ValueRangeCheckTrans()
-    value_range_check.apply(invoke.schedule)
+    value_range_check.apply(invoke.schedule.walk(LFRicLoop))
 
     code = str(psy.gen)
 
@@ -160,7 +161,7 @@ def test_value_range_check_lfric():
     # after the kernel:
     expected = [
         'CALL value_range_check_psy_data % PreStart("multi_invoke_psy", '
-        '"invoke_0-r0", 21, 3)',
+        '"invoke_0-r0", 19, 3)',
         'CALL value_range_check_psy_data % PreDeclareVariable("a", a)',
         'CALL value_range_check_psy_data % ProvideVariable("m1_data", '
         'm1_data)',

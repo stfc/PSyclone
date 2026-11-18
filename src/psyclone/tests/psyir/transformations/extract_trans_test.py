@@ -10,6 +10,7 @@
 
 import pytest
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import (
@@ -91,8 +92,8 @@ def test_extract_loop_no_directive_lfric():
     schedule = invoke.schedule
     # Apply LFRicOMPParallelLoopTrans to the second Loop
     otrans = LFRicOMPParallelLoopTrans()
-    otrans.apply(schedule[1])
-    loop = schedule.children[1].dir_body[0]
+    loop = schedule.walk(LFRicLoop)[1]
+    otrans.apply(loop)
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         etrans.validate([loop])

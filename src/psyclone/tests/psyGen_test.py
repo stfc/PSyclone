@@ -707,11 +707,9 @@ def test_invokeschedule_lowering_with_preexisting_globals():
 def test_kern_get_callees():
     ''' Tests the get_callees method in the Kern class.
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[0].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0,
+                           dist_mem=False)
+    kern = invoke.schedule.walk(PSyLoop)[0].loop_body[0]
     kern_schedules = kern.get_callees()
     assert len(kern_schedules) == 1
     assert isinstance(kern_schedules[0], KernelSchedule)
@@ -736,22 +734,20 @@ def test_codedkern_node_str():
 def test_codedkern_lower_to_language_level(monkeypatch):
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[0].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0,
+                           dist_mem=False)
+    schedule = invoke.schedule
+    kern = schedule.walk(PSyLoop)[0].loop_body[0]
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    lowered = kern.lower_to_language_level()
+    call = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
-    call = schedule.children[0].loop_body[0]
-    assert call is lowered
+    assert call.parent.parent.parent is schedule
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
@@ -781,8 +777,9 @@ def test_kern_coloured_text():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ckern = schedule.children[0].loop_body[0]
-    bkern = schedule.children[1].loop_body[0]
+    loops = schedule.walk(PSyLoop)
+    ckern = loops[0].loop_body[0]
+    bkern = loops[1].loop_body[0]
     ret_str = ckern.coloured_name(True)
     assert colored("CodedKern", ckern._colour) in ret_str
     ret_str = bkern.coloured_name(True)
@@ -889,15 +886,14 @@ def test_incremented_arg():
 
 def test_kern_is_coloured1():
     ''' Check that the is_coloured method behaves as expected. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
+    schedule = invoke.schedule
     kern = schedule.walk(Kern)[0]
     assert not kern.is_coloured()
     # Colour the loop around the kernel
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule[0])
+    ctrans.apply(kern.ancestor(PSyLoop))
     assert kern.is_coloured()
     # Test when the Kernel appears to have no parent loop
     schedule.addchild(kern.detach())
@@ -957,16 +953,14 @@ def test_args_filter():
     are not returned. The simplest way to do this is to use an
     LFRic example which includes two kernels which share argument
     names. We choose dm=False to make it easier to fuse the loops.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=False).create(invoke_info)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
     # fuse our loops so we have more than one Kernel in a loop
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    ftrans.apply(schedule.walk(PSyLoop)[0:2])
     # get our loop and call our method ...
-    loop = schedule.children[0]
+    loop = schedule.walk(PSyLoop)[0]
     args = loop.args_filter(unique=True)
     expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
     for arg in args:
@@ -978,11 +972,10 @@ def test_args_filter2():
     ''' The args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the cases
     when one or both of the intent and type arguments are not specified. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    _, invoke = get_invoke("10_operator.f90", api="lfric", dist_mem=True,
+                           idx=0)
+    schedule = invoke.schedule
+    loop = schedule.walk(PSyLoop)[0]
 
     # arg_accesses
     args = loop.args_filter(arg_accesses=[AccessType.READ])
@@ -1171,17 +1164,15 @@ def test_argument_infer_datatype():
 def test_argument_depends_on():
     '''Check that the depends_on method returns the appropriate boolean
     value for arguments with combinations of read and write access'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.5_multikernel_invokes.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.5_multikernel_invokes.f90", api="lfric",
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
-    arg_f1_inc_1 = schedule.children[0].loop_body[0].arguments.args[0]
-    arg_f1_inc_2 = schedule.children[2].loop_body[0].arguments.args[0]
-    arg_f2_read_1 = schedule.children[0].loop_body[0].arguments.args[2]
-    arg_f2_inc = schedule.children[1].loop_body[0].arguments.args[0]
-    arg_f2_read_2 = schedule.children[2].loop_body[0].arguments.args[1]
+    loops = schedule.walk(PSyLoop)
+    arg_f1_inc_1 = loops[0].loop_body[0].arguments.args[0]
+    arg_f1_inc_2 = loops[2].loop_body[0].arguments.args[0]
+    arg_f2_read_1 = loops[0].loop_body[0].arguments.args[2]
+    arg_f2_inc = loops[1].loop_body[0].arguments.args[0]
+    arg_f2_read_2 = loops[2].loop_body[0].arguments.args[1]
     # different names returns False
     assert not arg_f2_inc._depends_on(arg_f1_inc_1)
     # same name both reads returns False
@@ -1193,29 +1184,24 @@ def test_argument_depends_on():
     # write to read returns True
     assert arg_f2_inc._depends_on(arg_f2_read_1)
     # same name both writes (the 4.5 example only uses inc) returns True
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                           idx=0, api="lfric", dist_mem=False)
     schedule = invoke.schedule
-    arg_f1_write_1 = schedule.children[0].loop_body[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].loop_body[0].arguments.args[0]
+    loops = schedule.walk(PSyLoop)
+    arg_f1_write_1 = loops[0].loop_body[0].arguments.args[1]
+    arg_f1_write_2 = loops[1].loop_body[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
 def test_argument_find_argument():
     ''' Check that the find_argument method returns the first dependent
     argument in a list of nodes, or None if none are found. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.1_multi_aX_plus_Y_builtin.f90", idx=0,
+                           api="lfric", dist_mem=True)
     schedule = invoke.schedule
+    loops = schedule.walk(PSyLoop)
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
+    f1_first_read = loops[0].loop_body[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -1223,32 +1209,27 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
-    f3_first_read = schedule.children[0].loop_body[0].arguments.args[3]
+    f3_write = loops[3].loop_body[0].arguments.args[0]
+    f3_first_read = loops[0].loop_body[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                           api="lfric", idx=0, dist_mem=True)
     schedule = invoke.schedule
+    loops = schedule.walk(PSyLoop)
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[4].loop_body[0].arguments.args[4]
-    m2_halo_field = schedule.children[3].field
+    m2_read_arg = loops[0].loop_body[0].arguments.args[4]
+    halos = schedule.walk(HaloExchange)
+    m2_halo_field = halos[3]
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
     result = m2_halo_field._find_argument([schedule.children[4].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90", api="lfric",
+                           idx=0, dist_mem=True)
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
     kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
