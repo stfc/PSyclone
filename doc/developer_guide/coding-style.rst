@@ -130,11 +130,10 @@ for these functions.
   Repeat the exception type when different conditions need separate entries.
   Omit this section when there are no relevant exceptions to document.
 - Start field descriptions with a lower-case letter and end with a full stop.
-  Separate the description, parameters, returns, and raises with blank lines,
-  but do not insert blank lines between parameters. Indent continuation lines
-  and do not escape newlines with backslashes.
+- Indent continuation lines and do not escape newlines with backslashes.
 - Separate the description, parameters, return and raises sections with a
-  bank line.
+  blank line, but do not insert blank lines between each individual parameter
+  and raises entry.
 - Use Sphinx roles for references to code, as described in
   :ref:`style_documentation`.
 
@@ -142,20 +141,18 @@ For example:
 
 .. code-block:: python
 
-    def normalise_name(name: str) -> str:
-        '''Remove surrounding whitespace from a name.
+    def example(arg1: str, arg2: int) -> None:
+        ''' Describe example method.
 
-        :param name: the name to normalise.
+        :param arg1: describe first argument.
+        :param arg2: describe second argument.
 
-        :returns: the name with surrounding whitespace removed.
+        :returns: describe what the method returns.
 
-        :raises ValueError: if the name is empty after removing whitespace.
+        :raises TypeError: condition that raises this error.
+        :raises ValueError: condition that raises this error.
 
         '''
-        result = name.strip()
-        if not result:
-            raise ValueError("Expected a non-empty name.")
-        return result
 
 .. _style_type_hints:
 
