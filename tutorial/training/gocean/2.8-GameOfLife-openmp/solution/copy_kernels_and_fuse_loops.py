@@ -40,11 +40,11 @@ def trans(psyir: FileContainer) -> None:
     # count_neighbours, compute_born, compute_die, combine kernels
 
     # First merge the first two loops
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply((schedule[0], schedule[1]))
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply((schedule[0], schedule[1]))
     # Now we have:
     # do j
     #   do i
@@ -52,7 +52,7 @@ def trans(psyir: FileContainer) -> None:
     #   do i
     # do j combine
     # Fuse the three inner loops: first the first two
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply((schedule[0].loop_body[0], schedule[0].loop_body[1]))
     # Then merge in the previous third, now second) loop
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply((schedule[0].loop_body[0], schedule[0].loop_body[1]))
     schedule.view()

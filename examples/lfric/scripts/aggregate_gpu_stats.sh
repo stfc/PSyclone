@@ -69,6 +69,10 @@ echo -n "   -> "
 count_uniq "only supports the transformation of a MATMUL operation when"
 
 echo
+echo " --- Attempt to fuse all loops ---"
+count_uniq "Fusion successful"
+
+echo
 echo " --- Then offload each loop with kernels inside ---"
 count_uniq "Offload independent loop"
 count_uniq "Offload with dof loop"
@@ -79,7 +83,7 @@ count_uniq "Failed to offload"
 count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
 
-check_above "Module-inline successful" 289
-check_above "Deferred-Inline successful" 85
-check_above "Offload independent loop" 83
-check_above "Offload with cell colouring" 40
+check_above "Module-inline successful" 302
+check_above "Deferred-Inline successful" 86
+check_above "Offload independent loop" 92
+check_above "Offload with cell colouring" 42

@@ -412,8 +412,8 @@ class LFRicKern(CodedKern):
                 arg, fspace = self.arguments.get_arg_on_space_name(fs_name)
                 # Set up our dict of evaluator targets, one entry per
                 # target FS.
-                if fspace.mangled_name not in self._eval_targets:
-                    self._eval_targets[fspace.mangled_name] = (fspace, arg)
+                if fspace.tag_name not in self._eval_targets:
+                    self._eval_targets[fspace.tag_name] = (fspace, arg)
 
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
@@ -683,17 +683,17 @@ class LFRicKern(CodedKern):
         return self._base_name
 
     @property
-    def undf_name(self):
+    def undf_name(self) -> str:
         '''
         Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
-        :rtype: str
 
         '''
         field = self._arguments.iteration_space_arg()
-        return field.function_space.undf_name
+        return self.scope.symbol_table.lookup_with_tag(
+            field.function_space.undf_tag).name
 
     @property
     def argument_kinds(self):

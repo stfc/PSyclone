@@ -369,11 +369,12 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.is_elemental is ("elemental" in fn_prefix)
     if fn_prefix.startswith("pure"):
-        assert rsym.is_pure
+        assert rsym.is_pure is True
     elif "impure" in fn_prefix:
         assert not rsym.is_pure
     else:
-        assert rsym.is_pure is None
+        # Any combination not including explicitly impure is pure
+        assert rsym.is_pure is True
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
@@ -398,6 +399,45 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         assert isinstance(fsym.datatype, NoType)
     else:
         assert isinstance(fsym.datatype, UnresolvedType)
+
+
+@pytest.mark.parametrize("header, bind_c, return_name", [
+    ("subroutine my_routine(a) bind(c)", "", None),
+    ("subroutine my_routine(a) bind(c, name='c_routine')", "'c_routine'",
+     None),
+    ("subroutine my_routine(a)", None, None),
+    ("function my_routine(a) bind(c)", "", "my_routine"),
+    ("function my_routine(a) bind(c, name='c_routine')", "'c_routine'",
+     "my_routine"),
+    ("function my_routine(a) result(res) bind(c)", "", "res"),
+    ("function my_routine(a) bind(c) result(res)", "", "res"),
+    ("function my_routine(a) result(res) bind(c, name='c_routine')",
+     "'c_routine'", "res"),
+    ("function my_routine(a) bind(c, name='c_routine') result(res)",
+     "'c_routine'", "res"),
+    ("function my_routine(a) result(res)", None, "res")])
+def test_routine_bind_c(fortran_reader, header, bind_c, return_name):
+    '''Check that a BIND(C) language-binding-spec, with or without a binding
+    label, is represented by the bind_c property of the Routine, and that a
+    function's BIND(C) suffix is not mistaken for its RESULT name.'''
+    routine_type = header.split()[0]
+    declarations = "    integer, value :: a\n"
+    if return_name:
+        declarations += f"    real :: {return_name}\n"
+    code = (
+        f"module a_mod\n"
+        f"contains\n"
+        f"  {header}\n"
+        f"{declarations}"
+        f"  end {routine_type} my_routine\n"
+        f"end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert routine.bind_c == bind_c
+    if return_name:
+        assert routine.return_symbol.name == return_name
+    else:
+        assert routine.return_symbol is None
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])

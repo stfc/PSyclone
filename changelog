@@ -1,3 +1,37 @@
+   87) #3678 for #3625. Removes deprecated Loop2DTilingTrans in favour of
+   the more general LoopTilingTrans. 
+
+   86) #3674 for #3673. Fixes the PSyclone script incorrectly modifying the
+   sys.path when no script was provided.
+
+   85) #3620. Harden the validation of IncreaseRankLoopArrayTrans.
+
+   84) #3669. Update the version of LFRic in the integration tests.
+ 
+   83) #3344 for #2202. Updates the generation of Fortran output to respect
+   dependencies in variable declarations.
+
+   82) #3668 for #3666. Updates the frontend to correctly process code that
+   has a Bind(c) clause on subroutines or functions.
+
+   81) #3663 for #868. Use unique tags to prevent LFRic name conflicts.
+
+   80) #3657. Reverts Python version for the readthedocs build as 3.15 is
+   not yet supported.
+
+   79) PR #3510 towards #868. Implement support for custom function spaces
+   with user-defined multi-data fields and number of layers.
+
+   78) PR #3656. Bump ITs to use oneAPI 2026.2.
+ 
+   77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
+ 
+   76) PR #3627 for #3626. Ensure that elemental routines are also marked
+   as pure and forbid HoistLocalArraysTrans on pure routines.
+ 
+   75) PR #3595 for #3315. Extends LFRicLoopFuseTrans to attempt to resolve
+   'any-space' function spaces and conditionally fuse if that fails.
+ 
    74) PR #3511. Add --keep-comments in some NEMO integration tests.
 
    73) PR #3633 for #2927. Ensures the profiling wrapper libs are

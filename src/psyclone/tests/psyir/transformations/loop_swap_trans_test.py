@@ -130,7 +130,7 @@ def test_loop_swap_validate():
     schedule = invoke_loop2.schedule
 
     fuse = GOceanLoopFuseTrans()
-    fuse.apply(schedule.children[0], schedule.children[1])
+    fuse.apply((schedule.children[0], schedule.children[1]))
 
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0])

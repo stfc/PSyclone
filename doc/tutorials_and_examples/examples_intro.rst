@@ -103,16 +103,17 @@ Please let the developers know if you have problems using a compiler
 that has been tested or if you are working with a different compiler
 so it can be recorded in this table.
 
-.. tabularcolumns:: |l|L|
+.. tabularcolumns:: |l|l|L|
 
-========================   =======================================================
-Compiler                   Version
-========================   =======================================================
-Gnu Fortran                13.3, 14.3, 15.2, 16.1
-Intel Fortran (ifort)      21
-Intel LLVM Fortran (ifx)   2025.3.1, 2026.1.0
-NVIDIA Fortran             23.5, 26.9
-========================   =======================================================
+==========================   =====================   ====================================
+Compiler                     Latest tested version   Non-exhaustive list of previously
+                                                     tested versions
+==========================   =====================   ====================================
+GNU Fortran                  16.2                    9.3, 13.3, 14.3, 15.2, 16.1
+Intel Fortran (ifort)        21                      17
+Intel LLVM Fortran (ifx)     2026.2.0                2025.3.1, 2026.1.0
+NVIDIA Fortran               26.9                    23.5, 25.7, 26.1, 26.3, 26.5
+==========================   =====================   ====================================
 
 .. _examples_dependencies:
 
