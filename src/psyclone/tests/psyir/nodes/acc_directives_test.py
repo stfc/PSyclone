@@ -11,6 +11,7 @@ import os
 import pytest
 
 from psyclone.core import Signature
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -147,7 +148,8 @@ def test_accenterdatadirective_lowering_3(trans):
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
     psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    acc_trans.apply(sched.children)
+    loop_pos = sched.walk(LFRicLoop)[0].position
+    acc_trans.apply(sched.children[loop_pos:])
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -177,8 +179,9 @@ def test_accenterdatadirective_lowering_4(trans1, trans2):
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
     psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    acc_trans1.apply([sched.children[1]])
-    acc_trans2.apply([sched.children[0]])
+    loops = sched.walk(LFRicLoop)
+    acc_trans1.apply([loops[1]])
+    acc_trans2.apply([loops[0]])
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -379,7 +382,9 @@ def test_acckernelsdirective_lowering(default_present):
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
-    trans.apply(sched, {"default_present": default_present})
+    loop_pos = sched.walk(LFRicLoop)[0].position
+    trans.apply(sched.children[loop_pos:],
+                {"default_present": default_present})
 
     code = str(psy.gen)
     string = ""
@@ -387,7 +392,7 @@ def test_acckernelsdirective_lowering(default_present):
         string = " default(present)"
     assert (
         f"    !$acc kernels{string}\n"
-        f"    do cell = loop0_start, loop0_stop, 1\n" in code)
+        f"    do cell = 1, loop0_stop, 1\n" in code)
     assert (
         "    enddo\n"
         "    !$acc end kernels\n" in code)

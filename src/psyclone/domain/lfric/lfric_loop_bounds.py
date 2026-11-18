@@ -91,11 +91,15 @@ class LFRicLoopBounds(LFRicCollection):
                     ubound = self.symtab.new_symbol(
                         root_name, symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                    self._invoke.schedule.addchild(
-                        Assignment.create(
-                            lhs=Reference(ubound),
-                            rhs=loop.upper_bound_psyir()
-                        ), cursor)
+                    assign = Assignment.create(
+                        lhs=Reference(ubound),
+                        rhs=loop.upper_bound_psyir())
+                    self._invoke.schedule.addchild(assign, cursor)
+                    if first:
+                        assign.preceding_comment = (
+                            "Set-up all of the loop bounds")
+                        first = False
+
                     cursor += 1
                     loop.stop_expr = Reference(ubound)
             else:
