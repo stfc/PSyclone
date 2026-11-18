@@ -162,6 +162,8 @@ For example:
 Type annotations
 ----------------
 
+..
+  TODO #3682: Update with https://github.com/stfc/PSyclone/pull/3681#discussion_r4601781496
 Use Python 3.9-compatible annotations, following PEP 484
 (https://peps.python.org/pep-0484/). Use ``Union[X, Y]`` from ``typing``
 rather than ``X | Y``. Use ``Optional[X]`` or ``Union[X, None]`` for a value
