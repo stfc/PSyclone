@@ -338,7 +338,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "    call f1_proxy%halo_exchange(depth=1)\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in code
-    expected += "    do cell = loop1_start, loop1_stop, 1\n"
+    expected += "    do cell = 1, loop1_stop, 1\n"
     assert expected in code
 
     expected = (
