@@ -12,7 +12,7 @@ import re
 import pytest
 
 from psyclone.domain.common import DriverCreator
-from psyclone.domain.lfric import LFRicDriverCreator
+from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import (Assignment, Literal, Routine,
                                   StructureReference)
@@ -81,7 +81,7 @@ def test_lfric_driver_add_result_tests(fortran_writer):
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_simple_test():
-    '''Test the full pipeline: Add kernel extraction to a kernel and
+    '''Test the full pipeline: Add kernel extraction to a schedule and
     request driver creation. Read in the written driver, and make sure
     any variable that is provided in the kernel call is also read
     in the driver. '''
@@ -91,7 +91,7 @@ def test_lfric_driver_simple_test():
 
     extract = LFRicExtractTrans()
 
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     _ = psy.gen
@@ -162,7 +162,7 @@ def test_lfric_driver_external_symbols():
                              "symbols.f90", "lfric", dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
     code = psy.gen

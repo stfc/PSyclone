@@ -12,12 +12,12 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.domain.common.transformations import (
     KernelInlineTrans, KernelModuleInlineTrans)
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicColourAndOMPTrans
 from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, Call, CodeBlock, Fparser2CodeBlock, Literal,
-    Node, Reference)
+    Loop, Node, Reference)
 from psyclone.psyir.symbols import ImportInterface, ScalarType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
@@ -137,13 +137,13 @@ def test_kernel_inline_trans_lfric_colouring(tmp_path):
 
     # Colouring after the inline request changes arguments that are only
     # constructed when the kernel is lowered.
-    LFRicColourTrans().apply(invoke.schedule.children[0])
+    LFRicColourTrans().apply(invoke.schedule.walk(LFRicLoop)[0])
     code = str(psy.gen)
 
     # The code is inlined inside the LFRic loop
     assert "call testkern_code_inlined_" not in code
     assert """
-      do cell = loop1_start, last_edge_cell_all_colours(colour), 1
+      do cell = 1, last_edge_cell_all_colours(colour), 1
         ! Deferred-Inline successful for kernel 'testkern_code_inlined_'
         f1_data(map_w1(1 - 1 + LBOUND(map_w1, dim=1),cmap(colour,cell))) = a
     """ in code
@@ -181,9 +181,18 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
     schedule = invoke.schedule
     # This has two lfric loops with two kernels, fuse them in the first loop
     # manually (no validation)
-    second_loop = schedule.children[1].detach()
+    loops = schedule.walk(LFRicLoop)
+    # Count how many loops occur before this one so that we can find
+    # the lowered instance.
+    prior_loops = 0
+    for child in schedule.children:
+        if child is loops[0]:
+            break
+        prior_loops += 1
+
+    second_loop = loops[1].detach()
     second_kernel = second_loop.loop_body[0].detach()
-    schedule.children[0].loop_body.addchild(second_kernel)
+    loops[0].loop_body.addchild(second_kernel)
 
     # Now inline the first kernel (which has en empty body)
     kernels = schedule.walk(CodedKern)
@@ -192,8 +201,9 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
 
     # The resulting body only have one call, that of the second kernel
     schedule.lower_to_language_level()
-    assert len(schedule.children[0].loop_body.children) == 1
-    assert isinstance(schedule.children[0].loop_body[0], Call)
+    loop = schedule.walk(Loop)[prior_loops]
+    assert len(loop.loop_body.children) == 1
+    assert isinstance(loop.loop_body[0], Call)
 
 
 @pytest.mark.parametrize("statement_count", [0, 2])
@@ -204,7 +214,7 @@ def test_kernel_inline_trans_domain_splicing(statement_count):
     schedule = invoke.schedule
     # Keep one domain loop so that the final number of statements is solely
     # determined by the inlined routine body.
-    schedule.children[1].detach()
+    schedule.walk(LFRicLoop)[1].detach()
     kernel = schedule.walk(CodedKern)[0]
     KernelModuleInlineTrans().apply(kernel)
     if statement_count:
@@ -212,7 +222,7 @@ def test_kernel_inline_trans_domain_splicing(statement_count):
     KernelInlineTrans().apply(kernel)
 
     schedule.lower_to_language_level()
-    assert len(schedule.children) == statement_count
+    assert len(schedule.children) == 11 + statement_count
     assert all(isinstance(child, Assignment) for child in schedule.children)
 
 
