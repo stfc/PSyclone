@@ -187,17 +187,20 @@ class ScopingNode(Node):
         next_table = mapping
         if isinstance(mapping, dict):
             for symbol in self.symbol_table.symbols:
+                # Do not modify references within the declarations of symbols
+                # that are keys or values in the replacement mapping. These
+                # will be updated by its own symbol.replace_symbols_using(...)
                 if (symbol not in mapping and
                         symbol not in mapping.values()):
                     symbol.replace_symbols_using(mapping)
         if self.parent and isinstance(mapping, SymbolTable):
             try:
-                # If this node is not within a scope we get a SymbolError
                 if mapping is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass
 
+        # Propagate the identity mapping or selected table to child nodes.
         super().replace_symbols_using(next_table)
 
     @property

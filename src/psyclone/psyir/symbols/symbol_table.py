@@ -631,7 +631,8 @@ class SymbolTable():
         not modify either table.
 
         :param other_table: the table whose symbols would be merged.
-        :param symbols_to_skip: symbols excluded from consideration.
+        :param symbols_to_skip: symbols in the provided table excluded from
+            consideration.
 
         :returns: a dictionary mapping Symbols to existing Symbols.
 
@@ -680,7 +681,7 @@ class SymbolTable():
             parameters = valid
 
         # A COMMON block variable is identified by the COMMON block name and
-        # the position of the variable on it.
+        # the position of the variable within it.
         def common_key(symbol):
             return (symbol.interface.name.lower(), symbol.interface.position)
 
@@ -2061,10 +2062,9 @@ class SymbolTable():
                 # of this ScopingNode that do not have a wildcard import.
                 continue
 
-            # We want to replace the local symbol with the newly
-            # imported one in the outer scope (`symbol`).
-            # Update declarations and references by identity so that
-            # unrelated symbols with the same name are left unchanged.
+            # We want to replace the local symbol with the newly imported one
+            # in the outer scope. Update declarations and references by identity
+            # so that unrelated symbols with the same name are left unchanged.
             self.node.replace_symbols_using({test_symbol: symbol})
             # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
