@@ -215,7 +215,7 @@ def test_lower_to_language_normal_loop():
                            dist_mem=False, idx=0)
     sched = invoke.schedule
     loop1 = sched.walk(LFRicLoop)[1]
-    assert loop1.start_expr.symbol.name == "loop1_start"
+    assert loop1.start_expr.value == "1"
     all_loops = sched.walk(Loop)
     for idx, loop in enumerate(all_loops):
         if loop1 is loop:
@@ -228,9 +228,9 @@ def test_lower_to_language_normal_loop():
 
     # Verify that after lowering the symbol name does not change
     # if a previous loop is removed:
-    assert lowered_loops[idx].start_expr.symbol.name == "loop1_start"
+    assert lowered_loops[idx].stop_expr.symbol.name == "loop1_stop"
     lowered_loops[0].detach()
-    assert lowered_loops[idx].start_expr.symbol.name == "loop1_start"
+    assert lowered_loops[idx].stop_expr.symbol.name == "loop1_stop"
 
 
 def test_lower_to_language_domain_loops():
@@ -449,17 +449,16 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert "loop0_start = 1\n" in generated_code
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "    ! Call kernels\n"
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -484,14 +483,14 @@ def test_itn_space_fld_and_op_writers(tmpdir):
             assert ("loop0_stop = mesh%get_last_halo_cell(1)\n" in
                     generated_code)
             output = (
-                "    do cell = loop0_start, loop0_stop, 1\n")
+                "    do cell = 1, loop0_stop, 1\n")
             assert output in generated_code
         else:
             assert ("loop0_stop = op1_proxy%fs_from%get_ncell()\n" in
                     generated_code)
             output = (
                 "    ! Call kernels\n"
-                "    do cell = loop0_start, loop0_stop, 1")
+                "    do cell = 1, loop0_stop, 1")
             assert output in generated_code
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -513,18 +512,16 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "loop0_start = 1\n" in generated_code
-
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)" in generated_code
         output = (
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in generated_code
         output = (
             "    ! Call kernels\n"
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
 
 
@@ -543,12 +540,10 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "loop0_start = 1\n" in generated_code
-
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
     else:
         # Loop upper bound should use f2 as that field is *definitely*
@@ -557,7 +552,7 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert "loop0_stop = f2_proxy%vspace%get_ncell()" in generated_code
         output = (
             "    ! Call kernels\n"
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = 1, loop0_stop, 1\n")
         assert output in generated_code
 
 

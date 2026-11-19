@@ -52,7 +52,6 @@ def test_field(tmpdir):
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use constants_mod, only : i_def\n"
         "    integer(kind=i_def) :: cell\n"
-        "    integer(kind=i_def) :: loop0_start\n"
         "    integer(kind=i_def) :: loop0_stop\n"
         "    integer(kind=i_def) :: ndf_w1\n"
         "    integer(kind=i_def) :: ndf_w2\n"
@@ -109,11 +108,10 @@ def test_field(tmpdir):
         "    undf_w3 = m2_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
         "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
         "\n"
         "    ! Call kernels\n"
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -150,7 +148,6 @@ def test_field_deref(tmpdir, dist_mem):
 
     assert (
         "    integer(kind=i_def) :: cell\n"
-        "    integer(kind=i_def) :: loop0_start\n"
         "    integer(kind=i_def) :: loop0_stop\n"
     ) in generated_code
 
@@ -252,7 +249,7 @@ def test_field_deref(tmpdir, dist_mem):
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
         output = (
-            "    ! Call kernels\n    do cell = loop0_start, loop0_stop, 1\n"
+            "    ! Call kernels\n    do cell = 1, loop0_stop, 1\n"
         )
         assert output in generated_code
     output = (
@@ -299,7 +296,6 @@ f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
     use constants_mod, only : i_def
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
     integer(kind=i_def) :: ndf_any_w2
@@ -526,9 +522,8 @@ f6, m5, m6, m7)
         "    end if\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
@@ -675,7 +670,6 @@ def test_int_field_fs(tmp_path):
 m4, f5, f6, m5, m6, f7, f8, m7)
     use mesh_mod, only : mesh_type
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
 {ndf_text}
@@ -806,7 +800,6 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "    undf_ads1_m7__1 = m7_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
         "\n"
         "    ! Call kernels and communication routines\n"
@@ -852,7 +845,7 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "    if (m7_proxy%is_dirty(depth=1)) then\n"
         "      call m7_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_fs_int_field_code(nlayers_f1, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
@@ -1256,7 +1249,7 @@ def test_field_nlayers_anydspace(tmp_path):
     undf_ads1_df8_shallow_1 = df8_proxy%vspace%get_undf()''' in output
 
     assert '''\
-    do cell = loop2_start, loop2_stop, 1
+    do cell = 1, loop2_stop, 1
       call testkern_nlayers_ndata_anydspace_code(nlayers_f1, nlayers_shallow, \
 ndata_precip, a, f1_data, df8_data, df9_data, ndf_w1, undf_w1, map_w1(:,cell),\
  ndf_ads1_df8_shallow_1, undf_ads1_df8_shallow_1, map_ads1_df8_shallow_1\

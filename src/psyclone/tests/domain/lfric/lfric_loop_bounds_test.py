@@ -49,8 +49,6 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     lbounds.initialise(0)
 
     # Check that new symbols exist
-    start_sym = table.lookup("loop0_start")
-    assert start_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     stop_sym = table.lookup("loop0_stop")
     assert stop_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
 
@@ -62,5 +60,4 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     # added to the PSyIR tree.
     lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
-    assert table.lookup("loop0_start") is start_sym
     assert table.lookup("loop0_stop") is stop_sym
