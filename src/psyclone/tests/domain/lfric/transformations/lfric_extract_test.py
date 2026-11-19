@@ -622,14 +622,15 @@ def test_extract_kernel_and_builtin_lfric():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy",\
- "invoke_0-r0", 10, 6)
+ "invoke_0-r0", 8, 6)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
-    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
+    CALL extract_psy_data % PreDeclareVariable("undf_as1_f2__1", \
+undf_as1_f2__1)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data_post", f3_data)
@@ -640,14 +641,14 @@ def test_extract_kernel_and_builtin_lfric():
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
-    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % ProvideVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
+    CALL extract_psy_data % ProvideVariable("undf_as1_f2__1", undf_as1_f2__1)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreEnd
-    do df = 1, loop1_stop, 1
+    do df = 1, undf_as1_f2__1, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
       f2_data(df) = 0.0
     enddo
@@ -722,7 +723,7 @@ def test_extract_colouring_omp_lfric():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
-"invoke_0-ru_code-r0", 32, 27)
+"invoke_0-ru_code-r0", 30, 27)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -740,10 +741,10 @@ diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("istp", istp)
     CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
 last_edge_cell_all_colours)
-    CALL extract_psy_data % PreDeclareVariable("loop4_stop_1", loop4_stop_1)
     CALL extract_psy_data % PreDeclareVariable("map_w0", map_w0)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("map_w3", map_w3)
+    CALL extract_psy_data % PreDeclareVariable("ncolour", ncolour)
     CALL extract_psy_data % PreDeclareVariable("ndf_w0", ndf_w0)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w3", ndf_w3)
@@ -805,10 +806,10 @@ diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("istp", istp)
     CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
 last_edge_cell_all_colours)
-    CALL extract_psy_data % ProvideVariable("loop4_stop_1", loop4_stop_1)
     CALL extract_psy_data % ProvideVariable("map_w0", map_w0)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("map_w3", map_w3)
+    CALL extract_psy_data % ProvideVariable("ncolour", ncolour)
     CALL extract_psy_data % ProvideVariable("ndf_w0", ndf_w0)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w3", ndf_w3)
@@ -822,7 +823,7 @@ last_edge_cell_all_colours)
     CALL extract_psy_data % ProvideVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr", weights_z_qr)
     CALL extract_psy_data % PreEnd
-    do colour = 1, loop4_stop_1, 1
+    do colour = 1, ncolour, 1
       !$omp parallel do default(shared) private(cell) schedule(static)
       do cell = 1, last_edge_cell_all_colours(colour), 1
         call ru_code(nlayers_b, b_data, a_data, istp, rdt, c_data, e_1_data, \

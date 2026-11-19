@@ -224,7 +224,7 @@ def test_rc_continuous_depth():
             assert f"if ({field_name}_proxy%is_dirty(depth=3)) then" in result
             assert f"call {field_name}_proxy%halo_exchange(depth=3)" in result
             assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-            assert "do cell = loop0_start, loop0_stop" in result
+            assert "do cell = 1, loop0_stop" in result
             assert ("    call f1_proxy%set_dirty()\n"
                     "    call f1_proxy%set_clean(2)") in result
 
@@ -255,7 +255,7 @@ def test_rc_continuous_no_depth():
                 f"      call {fname}_proxy%halo_exchange(depth=max_halo_"
                 f"depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert ("    call f1_proxy%set_dirty()\n"
             "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
@@ -281,7 +281,7 @@ def test_rc_discontinuous_depth(tmpdir, annexed):
                 f"      call {field_name}_proxy%halo_exchange(depth=3)"
                 in result)
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert ("    call m2_proxy%set_dirty()\n"
             "    call m2_proxy%set_clean(3)") in result
 
@@ -311,7 +311,7 @@ def test_rc_discontinuous_no_depth(annexed):
         assert (f"call {field_name}_proxy%halo_exchange("
                 f"depth=max_halo_depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert "call m2_proxy%set_dirty()" not in result
     assert "call m2_proxy%set_clean(max_halo_depth_mesh)" in result
 
@@ -332,7 +332,7 @@ def test_rc_all_discontinuous_depth(tmpdir):
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
     assert "call f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f1_proxy%set_clean(3)" in result
 
@@ -356,7 +356,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
     assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -380,7 +380,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
         assert f"if (f2_proxy({idx})%is_dirty(depth=3)) then" in result
         assert f"call f2_proxy({idx})%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     for idx in range(1, 4):
         assert f"call f1_proxy({idx})%set_dirty()" in result
         assert f"call f1_proxy({idx})%set_clean(3)" in result
@@ -407,7 +407,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
         assert (f"call f2_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
                 f")") in result
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     for idx in range(1, 4):
         assert f"call f1_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
 
@@ -432,7 +432,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     assert "if (f1_proxy%is_dirty(depth=3)) then" not in result
     assert "call f1_proxy%halo_exchange(depth=3)" in result
     assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop1_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f3_proxy%set_dirty()" in result
     assert "call f3_proxy%set_clean(3)" in result
@@ -459,7 +459,7 @@ def test_rc_all_disc_prev_depend_no_depth():
             "then") not in result
     assert "call f1_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop1_stop" in result
     assert "call f3_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
@@ -482,7 +482,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
         assert f"if (f1_proxy({idx})%is_dirty(depth=3)) then" not in result
         assert f"call f1_proxy({idx})%halo_exchange(depth=3)" in result
         assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop1_stop" in result
     for idx in range(1, 4):
         assert f"call f1_proxy({idx})%set_dirty()" in result
         assert f"call f3_proxy({idx})%set_dirty()" in result
@@ -510,7 +510,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
         assert (f"call f1_proxy({idx})%halo_exchange(depth=max_halo_depth_"
                 f"mesh)") in result
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop1_stop" in result
     for idx in range(1, 4):
         assert f"call f1_proxy({idx})%set_dirty()" in result
         assert f"call f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
@@ -543,7 +543,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
         assert (f"call f1_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
                 f")" in result)
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop1_stop" in result
     for idx in range(1, 4):
         assert f"call f1_proxy({idx})%set_dirty()" in result
         assert f"call f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
@@ -570,7 +570,7 @@ def test_rc_dofs_depth():
         assert f"if ({field}_proxy%is_dirty(depth=3)) then" in result
         assert f"call {field}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
-    assert "do df = loop0_start, loop0_stop" in result
+    assert "do df = 1, loop0_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f1_proxy%set_clean(3)" in result
 
@@ -594,7 +594,7 @@ def test_rc_dofs_no_depth():
     assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
     assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo()" in result
-    assert "do df = loop0_start, loop0_stop" in result
+    assert "do df = 1, loop0_stop" in result
     assert "call f1_proxy%set_dirty()" not in result
     assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
@@ -636,7 +636,7 @@ def test_rc_dofs_depth_prev_dep(annexed, tmpdir):
         assert f"if ({field_name}_proxy%is_dirty(depth=1)) then" in result
         assert f"call {field_name}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
-    assert "do df = loop1_start, loop1_stop" in result
+    assert "do df = 1, loop1_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f1_proxy%set_clean(3)" in result
 
@@ -666,7 +666,7 @@ def test_rc_dofs_no_depth_prev_dep():
         assert f"if ({fname}_proxy%is_dirty(depth=1)) then" in result
         assert f"call {fname}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo()" in result
-    assert "do df = loop1_start, loop1_stop" in result
+    assert "do df = 1, loop1_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
@@ -679,7 +679,7 @@ def test_continuous_no_set_clean():
                         TEST_API, idx=0, dist_mem=True)
     result = str(psy.gen)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in result
-    assert "do cell = loop0_start, loop0_stop" in result
+    assert "do cell = 1, loop0_stop" in result
     assert "call f1_proxy%set_dirty()" in result
     assert "call f1_proxy%set_clean(" not in result
 
@@ -1445,12 +1445,11 @@ def test_rc_colour(tmpdir):
         "      call m2_proxy%halo_exchange(depth=2)\n"
         "    end if\n" in result)
     assert "    cmap => mesh%get_colour_map()\n" in result
-    assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "    do colour = loop0_start, loop0_stop, 1\n"
-        "      do cell = loop1_start, last_halo_cell_all_colours(colour,2), 1"
+        "    do colour = 1, ncolour, 1\n"
+        "      do cell = 1, last_halo_cell_all_colours(colour,2), 1"
         in result)
 
     # We've requested redundant computation out to the level 2 halo
@@ -1495,12 +1494,11 @@ def test_rc_max_colour(tmpdir):
         "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "    end if\n" in result)
     assert "    cmap => mesh%get_colour_map()\n" in result
-    assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "    do colour = loop0_start, loop0_stop, 1\n"
-        "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "    do colour = 1, ncolour, 1\n"
+        "      do cell = 1, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n"
         in result)
 
