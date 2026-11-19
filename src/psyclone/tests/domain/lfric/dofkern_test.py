@@ -134,18 +134,16 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
     # Distributed memory
     if annexed and dist_mem:
         expected = (
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
         )
     elif not annexed and dist_mem:
         expected = (
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
         )
 
     # Shared memory
     elif not dist_mem:
-        expected = "    loop0_start = 1\n    loop0_stop = undf_w1"
+        expected = "do df = 1, undf_w1, 1\n"
 
     assert expected in code
     # Check compilation
