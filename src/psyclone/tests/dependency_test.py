@@ -11,7 +11,8 @@
 import os
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    KernStubArgList, LFRicKern, LFRicLoop, LFRicKernMetadata)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
@@ -205,15 +206,13 @@ def test_lfric():
 
     '''
     schedule = get_psylayer_schedule("1_single_invoke.f90", api="lfric")
-    var_accesses = schedule.reference_accesses()
+    var_accesses = schedule.walk(LFRicLoop)[0].reference_accesses()
     assert str(var_accesses) == (
         "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, "
-        "field_proxy_type: CONSTANT, field_type: "
-        "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
+        "loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: "
         "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
-        "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "
-        "undf_w2: READ, undf_w3: READ, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ")
+        "ndf_w3: READ, nlayers_f1: READ, undf_w1: READ, "
+        "undf_w2: READ, undf_w3: READ")
 
 
 def test_lfric_kern_cma_args():
@@ -276,7 +275,8 @@ def test_lfric_ref_element():
     '''
     schedule = get_psylayer_schedule("23.4_ref_elem_all_faces_invoke.f90",
                                      "lfric")
-    var_info = str(schedule.reference_accesses())
+    loop = schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "normals_to_faces: READ," in var_info
     assert "out_normals_to_faces: READ," in var_info
     assert "nfaces_re: READ," in var_info
@@ -288,7 +288,8 @@ def test_lfric_operator():
 
     '''
     schedule = get_psylayer_schedule("6.1_eval_invoke.f90", "lfric")
-    var_info = str(schedule.reference_accesses())
+    loop = schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "f0_data: INC," in var_info
     assert "cmap_data: READ," in var_info
     assert "basis_w0_on_w0: READ," in var_info
@@ -300,9 +301,9 @@ def test_lfric_cma():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
-    invoke_info.setup_psy_layer_symbols()
-    var_info = str(invoke_info.schedule.reference_accesses())
+    _, invoke = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
+    invoke.setup_psy_layer_symbols()
+    var_info = str(invoke.schedule.reference_accesses())
     assert "ncell_2d: WRITE+READ," in var_info
     assert "cma_op1_alpha: WRITE+READ," in var_info
     assert "cma_op1_bandwidth: WRITE+READ," in var_info
@@ -324,7 +325,8 @@ def test_lfric_cma2():
 
     '''
     psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    loop = invoke_info.schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "cma_indirection_map_as1_field_a__1: READ," in var_info
     assert "cma_indirection_map_as2_field_b__1: READ," in var_info
 
@@ -334,7 +336,8 @@ def test_lfric_stencils():
 
     '''
     psy, invoke_info = get_invoke("14.4_halo_vector.f90", "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    loop = invoke_info.schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "f2_stencil_size: READ," in var_info
     assert "f2_stencil_dofmap: READ," in var_info
 
@@ -344,9 +347,10 @@ def test_lfric_various_basis():
     functionality work as expected.
 
     '''
-    psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
-                                  "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                "lfric", idx=0)
+    loop = invoke_info.schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "basis_w3_qr: READ," in var_info
     assert "diff_basis_w0_qr: READ," in var_info
     assert "diff_basis_w2_qr: READ," in var_info
@@ -361,9 +365,9 @@ def test_lfric_field_bc_kernel():
     array fix are created correctly.
 
     '''
-    psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
-                                  "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90", "lfric", idx=0)
+    loop = invoke_info.schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "boundary_dofs_a: READ," in var_info
 
 
@@ -383,9 +387,10 @@ def test_lfric_operator_bc_kernel():
     detects the right implicit parameters.
 
     '''
-    psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
-                                  "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                "lfric", idx=0)
+    loop = invoke_info.schedule.walk(LFRicLoop)[0]
+    var_info = str(loop.reference_accesses())
     assert "boundary_dofs_op_a: READ," in var_info
 
 

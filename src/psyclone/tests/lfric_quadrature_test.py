@@ -68,7 +68,6 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def) :: diff_dim_w3
     integer(kind=i_def) :: dim_w1
     integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
     integer(kind=i_def) :: ndf_w1
@@ -84,10 +83,10 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
     integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr
     real(kind=r_def), intent(in) :: a
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
@@ -189,9 +188,8 @@ def test_field_xyoz(tmpdir):
         "    end if\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
@@ -280,7 +278,6 @@ def test_face_qr(tmpdir, dist_mem):
     integer(kind=i_def) :: diff_dim_w3
     integer(kind=i_def) :: dim_w1
     integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop""" in generated_code
 
     if dist_mem:
@@ -300,10 +297,10 @@ def test_face_qr(tmpdir, dist_mem):
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
     integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w1_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w3_qr
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
@@ -408,19 +405,17 @@ def test_face_qr(tmpdir, dist_mem):
             "    end if\n"
             "\n"
             "    ! Set-up all of the loop bounds\n"
-            "    loop0_start = 1\n"
             "    loop0_stop = mesh%get_last_halo_cell(1)\n")
     else:
         init_output2 += (
             "    ! Set-up all of the loop bounds\n"
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "\n"
             "    ! Call kernels\n")
     assert init_output2 in generated_code
 
     compute_output = (
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_qr_faces_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "

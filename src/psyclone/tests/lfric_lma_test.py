@@ -491,7 +491,6 @@ quadrature_xyoz_type
     integer(kind=i_def) :: diff_dim_w0
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
     integer(kind=i_def) :: ndf_w0
@@ -502,9 +501,9 @@ quadrature_xyoz_type
     integer(kind=i_def) :: np_z_qr
     integer(kind=i_def) :: undf_w0
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w0_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
@@ -585,9 +584,8 @@ ndf_w2, diff_basis_w2_qr)
     end if
 
     ! Set-up all of the loop bounds
-    loop0_start = 1
     loop0_stop = mesh%get_last_halo_cell(1)
-    do cell = loop0_start, loop0_stop, 1
+    do cell = 1, loop0_stop, 1
       call assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers_mapping, \
 mapping_proxy%ncell_3d, mapping_local_stencil, coord_1_data, coord_2_data, \
 coord_3_data, ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, undf_w0, \

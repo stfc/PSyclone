@@ -2429,7 +2429,7 @@ def test_halo_exchange(tmpdir):
         "    end if\n")
     assert output1 in generated_code
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
-    assert "do cell = loop0_start, loop0_stop, 1\n" in generated_code
+    assert "do cell = 1, loop0_stop, 1\n" in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -2472,7 +2472,7 @@ def test_halo_exchange_inc(annexed):
         "    if (f_proxy%is_dirty(depth=1)) then\n"
         "      call f_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
-        "    do cell = loop1_start, loop1_stop, 1\n")
+        "    do cell = 1, loop1_stop, 1\n")
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in result
     assert output1 in result
@@ -3000,9 +3000,8 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    end if\n"
             "\n"
             "    ! Set-up all of the loop bounds\n"
-            "    loop0_start = 1\n"
             "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "    do cell = loop0_start, loop0_stop, 1\n"
+            "    do cell = 1, loop0_stop, 1\n"
             "      call testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
@@ -3022,11 +3021,10 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    undf_any_w2 = f1_proxy%vspace%get_undf()\n"
             "\n"
             "    ! Set-up all of the loop bounds\n"
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "\n"
             "    ! Call kernels\n"
-            "    do cell = loop0_start, loop0_stop, 1\n"
+            "    do cell = 1, loop0_stop, 1\n"
             "      call testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
@@ -3811,17 +3809,11 @@ operator_real64_type
         '    use mesh_mod, only : mesh_type\n'
         '    use constants_mod, only : i_def\n'
         '    integer(kind=i_def) :: cell\n'
-        '    integer(kind=i_def) :: loop0_start\n'
         '    integer(kind=i_def) :: loop0_stop\n'
-        '    integer(kind=i_def) :: loop1_start\n'
         '    integer(kind=i_def) :: loop1_stop\n'
-        '    integer(kind=i_def) :: loop2_start\n'
         '    integer(kind=i_def) :: loop2_stop\n'
-        '    integer(kind=i_def) :: loop3_start\n'
         '    integer(kind=i_def) :: loop3_stop\n'
-        '    integer(kind=i_def) :: loop4_start\n'
         '    integer(kind=i_def) :: loop4_stop\n'
-        '    integer(kind=i_def) :: loop5_start\n'
         '    integer(kind=i_def) :: loop5_stop\n'
         '    integer(kind=i_def) :: max_halo_depth_mesh\n'
         '    integer(kind=i_def) :: ndf_w0\n'
