@@ -646,6 +646,13 @@ class DefinitionUseChain:
                 self._killed[sig].extend(self._defsout[sig])
                 self._defsout[sig] = []
             self._defsout[sig].append(reference)
+        elif (isinstance(reference.parent, Loop) and
+              reference.parent.variable_reference is reference):
+            # If we have a Loop variable it is always written to.
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.
@@ -830,6 +837,7 @@ class DefinitionUseChain:
                 # The start/stop/step expr are non-conditional (but
                 # also read only).
                 control_flow_nodes.append(None)
+                current_block.append(node.variable_reference)
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
                 current_block.append(node.step_expr)
@@ -1049,6 +1057,13 @@ class DefinitionUseChain:
                     self._killed[sig].extend(self._defsout[sig])
                     self._defsout[sig] = []
                 self._defsout[sig].append(reference)
+        elif (isinstance(reference.parent, Loop) and
+              reference.parent.variable_reference is reference):
+            # If we have a Loop variable it is always written to.
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.

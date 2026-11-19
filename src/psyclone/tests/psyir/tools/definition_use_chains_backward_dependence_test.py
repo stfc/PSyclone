@@ -1207,3 +1207,26 @@ def test_backward_accesses_unsupportedtype_pure_call_argument(fortran_reader):
     assert len(reaches[a_sig]) == 1
     assert reaches[a_sig][0] is routine.walk(Call)[1].arguments[0]
     assert len(reaches[i_sig]) == 0
+
+
+def test_backward_access_loop_var(fortran_reader):
+    ''' Test that the DUCs find a loop variable when searching
+    for backward_accesses.'''
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine test
+        integer :: a, i
+
+        i = a
+        do i = 1, 100
+
+        end do
+        i = 1
+        end subroutine
+        """)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[1].lhs
+    l_sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    reaches = chains.find_backward_accesses()[l_sig]
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
