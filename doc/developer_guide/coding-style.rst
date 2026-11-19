@@ -67,6 +67,13 @@ Installation of the tools is described in :ref:`dev-installation`.
 Additionally, we recommend using `pylint` judiciously. Avoid refactoring solely to
 satisfy a complexity warning when doing so would make the code harder to understand.
 
+In addition to the PEP8 rules:
+- When formatting text strings, use f-string if possible. If these expand multiple
+lines, each string quote should start with the 'f' prefix.
+- Avoid using backslashes to split lines. Prefer parenthesis when an unfinished
+expression needs to be split.
+
+
 License notice
 --------------
 
