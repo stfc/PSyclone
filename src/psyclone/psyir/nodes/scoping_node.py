@@ -170,14 +170,14 @@ class ScopingNode(Node):
         those in the supplied table by name or dictionary by identity. If there
         is no match for a given Symbol then it is left unchanged.
 
-        Since this is a ScopingNode, it is associated with a symbol table.
-        Therefore, if the supplied table is the one for the scope containing
-        this node (if any), the one passed to the child nodes is updated to be
-        the one associated with this node.
+        When mapping is a SymbolTable, if it is the symbol table of this node's
+        enclosing scope, pass this node's own table to its children instead.
+        This makes lookup respect local declarations while still searching
+        enclosing scopes.
 
-        A dictionary matches symbols by identity and also updates declarations
-        in this scope. Definitions of the replaced and replacement symbols
-        themselves are left unchanged.
+        If mapping is a dictionary, pass the same mapping to all descendants.
+        Also update references within declarations in this node's symbol table,
+        Skip declarations of Symbols that are keys or values in the mapping.
 
         :param mapping: the symbol table from which to get replacement
             symbols, or a dictionary mapping original Symbols to replacements
@@ -187,9 +187,8 @@ class ScopingNode(Node):
         next_table = mapping
         if isinstance(mapping, dict):
             for symbol in self.symbol_table.symbols:
-                # Do not modify references within the declarations of symbols
-                # that are keys or values in the replacement mapping. These
-                # will be updated by its own symbol.replace_symbols_using(...)
+                # Update references within other symbols' declarations, but
+                # skip declarations of the original and replacement symbols.
                 if (symbol not in mapping and
                         symbol not in mapping.values()):
                     symbol.replace_symbols_using(mapping)
@@ -200,7 +199,6 @@ class ScopingNode(Node):
             except SymbolError:
                 pass
 
-        # Propagate the identity mapping or selected table to child nodes.
         super().replace_symbols_using(next_table)
 
     @property

@@ -7,7 +7,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from typing import Union, Optional
+from typing import Optional
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
@@ -15,7 +15,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 

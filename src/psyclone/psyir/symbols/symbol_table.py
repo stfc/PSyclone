@@ -623,12 +623,12 @@ class SymbolTable():
             self, other_table: SymbolTable,
             symbols_to_skip: Iterable[Symbol] = ()) -> dict[Symbol, Symbol]:
         ''' Identify symbols from the given symbol table that can reuse
-        existing symbols in this symbol table..
+        existing symbols in this symbol table. These are:
 
-        Parameters must have the same name, datatype and value, including
-        equivalent dependencies. COMMON members are matched by block name
-        and position, independently of their local names. This method does
-        not modify either table.
+        - Parameters that have the same name, datatype and value, including
+        equivalent dependencies.
+        - Members of the same COMMON block, these are matched by block name
+        and position, independently of their local names.
 
         :param other_table: the table whose symbols would be merged.
         :param symbols_to_skip: symbols in the provided table excluded from
@@ -642,7 +642,7 @@ class SymbolTable():
         def dependencies_match(symbol: DataSymbol, existing: DataSymbol,
                                replacements: dict[Symbol, Symbol]) -> bool:
             '''
-            :param symbol: the first symbol to compare.
+            :param symbol: the first symbol to compare (with replacements).
             :param existing: the second symbol to compare.
             :param replacements: a map of already validated equivalent symbol.
 
@@ -671,31 +671,41 @@ class SymbolTable():
                     symbol.initial_value == existing.initial_value):
                 parameters[symbol] = existing
 
-        # Removing one candidate can invalidate dependent parameters, so
-        # repeat until all remaining candidates have matching dependencies.
+        # The equality comparison above is necessary, but not sufficient,
+        # we need to prove that the symbols in each parameter candidate
+        # match exactly. Since parameters can depend on other parameters,
+        # when we invalidate we need to recheck until all parameters match
         while True:
             valid = {sym: existing for sym, existing in parameters.items()
                      if dependencies_match(sym, existing, parameters)}
             if len(valid) == len(parameters):
                 break
+            # Update dictionary without non-matching parameters
             parameters = valid
 
         # A COMMON block variable is identified by the COMMON block name and
-        # the position of the variable within it.
+        # the position of the variable within it. Make a map of all common
+        # block members symbols available in this symbol table
         def common_key(symbol):
             return (symbol.interface.name.lower(), symbol.interface.position)
 
-        # COMMON associates storage by block and position, not by the local
-        # names of its members. Build all alias replacements before checking
-        # their declarations so dependencies on other aliases can be matched.
         common_members = {common_key(sym): sym for sym in self.datasymbols
                           if sym.is_commonblock}
-        aliases = {sym: common_members[common_key(sym)] for sym in candidates
-                   if sym.is_commonblock and common_key(sym) in common_members}
-        replacements = {**parameters, **aliases}
-        for symbol, existing in aliases.items():
-            # Bounds and kind expressions can themselves use parameters or
-            # COMMON aliases. Compare after substituting those dependencies.
+
+        # Check if any of the candidates in the given table matches the COMMON
+        # block identifier, in that case both are aliases of each other.
+        cb_aliases = {
+            sym: common_members[common_key(sym)] for sym in candidates
+            if sym.is_commonblock and common_key(sym) in common_members}
+
+        # Combine parameters and COMMON aliases into the final replacement map.
+        replacements = {**parameters, **cb_aliases}
+
+        # Array bounds and kind expressions may refer to parameters or
+        # COMMON members from other_table. Replace these references with
+        # the corresponding symbols in this table before comparing
+        # datatypes. Work on a copy to preserve the original declaration.
+        for symbol, existing in cb_aliases.items():
             candidate = symbol.copy()
             candidate.replace_symbols_using(replacements)
             if (candidate.datatype != existing.datatype or
@@ -2063,8 +2073,8 @@ class SymbolTable():
                 continue
 
             # We want to replace the local symbol with the newly imported one
-            # in the outer scope. Update declarations and references by identity
-            # so that unrelated symbols with the same name are left unchanged.
+            # in the outer scope. Update declarations and references by
+            # identity so unrelated symbols with the same name are unchanged.
             self.node.replace_symbols_using({test_symbol: symbol})
             # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
