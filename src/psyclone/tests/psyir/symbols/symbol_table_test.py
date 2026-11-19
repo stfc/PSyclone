@@ -813,10 +813,10 @@ def test_check_for_clashes_imports():
                                 interface=symbols.ImportInterface(csym2))
     table2.add(clash2)
     # No clash if passed itself.
-    table1.check_for_clashes(table1)
+    assert table1.check_for_clashes(table1) == {}
     # No clash as the containers are the same, just with different
     # capitalisation.
-    table1.check_for_clashes(table2)
+    assert table1.check_for_clashes(table2) == {}
     # Now create a clash between variables that have different capitalisation.
     csym3 = symbols.ContainerSymbol("arthur")
     table1.add(csym3)
@@ -1070,7 +1070,10 @@ def test_merge_parameter_dependencies(value, attached):
         "array", symbols.ArrayType(symbols.ScalarType.real_type(),
                                    [Reference(source.lookup("last"))]))
     source.add(array)
-    target.check_for_clashes(source)
+    replacements = target.check_for_clashes(source)
+    expected = ({source.lookup(name): target.lookup(name)
+                 for name in ["base", "middle", "last"]} if value == 3 else {})
+    assert replacements == expected
     assert (source.lookup("middle").initial_value.symbol is
             source.lookup("base"))
     target.merge(source)
@@ -1245,6 +1248,9 @@ def test_merge_common_positions_and_skip():
     skipped = source.lookup("skipped")
     # An incompatible symbol is harmless if it is excluded.
     skipped.datatype = symbols.ScalarType.integer_type()
+    assert target.check_for_clashes(
+        source, symbols_to_skip=(sym for sym in [skipped])) == {
+            source.lookup("alias_c"): target.lookup("c")}
     target.merge(source, symbols_to_skip=(sym for sym in [skipped]))
     assert {sym.name for sym in target.datasymbols} == {"a", "b", "c"}
 

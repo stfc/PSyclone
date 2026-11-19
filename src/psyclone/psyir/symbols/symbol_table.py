@@ -719,7 +719,9 @@ class SymbolTable():
 
         return replacements
 
-    def check_for_clashes(self, other_table, symbols_to_skip=()):
+    def check_for_clashes(
+            self, other_table: SymbolTable,
+            symbols_to_skip: Iterable[Symbol] = ()) -> dict[Symbol, Symbol]:
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
@@ -731,11 +733,12 @@ class SymbolTable():
         rejected even when their names differ.
 
         :param other_table: the table for which to check for clashes.
-        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param symbols_to_skip: an optional list of symbols to exclude from
+        :param symbols_to_skip: an optional iterable of symbols to exclude from
             the check.
-        :type symbols_to_skip: Iterable[
-            :py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: a validated mapping from symbols in `other_table` to symbols
+            in this table that can be reused when merging. The mapping is
+            empty if no replacements are needed or `other_table` is this table.
 
         :raises TypeError: if symbols_to_skip is supplied but is not an
             instance of Iterable.
@@ -753,11 +756,11 @@ class SymbolTable():
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         if other_table is self:
-            return
+            return {}
 
         symbols_to_skip = set(symbols_to_skip)
-        symbols_to_skip.update(
-            self._symbols_to_reuse(other_table, symbols_to_skip))
+        replacements = self._symbols_to_reuse(other_table, symbols_to_skip)
+        symbols_to_skip.update(replacements)
 
         # Check whether there are any wildcard imports common to both tables.
         self_imports = set(sym.name for sym in self.wildcard_imports())
@@ -858,6 +861,8 @@ class SymbolTable():
                         f"There is a name clash for symbol '{this_sym.name}' "
                         f"that cannot be resolved by renaming "
                         f"one of the instances because:\n- {err1}\n- {err2}")
+
+        return replacements
 
     def _add_container_symbols_from_table(self, other_table):
         '''
@@ -1104,7 +1109,9 @@ class SymbolTable():
             self.rename_symbol(self_sym, new_name)
             self.add(old_sym)
 
-    def merge(self, other_table, symbols_to_skip=()):
+    def merge(
+            self, other_table: SymbolTable,
+            symbols_to_skip: Iterable[Symbol] = ()) -> None:
         '''Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
@@ -1119,11 +1126,8 @@ class SymbolTable():
         but references in detached code cannot be updated.
 
         :param other_table: the symbol table from which to add symbols.
-        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param symbols_to_skip: an optional list of Symbols to exclude from
-                                the merge.
-        :type symbols_to_skip: Iterable[
-            :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param symbols_to_skip: an optional iterable of Symbols to exclude from
+            the merge.
 
         :raises TypeError: if `other_table` is not a SymbolTable.
         :raises TypeError: if `symbols_to_skip` is not an Iterable.
@@ -1143,9 +1147,8 @@ class SymbolTable():
             return
         symbols_to_skip = set(symbols_to_skip)
         try:
-            replacements = self._symbols_to_reuse(other_table, symbols_to_skip)
-            self.check_for_clashes(other_table,
-                                   symbols_to_skip=symbols_to_skip)
+            replacements = self.check_for_clashes(
+                other_table, symbols_to_skip=symbols_to_skip)
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
