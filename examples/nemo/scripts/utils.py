@@ -7,7 +7,6 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
-import os
 from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -57,8 +56,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy", "eos_rprof"]
 
 # Follow the same envvar knobs as insert_loop_parallelism.py
-REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
-NEMOV4 = os.environ.get('NEMOV4', False)
 
 
 def inline_calls(schedule):
@@ -132,6 +129,8 @@ def normalise_loops(
         hoist_expressions: bool = True,
         hoist_argument_expressions: bool = True,
         hoist_cdtype_expressions: bool = True,
+        reproducible: bool = False,
+        nemov4: bool = False,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -156,6 +155,8 @@ def normalise_loops(
         out of the containing Call.
     :param hoist_cdtype_expressions: whether to hoist character cdtype
         comparison expressions.
+    :param reproducible: whether reproducible results are required.
+    :param nemov4: whether the code targets NEMOv4.
     '''
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
@@ -185,7 +186,7 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if REPRODUCIBLE and NEMOV4:
+            if reproducible and nemov4:
                 if isinstance(assignment.lhs, Reference):
                     if assignment.lhs.name.lower() == "zsshp2_e":
                         # TODO #3642: Both the Fortran and the psyclone
@@ -242,7 +243,9 @@ def normalise_loops(
             hoist_expressions=hoist_expressions,
             # Make sure we never repeat this step.
             hoist_argument_expressions=False,
-            hoist_cdtype_expressions=False
+            hoist_cdtype_expressions=False,
+            reproducible=reproducible,
+            nemov4=nemov4
         )
 
     if hoist_cdtype_expressions:
@@ -332,6 +335,7 @@ def insert_explicit_loop_parallelism(
         asynchronous_parallelism: bool = False,
         uniform_intrinsics_only: bool = False,
         enable_reductions: bool = False,
+        nemov4: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -356,6 +360,7 @@ def insert_explicit_loop_parallelism(
         with non-reproducible device intrinsics.
     :param enable_reductions: whether to enable generation of reduction
         clauses automatically.
+    :param nemov4: whether the code targets NEMOv4.
 
     '''
     # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
@@ -388,7 +393,7 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        if NEMOV4:
+        if nemov4:
             # Skip if it is an array operation loop on an ice routine if along
             # the third dim or higher or if the loop nests a loop over ice
             # points (npti) or if the loop and array dims do not match.

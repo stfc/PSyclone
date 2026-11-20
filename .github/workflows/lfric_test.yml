@@ -42,8 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: ee72b93c3e069220fdc1fbb3fcaf027d0ea6d9a3
-  LFRIC_CORE_HASH: d64f14e416aa95eeddec0e4b6123e2f2b69755f2
+  LFRIC_APPS_HASH: use_run_psyclone
+  LFRIC_CORE_HASH: use_run_psyclone
   PYTHON_VERSION: "3.15"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
@@ -129,7 +129,11 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-passthrough
-        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
+        export PSYCLONE_CONTROL_FILE=${PSYCLONE_LFRIC_DIR}/psyclone_control-passthrough.yaml
+        ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-passthrough gungho_model
+        unset PSYCLONE_CONTROL_FILE
+
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -161,6 +165,7 @@ jobs:
         # Clean previous version and compile again
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         # Attempt the build twice since signal 11 compiler failures can often be resolved by re-building
         for attempt in 1 2; do
           # '!' Suppress errexit for the build command (as we always want to do the 'tee')
@@ -210,6 +215,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-accoffload
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         # Attempt the build twice since signal 11 compiler failures can often be resolved by re-building
         LFRIC_OFFLOAD_DIRECTIVES=acc_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
           -w working-gh-accoffload gungho_model || {
@@ -246,6 +252,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh_alltrans
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-alltrans gungho_model
         # Run
         cd applications/gungho_model/example
@@ -275,6 +282,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-gh-omptiling
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -w working-gh-omptiling gungho_model
         # Run
         cd applications/gungho_model/example
@@ -301,6 +309,7 @@ jobs:
         # Build the 'cpu' platform, that includes psyclone-transmutation
         rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         ./build/local_build.py -p cpu -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
@@ -332,6 +341,7 @@ jobs:
         # enabled, but we want to make sure we keep the nvfortran build working.
         rm -rf working-atm-gpu
         export BUILD_START="${SECONDS}"
+        export PATH=${GITHUB_WORKSPACE}/src/psyclone/scripts:$PATH
         ./build/local_build.py -p cpu -j 16 -w working-atm-gpu lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
