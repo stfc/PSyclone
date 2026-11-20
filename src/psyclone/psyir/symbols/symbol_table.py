@@ -1164,6 +1164,8 @@ class SymbolTable():
                     if (symbol not in replacements and
                             symbol not in replacements.values()):
                         symbol.replace_symbols_using(replacements)
+            # We already know the replacements are in this table, so we
+            # can skip adding them below
             symbols_to_skip.update(replacements)
 
         # Deal with any Container symbols first.
