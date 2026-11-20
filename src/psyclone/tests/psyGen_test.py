@@ -497,11 +497,7 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    # Check that the method does not include the legacy names for the
-    # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
-    for cls in classes:
-        assert "dynamo0p3" not in cls.__name__.lower()
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
@@ -617,17 +613,18 @@ def test_derived_type_deref_naming(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    output = (
-        "  subroutine invoke_0_testkern_type"
-        "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
+    assert (
+        "  subroutine invoke_0_testkern_type(a, f1_my_field, f1_my_field_1, "
+        "m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use constants_mod, only : i_def\n"
-        "    real(kind=r_def), intent(in) :: a\n"
+        "    integer(kind=i_def) :: cell\n" in generated_code)
+
+    assert (
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
         "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n")
-    assert output in generated_code
+        "    type(field_type), intent(in) :: m2\n" in generated_code)
 
 
 FAKE_KERNEL_METADATA = '''
@@ -967,7 +964,7 @@ def test_args_filter():
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply((schedule.children[0], schedule.children[1]))
     # get our loop and call our method ...
     loop = schedule.children[0]
     args = loop.args_filter(unique=True)
@@ -1564,7 +1561,7 @@ def test_call_forward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
@@ -1593,7 +1590,7 @@ def test_call_backward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]

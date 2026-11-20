@@ -105,9 +105,8 @@ end module testkern_domain_mod
             "gh_read, w2)'" in str(err.value))
 
 
-def test_no_stencil_domain_kernel():
-    ''' Check that we reject a domain kernel if it has an argument with a
-    stencil access. '''
+def test_stencil_domain_kernel():
+    ''' Check that we accept a domain kernel with a stencil argument. '''
     ast = fpapi.parse('''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(3) =                                         &
@@ -124,11 +123,12 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("domain are not permitted to have arguments with a stencil "
-            "access but found: 'arg_type(gh_field, gh_real, gh_read, "
-            "w3, stencil(cross))'" in str(err.value))
+    dkm = LFRicKernMetadata(ast, name="testkern_domain_type")
+    assert dkm.iterates_over == "domain"
+    # The third argument should have stencil metadata
+    assert dkm.arg_descriptors[2].stencil is not None
+    assert dkm.arg_descriptors[2].stencil['type'] == 'cross'
+    assert dkm.arg_descriptors[2].argument_type == "gh_field"
 
 
 def test_invalid_basis_domain_kernel():

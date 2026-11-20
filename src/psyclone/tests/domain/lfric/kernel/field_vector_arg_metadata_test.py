@@ -81,13 +81,13 @@ def test_get_metadata():
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)",
         Fortran2003.Structure_Constructor)
     (datatype, access, function_space, vector_length, stencil,
-     nlevels, ndata) = FieldVectorArgMetadata._get_metadata(fparser2_tree)
+     nlayers, ndata) = FieldVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert vector_length == "3"
     assert stencil is None
-    assert nlevels is None
+    assert nlayers is None
     assert ndata is None
 
 

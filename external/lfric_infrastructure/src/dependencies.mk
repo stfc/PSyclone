@@ -13,6 +13,11 @@ components/driver_modeldb_mod.o: components/driver_model_data_mod.o \
 components/io_context_collection_mod.o: io/empty_io_context_mod.o \
 	io/io_context_mod.o utilities/constants_mod.o utilities/hash_mod.o \
 	utilities/linked_list_data_mod.o utilities/linked_list_mod.o utilities/log_mod.o
+configuration/finite_element_config_mod.o: utilities/constants_mod.o \
+        utilities/lfric_mpi_mod.o utilities/log_mod.o configuration/namelist_mod.o \
+        configuration/namelist_item_mod.o configuration/finite_element_nml_mod.o
+configuration/finite_element_nml_mod.o:  utilities/constants_mod.o \
+        configuration/namelist_mod.o 
 configuration/namelist_collection_mod.o: configuration/namelist_mod.o \
 	utilities/constants_mod.o utilities/linked_list_mod.o utilities/log_mod.o
 configuration/namelist_item_mod.o: key_value/key_value_mod.o \

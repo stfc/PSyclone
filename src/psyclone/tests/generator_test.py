@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import sys
 from typing import Optional
 import pytest
 
@@ -345,6 +346,23 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             in caplog.text)
 
 
+def test_kernel_parsing_with_fortran_error(capsys):
+    '''Checks that the expected output is provided if a kernel contains
+    invalid Fortran, especially the filename and the line number.
+
+    '''
+    alg = GOCEAN_BASE_PATH / "test13_invoke_kernel_invalid_fortran.f90"
+    kern_filename = GOCEAN_BASE_PATH / "kernel_invalid_fortran.f90"
+    with pytest.raises(SystemExit):
+        main([str(alg), "-api", "gocean"])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "Failed to parse kernel code" in str(err)
+    assert str(kern_filename) in str(err)
+    assert ("35:  end tpe compute_cu <== no parse pattern found for "
+            "\"end tpe compute_cu\" in 'Type' block.'" in str(err))
+
+
 def test_script_file_too_short():
     '''Checks that generator.py raises an appropriate error when a script
     file name is too short to contain the '.py' extension.
@@ -501,25 +519,26 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 def trans(psyir):
     module = psyir.children[0]
     schedule = [x for x in module.children if x.name == "invoke_0"][0]
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
     transform = LFRicLoopFuseTrans()
-    transform.apply(loop1, loop2)
+    transform.apply((loop1, loop2))
 """)
     # First loop fuse explicitly (without using generator.py)
-    parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes.f90")
+    parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes_fusable.f90")
     _, invoke_info = parse(parse_file, api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
     trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
+    trans.apply((loop1, loop2))
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
-                                   script_name=fuse_loop_script)
+                                   script_name=fuse_loop_script,
+                                   distributed_memory=False)
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
@@ -2100,3 +2119,17 @@ def test_script_args_with_no_script(capsys):
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
             "specified using the '--script' option" in err)
+
+
+def test_code_transformation_no_script_keeps_sys_path(tmp_path):
+    '''Test that code_transformation_mode() does not modify sys.path
+    if no script is specified.
+
+    '''
+    inputfile = tmp_path / "input.f90"
+    inputfile.write_text("program test\nend program test\n",
+                         encoding="utf-8")
+    original_path = list(sys.path)
+    code_transformation_mode(str(inputfile), None, str(tmp_path / "out.f90"),
+                             False, False, False)
+    assert sys.path == original_path

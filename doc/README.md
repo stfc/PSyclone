@@ -17,14 +17,7 @@ windows system.
 Documentation dependencies
 ==========================
 
-The dependencies required to build the documentation are listed in
-the [setup.py](../setup.py) script (under ``extras_required``),
-and can be installed automatically with:
-
-    pip install psyclone[doc]
-
-For a development installation, run the following from the root
-of the repository:
+The dependencies required to build the documentation can be installed with:
 
     pip install -e .[doc]
 

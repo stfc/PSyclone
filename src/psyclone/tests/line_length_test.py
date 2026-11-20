@@ -10,9 +10,9 @@
 # imports
 import os
 import pytest
+from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
-from psyclone.errors import InternalError
 
 # functions
 
@@ -499,3 +499,23 @@ def test_find_break_point_exception():
 
     assert ("Error in find_break_point. No suitable break point found for line"
             " 'allocate(x, y, z)' and keys '['+']'" in str(excinfo.value))
+
+
+def test_break_before_and_in_inline_comment():
+    '''Test that a line broken before a long inline comment has the correct
+    line continuation added when it also breaks the inline comment.'''
+    input_string = """subroutine test
+    REAL(wp), PARAMETER ::   my_variable = 200.e3_wp ! My variable \
+has a very unusually long comment where a lot of scientific description \
+may exist to describe the variable, and we break before the PARAMETER.
+end subroutine test"""
+    fll = FortLineLength(line_length=70)
+    out = fll.process(input_string)
+    # String formatting due to trailing whitespace on end of Fortran linse.
+    correct = """subroutine test
+    REAL(wp), &
+&PARAMETER ::   my_variable = 200.e3_wp ! My variable has a very \n\
+!& unusually long comment where a lot of scientific description may \n\
+!& exist to describe the variable, and we break before the PARAMETER.
+end subroutine test"""
+    assert correct in out

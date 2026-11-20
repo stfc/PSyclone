@@ -296,8 +296,8 @@ def test_invoke_opencl_initialisation_grid(kernel_outputdir):
     use fortcl, only : create_ronly_buffer
     use iso_c_binding, only : c_size_t
     use field_mod
-    type(r2d_field), intent(inout), target :: field
     integer(kind=c_size_t) :: size_in_bytes
+    type(r2d_field), intent(inout), target :: field
 
     if (.not.c_associated(field%grid%tmask_device)) then
       size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
@@ -321,11 +321,11 @@ c_sizeof(field%grid%'''
     use iso_c_binding, only : c_intptr_t, c_size_t, c_sizeof
     use clfortran
     use ocl_utils_mod, only : check_status
-    type(r2d_field), intent(inout), target :: field
-    integer(kind=c_size_t) :: size_in_bytes
+    integer :: ierr
     integer(kind = c_intptr_t), pointer :: cmd_queues(:)
     integer(kind=c_intptr_t) :: cl_mem
-    integer :: ierr
+    integer(kind=c_size_t) :: size_in_bytes
+    type(r2d_field), intent(inout), target :: field
 
     cmd_queues => get_cmd_queues()
     size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
@@ -424,19 +424,19 @@ def test_opencl_routines_initialisation(kernel_outputdir):
     use kind_params_mod, only : go_wp
     use clfortran
     use fortcl, only : get_cmd_queues
-    type(c_ptr), intent(in) :: from
-    real(kind = go_wp), intent(inout), dimension(:, :), target :: to
-    integer, intent(in) :: startx
-    integer, intent(in) :: starty
+    integer :: i
+    integer :: ierr
+    integer(kind = c_intptr_t), pointer :: cmd_queues(:)
+    integer(kind=c_intptr_t) :: cl_mem
+    integer(kind=c_size_t) :: offset_in_bytes
+    integer(kind=c_size_t) :: size_in_bytes
     integer, intent(in) :: nx
     integer, intent(in) :: ny
+    integer, intent(in) :: startx
+    integer, intent(in) :: starty
     logical, intent(in) :: blocking
-    integer(kind=c_size_t) :: size_in_bytes
-    integer(kind=c_size_t) :: offset_in_bytes
-    integer(kind=c_intptr_t) :: cl_mem
-    integer(kind = c_intptr_t), pointer :: cmd_queues(:)
-    integer :: ierr
-    integer :: i
+    real(kind = go_wp), intent(inout), dimension(:, :), target :: to
+    type(c_ptr), intent(in) :: from
 
     cl_mem = transfer(from, cl_mem)
     cmd_queues => get_cmd_queues()
@@ -473,19 +473,19 @@ offset_in_bytes, size_in_bytes, c_loc(to(1,starty)), 0, c_null_ptr, c_null_ptr)
     use kind_params_mod, only : go_wp
     use clfortran
     use fortcl, only : get_cmd_queues
-    real(kind = go_wp), intent(in), dimension(:, :), target :: from
-    type(c_ptr), intent(in) :: to
-    integer, intent(in) :: startx
-    integer, intent(in) :: starty
+    integer :: i
+    integer :: ierr
+    integer(kind = c_intptr_t), pointer :: cmd_queues(:)
+    integer(kind=c_intptr_t) :: cl_mem
+    integer(kind=c_size_t) :: offset_in_bytes
+    integer(kind=c_size_t) :: size_in_bytes
     integer, intent(in) :: nx
     integer, intent(in) :: ny
+    integer, intent(in) :: startx
+    integer, intent(in) :: starty
     logical, intent(in) :: blocking
-    integer(kind=c_intptr_t) :: cl_mem
-    integer(kind=c_size_t) :: size_in_bytes
-    integer(kind=c_size_t) :: offset_in_bytes
-    integer(kind = c_intptr_t), pointer :: cmd_queues(:)
-    integer :: ierr
-    integer :: i
+    real(kind = go_wp), intent(in), dimension(:, :), target :: from
+    type(c_ptr), intent(in) :: to
 
     cl_mem = transfer(to, cl_mem)
     cmd_queues => get_cmd_queues()
@@ -522,8 +522,8 @@ c_null_ptr)
     use fortcl, only : create_rw_buffer
     use iso_c_binding, only : c_size_t
     use field_mod
-    type(r2d_field), intent(inout), target :: field
     integer(kind=c_size_t) :: size_in_bytes
+    type(r2d_field), intent(inout), target :: field
 
     if (.not.field%data_on_device) then
       size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
@@ -677,6 +677,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 def test_psy_init_with_options(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment with the provided non-default options. '''
+    # TODO 2668: Remove test when options dict removed.
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
@@ -692,6 +693,30 @@ def test_psy_init_with_options(kernel_outputdir):
     otrans = GOOpenCLTrans()
     otrans.apply(sched, options={"enable_profiling": True,
                                  "out_of_order": True})
+    generated_code = str(psy.gen)
+    assert "call ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
+        in generated_code
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_psy_init_with_kwargs_options(kernel_outputdir):
+    ''' Check that we create a psy_init() routine that sets-up the
+    OpenCL environment with the provided non-default options. '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
+    for kernel in sched.coded_kernels():
+        mod_inline_trans.apply(kernel)
+        trans.apply(kernel)
+
+    # Use non-default kernel and transformation options
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched, enable_profiling=True,
+                 out_of_order=True)
     generated_code = str(psy.gen)
     assert "call ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
@@ -963,7 +988,7 @@ def test_opencl_options_effects():
     otrans = GOOpenCLTrans()
 
     # Remove barrier at the end of the Invoke
-    otrans.apply(sched, options={'end_barrier': False})
+    otrans.apply(sched, end_barrier=False)
     generated_code = str(psy.gen)
     assert "! Block until all kernels have finished" not in generated_code
     assert "ierr = clFinish(cmd_queues(1))" not in generated_code
@@ -1042,15 +1067,15 @@ def test_set_kern_args(kernel_outputdir):
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    integer(kind=c_intptr_t), target :: kernel_obj
+    integer :: ierr
     integer(kind=c_intptr_t), intent(in), target :: cu_fld
     integer(kind=c_intptr_t), intent(in), target :: p_fld
     integer(kind=c_intptr_t), intent(in), target :: u_fld
+    integer(kind=c_intptr_t), target :: kernel_obj
     integer, intent(in), target :: xstart
     integer, intent(in), target :: xstop
     integer, intent(in), target :: ystart
-    integer, intent(in), target :: ystop
-    integer :: ierr'''
+    integer, intent(in), target :: ystop'''
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
@@ -1118,17 +1143,18 @@ in_out_fld, in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    integer(kind=c_intptr_t), target :: kernel_obj
-    integer(kind=c_intptr_t), intent(in), target :: out_fld
-    integer(kind=c_intptr_t), intent(in), target :: in_out_fld
-    integer(kind=c_intptr_t), intent(in), target :: in_fld
+    integer :: ierr
     integer(kind=c_intptr_t), intent(in), target :: dx
-    real(kind=go_wp), intent(in), target :: dx_1
     integer(kind=c_intptr_t), intent(in), target :: gphiu
+    integer(kind=c_intptr_t), intent(in), target :: in_fld
+    integer(kind=c_intptr_t), intent(in), target :: in_out_fld
+    integer(kind=c_intptr_t), intent(in), target :: out_fld
+    integer(kind=c_intptr_t), target :: kernel_obj
     integer, intent(in), target :: xstart
     integer, intent(in), target :: xstop
     integer, intent(in), target :: ystart
-    integer, intent(in), target :: ystop'''
+    integer, intent(in), target :: ystop
+    real(kind=go_wp), intent(in), target :: dx_1'''
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -1157,16 +1183,16 @@ xstop, tmask, xstart, xstop_1, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    integer(kind=c_intptr_t), target :: kernel_obj
-    real(kind=go_wp), intent(in), target :: a_scalar
+    integer :: ierr
     integer(kind=c_intptr_t), intent(in), target :: ssh_fld
-    integer, intent(in), target :: xstop
     integer(kind=c_intptr_t), intent(in), target :: tmask
+    integer(kind=c_intptr_t), target :: kernel_obj
     integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop
     integer, intent(in), target :: xstop_1
     integer, intent(in), target :: ystart
     integer, intent(in), target :: ystop
-    integer :: ierr
+    real(kind=go_wp), intent(in), target :: a_scalar
 '''
     assert expected in generated_code
     expected = '''\
@@ -1230,7 +1256,7 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
 
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
-    monkeypatch.setattr(otrans, "validate", lambda x, y: None)
+    monkeypatch.setattr(otrans, "validate", lambda x, **kwargs: None)
     with pytest.raises(GenerationError) as err:
         otrans.apply(sched)
     assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "

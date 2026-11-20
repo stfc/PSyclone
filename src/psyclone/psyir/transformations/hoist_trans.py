@@ -50,8 +50,8 @@ class HoistTrans(Transformation):
       integer :: i
       integer :: j
       integer :: n
-      real, dimension(n,n) :: a
       real :: value
+      real, dimension(n,n) :: a
     <BLANKLINE>
       value = 1.0
       do i = 1, n, 1
@@ -109,6 +109,8 @@ class HoistTrans(Transformation):
             child of the the loop.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         # TODO #2668: Deprecate options dict.
         if not options:
             self.validate_options(**kwargs)

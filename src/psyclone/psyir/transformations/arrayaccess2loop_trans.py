@@ -45,8 +45,8 @@ class ArrayAccess2LoopTrans(Transformation):
     >>> ArrayAccess2LoopTrans().apply(assignment.lhs.children[0])
     >>> print(FortranWriter()(psyir))
     program example
-      real, dimension(10) :: a
       integer :: idx
+      real, dimension(10) :: a
     <BLANKLINE>
       do idx = 1, 1, 1
         a(idx) = 0.0
@@ -120,6 +120,8 @@ class ArrayAccess2LoopTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         # TODO #2668: Deprecate options dict
         if not options:
             self.validate_options(**kwargs)

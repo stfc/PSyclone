@@ -36,8 +36,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     >>> trans.apply(psyir.walk(Loop)[0])
     >>> print(FortranWriter()(psyir))
     program do_loop
-      real, dimension(10) :: a
       integer :: i
+      real, dimension(10) :: a
     <BLANKLINE>
       !$omp parallel do default(shared) private(i) schedule(auto)
       do i = 1, 10, 1
@@ -117,7 +117,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                                            omp_schedule=self.omp_schedule)
 
         # add any inferred reduction clauses to the newly introduced directive
-        for (op, ref) in self.inferred_reduction_clauses:
+        for (op, ref) in sorted(self.inferred_reduction_clauses,
+                                key=lambda x: x[1].name):
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
             directive.addchild(clause)

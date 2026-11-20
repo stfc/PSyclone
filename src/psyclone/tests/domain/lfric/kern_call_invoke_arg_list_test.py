@@ -10,7 +10,7 @@
 import pytest
 
 from psyclone.domain.lfric import KernCallInvokeArgList
-from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     SymbolTable, UnresolvedType)
 
 
@@ -21,6 +21,7 @@ def test_kcial_construct(lfrickern):
     assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
             "'NoneType'" in str(err.value))
     obj = KernCallInvokeArgList(lfrickern, SymbolTable())
+    # Until the `generate` method is called, these lists should be empty.
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
@@ -37,9 +38,27 @@ def test_kcial_generate(lfrickern):
     kcial.generate()
     assert len(kcial.fields) == 5
     assert len(kcial.scalars) == 3
+    all_symbols = table.get_symbols()
+    all_flds = [sym.name for sym in all_symbols.values()
+                if sym.name.startswith("field_")]
+    # 6 rather than 5 because of 'field_type'
+    assert len(all_flds) == 6
+
+    # Check the type of the scalar array argument.
+    for sym in all_symbols.values():
+        if sym.name.startswith("iscalar_array"):
+            break
+    assert isinstance(sym.datatype, ArrayType)
+    assert len(sym.datatype.shape) == 3
+
     # Check that we can call it repeatedly.
     kcial.generate()
     assert len(kcial.fields) == 5
+    all_symbols2 = table.get_symbols()
+    all_flds2 = [sym.name for sym in all_symbols2.values()
+                 if sym.name.startswith("field_")]
+    assert len(all_flds2) == 6
+
     # Check that an unsupported scalar type gives the expected error.
     lfrickern.arguments.args[0]._intrinsic_type = 'wrong'
     kcial = KernCallInvokeArgList(lfrickern, table)

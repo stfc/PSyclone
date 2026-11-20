@@ -11,6 +11,7 @@
 # pylint: disable=unused-import
 from .lfric_alg_trans import LFRicAlgTrans
 from .lfric_alg_invoke_2_psy_call_trans import LFRicAlgInvoke2PSyCallTrans
+from .lfric_colour_and_omp_trans import LFRicColourAndOMPTrans
 from .lfric_extract_trans import LFRicExtractTrans
 from .raise_psyir_2_lfric_alg_trans import RaisePSyIR2LFRicAlgTrans
 from .lfric_loop_fuse_trans import LFRicLoopFuseTrans

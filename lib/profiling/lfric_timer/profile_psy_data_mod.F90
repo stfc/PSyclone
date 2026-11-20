@@ -68,10 +68,12 @@ contains
     character(len=*) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
+!$omp critical
     if (.not. this%initialised) then
       this%name = module_name//":"//region_name
       this%initialised = .true.
     endif
+!$omp end critical
 
     call timer(this%name)
 

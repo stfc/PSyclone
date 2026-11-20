@@ -407,7 +407,7 @@ def generate(filename: str,
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
-                invoke, options={"kernels": kernels[id(invoke)]})
+                invoke, kernels=kernels[id(invoke)])
         if api in LFRIC_API_NAMES:
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin
@@ -1006,4 +1006,6 @@ def code_transformation_mode(input_file: str,
                   "FILES_TO_SKIP.", file=sys.stdout)
 
     # TODO #3514: proper cleanup using with
-    del sys.path[0]
+    if script_name:
+        # sys.path was only modified if a script was actually specified.
+        del sys.path[0]

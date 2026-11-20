@@ -204,3 +204,5 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                 "Cannot apply transformation to the immediate children of a "
                 "Loop/IfBlock unless it is to a single Schedule representing"
                 " the Loop/If/Else body.")
+
+        super().validate(nodes, options=options, **kwargs)

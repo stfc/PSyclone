@@ -69,6 +69,18 @@ def test_routine_properties():
     assert ("is_recursive for a Routine must be a bool or None but got "
             "'str'" in str(err.value))
 
+    assert node3.bind_c is None
+    node3.bind_c = ""
+    assert node3.bind_c == ""
+    node3.bind_c = "'c_name'"
+    assert node3.bind_c == "'c_name'"
+    node3.bind_c = None
+    assert node3.bind_c is None
+    with pytest.raises(TypeError) as err:
+        node3.bind_c = True
+    assert ("bind_c for a Routine must be a str or None but got 'bool'"
+            in str(err.value))
+
     with pytest.raises(TypeError) as excinfo:
         node3.symbol = "123"
     assert ("Routine symbol must be a RoutineSymbol but got 'str'"
@@ -229,6 +241,16 @@ def test_routine_equality(monkeypatch):
     # Test non-equality if the recursive-hint status differs.
     ksched2.is_recursive = True
     assert ksched1 != ksched2
+    ksched2.is_recursive = None
+
+    # Test non-equality if the C binding differs.
+    ksched2.bind_c = ""
+    assert ksched1 != ksched2
+    ksched1.bind_c = ""
+    assert ksched1 == ksched2
+    ksched2.bind_c = "'c_name'"
+    assert ksched1 != ksched2
+    ksched2.is_recursive = True
 
     # Test non-equality if different names.
     assignment2.detach()
@@ -269,6 +291,7 @@ def test_routine_copy():
     routine.return_symbol = symbol
     routine._is_program = True
     routine.is_recursive = True
+    routine.bind_c = "'c_name'"
 
     # After a copy the symbol tables are separate and the return symbol
     # references a internal copy of the symbol
@@ -279,6 +302,7 @@ def test_routine_copy():
     assert routine2.return_symbol not in routine.symbol_table.symbols
     assert routine2.is_recursive
     assert routine2.is_program
+    assert routine2.bind_c == "'c_name'"
 
 
 def test_routine_copy_in_container(fortran_reader):
@@ -605,10 +629,16 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
       subroutine call_it()
         call a_routine()
       end subroutine call_it
+      subroutine a_routine()
+        write(*,*) "This is not a problem"
+      end subroutine
     end module my_mod
     ''')
     rt0 = psyir.children[0].children[0]
     call = rt0.children[0]
+    # A *call* to a local Routine is not flagged as it is possible to solve
+    # this (provided that it then doesn't access module-scope data).
+    rt0.check_outer_scope_accesses(call, "call")
 
     # Mistakenly add symbols without adding them to the symbol table
     rt0.addchild(Assignment.create(Reference(Symbol("a")),
@@ -617,6 +647,32 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
         rt0.check_outer_scope_accesses(call, "call")
     assert ("'call_it' contains accesses to 'a' but the origin of "
             "this" in str(err.value))
+
+
+def test_outer_scope_accesses_unsupported_type(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses rejects symbols of
+    UnsupportedFortranType that have no partial datatype.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use some_mod
+    contains
+      subroutine call_it(arg)
+        procedure(func) :: arg
+        call arg()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    routines = psyir.walk(Routine)
+    rt0 = routines[0]
+    assert rt0.symbol.name == "call_it"
+    call = rt0.walk(Call)[0]
+    with pytest.raises(SymbolError,
+                       match=("contains accesses to 'arg' which is of "
+                              "UnsupportedFortranType")):
+        rt0.check_outer_scope_accesses(call, "call")
 
 
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):

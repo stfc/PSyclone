@@ -396,9 +396,13 @@ def test_no_psydata_in_kernels(fortran_reader, monkeypatch):
         ptrans.apply(assign)
     assert ("A PSyData node cannot be inserted inside an OpenACC region"
             in str(err.value))
+
     # Monkeypatch the validate() method so as to avoid the checking
     # that it does
-    monkeypatch.setattr(ptrans, "validate", lambda x, y: None)
+    def fake_val(x, y, **kwargs):
+        pass
+
+    monkeypatch.setattr(ptrans, "validate", fake_val)
     ptrans.apply(assign)
     # Check that an appropriate error is raised by the backend
     with pytest.raises(GenerationError) as err:

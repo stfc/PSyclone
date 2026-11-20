@@ -95,13 +95,13 @@ class Sum2LoopTrans(ArrayReductionBaseTrans):
     >>> Sum2LoopTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
     subroutine sum_test(array, n, m)
-      integer :: n
-      integer :: m
-      real, dimension(10,10) :: array
-      real :: result
       integer :: idx
       integer :: idx_1
+      integer :: m
+      integer :: n
       real :: reduction_var
+      real :: result
+      real, dimension(10,10) :: array
     <BLANKLINE>
       reduction_var = 0.0
       do idx = 1, 10, 1

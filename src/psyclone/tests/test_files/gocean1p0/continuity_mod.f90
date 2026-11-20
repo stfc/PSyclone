@@ -10,8 +10,8 @@ module continuity_mod
   use argument_mod
   use field_mod
   use grid_mod
-  use kernel_mod
-  use kind_params_mod
+  use kernel_mod, only: kernel_type
+  use kind_params_mod, only: go_wp
   implicit none
 
   type, extends(kernel_type) :: continuity

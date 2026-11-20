@@ -17,7 +17,8 @@ from psyclone.domain.lfric import (KernCallArgList,
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol, ScalarType,
     SymbolTable, UnsupportedFortranType)
@@ -27,7 +28,9 @@ from psyclone.transformations import LFRicColourTrans
 TEST_API = "lfric"
 
 
-def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
+def check_psyir_results(create_arg_list: KernCallArgList,
+                        fortran_writer: FortranWriter,
+                        valid_classes: tuple[Node] = None):
     '''Helper function to check if the PSyIR representation of the arguments
     is identical to the old style textual representation. It checks that each
     member of the psyir_arglist is a Reference, and that the textual
@@ -35,13 +38,9 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     verified).
 
     :param create_arg_list: a KernCallArgList instance.
-    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer:
-        :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
     :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
-    :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
     if not valid_classes:
@@ -147,10 +146,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
-        'diff_basis_wchi_qr_face', 'ndf_ads1_f3', 'undf_ads1_f3',
-        'map_ads1_f3(:,cell)', 'basis_ads1_f3_qr_xyoz',
-        'basis_ads1_f3_qr_face', 'diff_basis_ads1_f3_qr_xyoz',
-        'diff_basis_ads1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
+        'diff_basis_wchi_qr_face', 'ndf_ads1_f3__1', 'undf_ads1_f3__1',
+        'map_ads1_f3__1(:,cell)', 'basis_ads1_f3__1_qr_xyoz',
+        'basis_ads1_f3__1_qr_face', 'diff_basis_ads1_f3__1_qr_xyoz',
+        'diff_basis_ads1_f3__1_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
         'weights_xy_qr_xyoz', 'weights_z_qr_xyoz', 'nfaces_qr_face',
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
@@ -166,8 +165,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
             array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
-    assert create_arg_list.psyir_arglist[15].datatype == array_4d
-    assert create_arg_list.psyir_arglist[16].datatype == array_4d
+    assert create_arg_list.psyir_arglist[15].symbol.datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].symbol.datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -338,7 +337,6 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
 
     psy, _ = get_invoke("19.26_single_stencil_cross2d.f90", TEST_API,
                         dist_mem=False, idx=0)
-
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -353,6 +351,37 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
 
+def test_kerncallarglist_stencil_domain(fortran_writer):
+    """Check handling of stencils for a kernel that operates on the
+    entire domain. This should pass full stencil arrays rather than
+    column-indexed slices.
+    """
+    # Create a full Invoke so that LFRicProxies and LFRicStencils
+    # create the symbols/tags that the argument-list builder expects.
+    src = "1948_stencil_domain_invoke.f90"
+    psy, invoke = get_invoke(src, TEST_API, idx=0)
+    schedule = invoke.schedule
+    kernel = schedule.kernels()[0]
+
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+
+    # Expect full arrays passed without using colons.
+    arglist = create_arg_list._arglist
+    assert 'b_stencil_size' in arglist
+    assert 'b_max_branch_length' in arglist
+    assert 'b_stencil_dofmap' in arglist
+
+    assert 'c_stencil_size' in arglist
+    assert 'c_extent' in arglist
+    assert 'c_stencil_dofmap' in arglist
+
+    assert 'd_stencil_size' in arglist
+    assert 'd_stencil_dofmap' in arglist
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
 def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     ''' Check the handling of bc_kernel
     '''
@@ -364,8 +393,8 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers_a', 'a_data', 'ndf_as1_a', 'undf_as1_a',
-        'map_as1_a(:,cell)', 'boundary_dofs_a']
+        'nlayers_a', 'a_data', 'ndf_as1_a__1', 'undf_as1_a__1',
+        'map_as1_a__1(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -399,7 +428,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
-        'ndf_as1_op_a', 'ndf_as2_op_a', 'boundary_dofs_op_a']
+        'ndf_as1_op_a__1', 'ndf_as2_op_a__1', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
@@ -566,10 +595,11 @@ def test_indirect_dofmap(fortran_writer):
         'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
         'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p',
-        'ndf_ads1_field_a', 'undf_ads1_field_a',
-        'map_ads1_field_a(:,cell)', 'cma_indirection_map_ads1_field_a',
-        'ndf_as1_field_b', 'undf_as1_field_b', 'map_as1_field_b(:,cell)',
-        'cma_indirection_map_as1_field_b'])
+        'ndf_ads1_field_a__1', 'undf_ads1_field_a__1',
+        'map_ads1_field_a__1(:,cell)', 'cma_indirection_map_ads1_field_a__1',
+        'ndf_as1_field_b__1', 'undf_as1_field_b__1',
+        'map_as1_field_b__1(:,cell)',
+        'cma_indirection_map_as1_field_b__1'])
 
     check_psyir_results(create_arg_list, fortran_writer)
 
