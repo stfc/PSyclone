@@ -278,8 +278,9 @@ class LFRicConstants():
         LFRicConstants.ANY_W2_FUNCTION_SPACES = \
             ["w2", "w2h", "w2v", "w2broken"]
 
-        LFRicConstants.CONTINUOUS_FUNCTION_SPACES = \
-            ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
+        LFRicConstants.CONTINUOUS_FUNCTION_SPACES = [
+            "w0", "w1", "w1h", "w1v", "w2", "w2trace", "w2h", "w2htrace",
+            "any_w2"]
 
         # Read-only FS
         LFRicConstants.READ_ONLY_FUNCTION_SPACES = ["wchi"]

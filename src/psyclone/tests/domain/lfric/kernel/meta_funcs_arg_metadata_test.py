@@ -157,10 +157,11 @@ def test_function_space_setter_getter():
         funcs_arg.function_space = "invalid"
     assert ("The 'function_space' metadata should be a recognised value (one "
             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
-            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
-            "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
-            "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
-            "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
+            "'w1h', 'w1v', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', "
+            "'wchi', 'any_space_1', 'any_space_2', 'any_space_3', "
+            "'any_space_4', 'any_space_5', 'any_space_6', 'any_space_7', "
+            "'any_space_8', 'any_space_9', 'any_space_10', "
+            "'any_discontinuous_space_1', "
             "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
             "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
             "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
@@ -212,7 +213,7 @@ def test_diff_basis_function_setter_getter():
     assert ("At least one of basis_function or diff_basis_function must be "
             "set to True." in str(info.value))
 
-    funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
+    funcs_arg = MetaFuncsArgMetadata("w1v", basis_function=True)
     assert funcs_arg.diff_basis_function is False
     funcs_arg.diff_basis_function = True
     assert funcs_arg.diff_basis_function is True
