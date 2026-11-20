@@ -11,8 +11,12 @@
 
 from __future__ import annotations
 import abc
+from typing import Union, TYPE_CHECKING
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
@@ -205,33 +209,28 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        supplied SymbolTable by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-        if isinstance(self.datatype, DataTypeSymbol):
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.datatype.name.lower():
-                    self._datatype = table_or_symbol
-            else:
-                try:
-                    self._datatype = table_or_symbol.lookup(self.datatype.name)
-                except KeyError:
-                    pass
-        else:
-            self._datatype.replace_symbols_using(table_or_symbol)
+        # Only update stored state. Subclasses may compute their datatype
+        # from other symbols and leave _datatype unset.
+        if isinstance(self._datatype, DataTypeSymbol):
+            self._datatype = self._datatype.get_replacement(mapping)
+        elif self._datatype is not None:
+            self._datatype.replace_symbols_using(mapping)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''

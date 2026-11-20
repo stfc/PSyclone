@@ -182,7 +182,7 @@ def test_loop_replace_symbols_using(table):
         table.add(new_i)
         loop.replace_symbols_using(table)
     else:
-        loop.replace_symbols_using(new_i)
+        loop.replace_symbols_using({loop.variable: new_i})
     # Loop variable should have been updated.
     assert loop.variable is new_i
     # Check that the method has recursed to the children too.

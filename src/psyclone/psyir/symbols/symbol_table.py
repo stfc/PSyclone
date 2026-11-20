@@ -619,24 +619,132 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, symbols_to_skip=()):
+    def _symbols_to_reuse(
+            self, other_table: SymbolTable,
+            symbols_to_skip: Iterable[Symbol] = ()) -> dict[Symbol, Symbol]:
+        ''' Identify symbols from the given symbol table that can reuse
+        existing symbols in this symbol table. These are:
+
+        - Parameters that have the same name, datatype and value, including
+        equivalent dependencies.
+        - Members of the same COMMON block, these are matched by block name
+        and position, independently of their local names.
+
+        :param other_table: the table whose symbols would be merged.
+        :param symbols_to_skip: symbols in the provided table excluded from
+            consideration.
+
+        :returns: a dictionary mapping Symbols to existing Symbols.
+
+        :raises SymbolError: if corresponding COMMON members have
+            incompatible datatypes or datatype dependencies.
+        '''
+        def dependencies_match(symbol: DataSymbol, existing: DataSymbol,
+                               replacements: dict[Symbol, Symbol]) -> bool:
+            '''
+            :param symbol: the first symbol to compare (with replacements).
+            :param existing: the second symbol to compare.
+            :param replacements: a map of already validated equivalent symbol.
+
+            :returns: whether the dependenent symbols (shape, kind, ...)
+                of the given symbols are equivalent.
+            '''
+            dependencies_symbol = {
+                replacements.get(dep, dep)
+                for dep in symbol.get_all_accessed_symbols()}
+            dependencies_existing = existing.get_all_accessed_symbols()
+            return dependencies_symbol == dependencies_existing
+
+        # Only data symbols participating in the merge can be reused.
+        candidates = [sym for sym in other_table.datasymbols
+                      if sym not in symbols_to_skip]
+
+        # First collect parameters whose declarations appear identical.
+        parameters = {}
+        for symbol in candidates:
+            if not symbol.is_constant or symbol.initial_value is None:
+                continue
+            existing = self._symbols.get(symbol.name.lower())
+            if (isinstance(existing, DataSymbol) and
+                    existing.is_constant and
+                    symbol.datatype == existing.datatype and
+                    symbol.initial_value == existing.initial_value):
+                parameters[symbol] = existing
+
+        # The equality comparison above is necessary, but not sufficient,
+        # we need to prove that the symbols in each parameter candidate
+        # match exactly. Since parameters can depend on other parameters,
+        # when we invalidate we need to recheck until all parameters match
+        while True:
+            valid = {sym: existing for sym, existing in parameters.items()
+                     if dependencies_match(sym, existing, parameters)}
+            if len(valid) == len(parameters):
+                break
+            # Update dictionary without non-matching parameters
+            parameters = valid
+
+        # A COMMON block variable is identified by the COMMON block name and
+        # the position of the variable within it. Make a map of all common
+        # block members symbols available in this symbol table
+        def common_key(symbol):
+            return (symbol.interface.name.lower(), symbol.interface.position)
+
+        common_members = {common_key(sym): sym for sym in self.datasymbols
+                          if sym.is_commonblock}
+
+        # Check if any of the candidates in the given table matches the COMMON
+        # block identifier, in that case both are aliases of each other.
+        cb_aliases = {
+            sym: common_members[common_key(sym)] for sym in candidates
+            if sym.is_commonblock and common_key(sym) in common_members}
+
+        # Combine parameters and COMMON aliases into the final replacement map.
+        replacements = {**parameters, **cb_aliases}
+
+        # Array bounds and kind expressions may refer to parameters or
+        # COMMON members from other_table. Replace these references with
+        # the corresponding symbols in this table before comparing
+        # datatypes. Work on a copy to preserve the original declaration.
+        for symbol, existing in cb_aliases.items():
+            candidate = symbol.copy()
+            candidate.replace_symbols_using(replacements)
+            if (candidate.datatype != existing.datatype or
+                    not dependencies_match(symbol, existing, replacements)):
+                raise SymbolError(
+                    f"COMMON block '/{symbol.interface.name.lower()}/' at "
+                    f"position {symbol.interface.position} has incompatible "
+                    f"declarations: '{existing.name}' (type "
+                    f"'{existing.datatype}') and '{symbol.name}' (type "
+                    f"'{symbol.datatype}').")
+
+        return replacements
+
+    def check_for_clashes(
+            self, other_table: SymbolTable,
+            symbols_to_skip: Iterable[Symbol] = ()) -> dict[Symbol, Symbol]:
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
         renaming then a SymbolError is raised. Any symbols appearing
         in `symbols_to_skip` are excluded from the checks.
 
+        Identical parameters and compatible COMMON aliases are accepted.
+        Corresponding COMMON members with incompatible declarations are
+        rejected even when their names differ.
+
         :param other_table: the table for which to check for clashes.
-        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param symbols_to_skip: an optional list of symbols to exclude from
+        :param symbols_to_skip: an optional iterable of symbols to exclude from
             the check.
-        :type symbols_to_skip: Iterable[
-            :py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: a validated mapping from symbols in `other_table` to symbols
+            in this table that can be reused when merging. The mapping is
+            empty if no replacements are needed or `other_table` is this table.
 
         :raises TypeError: if symbols_to_skip is supplied but is not an
             instance of Iterable.
-        :raises SymbolError: if there would be an unresolvable name clash
-            when importing symbols from `other_table` into this table.
+        :raises SymbolError: if there would be an unresolvable name clash or
+            incompatible COMMON declarations when importing symbols from
+            `other_table` into this table.
 
         '''
         # pylint: disable-next=import-outside-toplevel
@@ -648,7 +756,11 @@ class SymbolTable():
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         if other_table is self:
-            return
+            return {}
+
+        symbols_to_skip = set(symbols_to_skip)
+        replacements = self._symbols_to_reuse(other_table, symbols_to_skip)
+        symbols_to_skip.update(replacements)
 
         # Check whether there are any wildcard imports common to both tables.
         self_imports = set(sym.name for sym in self.wildcard_imports())
@@ -662,6 +774,8 @@ class SymbolTable():
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
+            if this_sym is other_sym:
+                continue
 
             # If they are both ContainerSymbols then that's OK as they refer to
             # the same Container.
@@ -747,6 +861,8 @@ class SymbolTable():
                         f"There is a name clash for symbol '{this_sym.name}' "
                         f"that cannot be resolved by renaming "
                         f"one of the instances because:\n- {err1}\n- {err2}")
+
+        return replacements
 
     def _add_container_symbols_from_table(self, other_table):
         '''
@@ -847,7 +963,7 @@ class SymbolTable():
                             f" as the original dependency '{dep_sym}'.")
                     # Update the definition of this symbol using the
                     # new one we have found.
-                    sym.replace_symbols_using(new_sym)
+                    sym.replace_symbols_using({dep_sym: new_sym})
                 else:
                     # Have looked at all dependencies of this symbol so
                     # remove it from the set.
@@ -922,6 +1038,12 @@ class SymbolTable():
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
+            # Tables may already share the same Symbol instance. It needs
+            # neither adding nor renaming: treating it as a name clash could
+            # rename the existing declaration in this table as well.
+            if self._symbols.get(old_sym.name.lower()) is old_sym:
+                continue
+
             try:
                 self.add(old_sym)
 
@@ -987,23 +1109,30 @@ class SymbolTable():
             self.rename_symbol(self_sym, new_name)
             self.add(old_sym)
 
-    def merge(self, other_table, symbols_to_skip=()):
+    def merge(
+            self, other_table: SymbolTable,
+            symbols_to_skip: Iterable[Symbol] = ()) -> None:
         '''Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
 
         Any Symbols appearing in `symbols_to_skip` are excluded.
 
+        Identical parameters and compatible members of the same COMMON block
+        are reused. References to these symbols in `other_table` and its
+        attached PSyIR subtree are updated, including declaration expressions
+        in nested scopes. The subtree must therefore still be attached when
+        calling this method. Tables without an attached node are supported,
+        but references in detached code cannot be updated.
+
         :param other_table: the symbol table from which to add symbols.
-        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param symbols_to_skip: an optional list of Symbols to exclude from
-                                the merge.
-        :type symbols_to_skip: Iterable[
-            :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param symbols_to_skip: an optional iterable of Symbols to exclude from
+            the merge.
 
         :raises TypeError: if `other_table` is not a SymbolTable.
         :raises TypeError: if `symbols_to_skip` is not an Iterable.
-        :raises SymbolError: if name clashes prevent the merge.
+        :raises SymbolError: if name clashes or incompatible COMMON
+            declarations prevent the merge.
 
         '''
         if not isinstance(other_table, SymbolTable):
@@ -1014,13 +1143,30 @@ class SymbolTable():
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
+        if other_table is self:
+            return
+        symbols_to_skip = set(symbols_to_skip)
         try:
-            self.check_for_clashes(other_table,
-                                   symbols_to_skip=symbols_to_skip)
+            replacements = self.check_for_clashes(
+                other_table, symbols_to_skip=symbols_to_skip)
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
                 f"unresolvable name clashes: {err.value}") from err
+
+        # Apply the replacement map only after all checks have succeeded.
+        # ScopingNode also updates declarations in nested symbol tables.
+        if replacements:
+            if other_table.node:
+                other_table.node.replace_symbols_using(replacements)
+            else:
+                for symbol in other_table.symbols:
+                    if (symbol not in replacements and
+                            symbol not in replacements.values()):
+                        symbol.replace_symbols_using(replacements)
+            # We already know the replacements are in this table, so we
+            # can skip adding them below
+            symbols_to_skip.update(replacements)
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -1262,11 +1408,14 @@ class SymbolTable():
             if symbol is old_symbol:
                 old_tag = tag
                 break
-        for sym in self.symbols:
-            sym.replace_symbols_using(new_symbol)
+        replacements = {old_symbol: new_symbol}
         if self.node:
-            # Update the PSyIR tree associated with this table.
-            self.node.replace_symbols_using(new_symbol)
+            # Update declarations and references, including nested scopes.
+            self.node.replace_symbols_using(replacements)
+        else:
+            for sym in self.symbols:
+                if sym is not old_symbol and sym is not new_symbol:
+                    sym.replace_symbols_using(replacements)
         self.remove(old_symbol)
         self.add(new_symbol, tag=old_tag)
 
@@ -1928,13 +2077,10 @@ class SymbolTable():
                 # of this ScopingNode that do not have a wildcard import.
                 continue
 
-            # We want to replace the local symbol with the newly
-            # imported one in the outer scope (`symbol`).
-            # Update any references to it within the SymbolTable itself.
-            for sym in symbol_table.symbols:
-                sym.replace_symbols_using(symbol)
-            # Then update any references in the associated PSyIR tree.
-            self.node.replace_symbols_using(symbol)
+            # We want to replace the local symbol with the newly imported one
+            # in the outer scope. Update declarations and references by
+            # identity so unrelated symbols with the same name are unchanged.
+            self.node.replace_symbols_using({test_symbol: symbol})
             # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
 

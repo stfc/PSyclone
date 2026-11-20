@@ -127,7 +127,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
               ):
         '''
         Takes the body of the routine that is the target of the supplied
-        call and replaces the call with it.
+        call and replaces the call with it. Identical constant (PARAMETER)
+        symbols already present at the call site are reused. Other symbols
+        are copied and renamed where necessary to avoid name clashes.
 
         :param node: the Call node to inline.
         :param routine: Optional Routine to be inlined. (By default, PSyclone
@@ -194,6 +196,17 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         #     just delete the if statement.
         self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
+        # Merge while the body is still attached so that reused parameters
+        # and COMMON members are updated in both statements and declarations.
+        try:
+            table.merge(routine_table,
+                        symbols_to_skip=routine_table.argument_list)
+        except SymbolError as err:
+            raise InternalError(
+                f"Error copying routine symbols to call site. This should "
+                f"have been caught by the validate() method. Original error "
+                f"was {err}") from err
+
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
@@ -206,17 +219,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 continue
             new_stmts.append(child)
             refs.extend(new_stmts[-1].walk(Reference))
-
-        # Shallow copy the symbols from the routine into the table at the
-        # call site. This preserves any references to them.
-        try:
-            table.merge(routine_table,
-                        symbols_to_skip=routine_table.argument_list[:])
-        except SymbolError as err:
-            raise InternalError(
-                f"Error copying routine symbols to call site. This should "
-                f"have been caught by the validate() method. Original error "
-                f"was {err}") from err
 
         # TODO #3536: A shallow copy will create common subtrees/references
         # between the inlined and the original.
@@ -387,7 +389,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
-                                                 arg_match_list: List = []):
+                                                 arg_match_list: list = []):
         """Replace PRESENT(some_argument) intrinsics in routine with constant
         booleans depending on whether `some_argument` has been provided
         (`True`) or not (`False`).
@@ -496,7 +498,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         self,
         expression: Node,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
@@ -574,7 +576,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     def _create_inlined_idx(
         self,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         local_idx: DataNode,
         decln_start: DataNode,
         actual_start: DataNode,
@@ -677,7 +679,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         actual_arg: ArrayMixin,
         local_ref: Reference,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> List[Node]:
@@ -794,7 +796,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         actual_arg: Reference,
         ref: Reference,
         call_node: Call,
-        formal_args: List[DataSymbol],
+        formal_args: list[DataSymbol],
         routine_node: Routine,
         allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
@@ -1029,6 +1031,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             does not match that of the corresponding actual argument.
         :raises TransformationError: if one of the declarations in the routine
             depends on an argument that is written to prior to the call.
+        :raises TransformationError: if a COMMON block is declared in both
+            the caller and the routine being inlined with incompatible types.
         :raises InternalError: if an unhandled Node type is returned by
             Reference.previous_accesses().
 
@@ -1180,18 +1184,19 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                             f"because it has a static (Fortran SAVE) "
                             f"interface for Symbol '{sym.name}'.")
 
+        routine_table = routine.symbol_table
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
         try:
-            routine.check_outer_scope_accesses(node, "routine",
-                                               permit_unresolved=False)
+            routine.check_outer_scope_accesses(
+                node, "routine", permit_unresolved=False)
         except SymbolError as err:
             raise TransformationError(
                 f"Cannot inline '{routine.name}' because it accesses a "
-                f"variable that is unresolved or declared in an outer scope: "
+                f"variable that is unresolved or declared in an outer scope, "
+                f"or its declarations conflict with the call site: "
                 f"{err.value}") from err
 
-        routine_table = routine.symbol_table
         # Create a list of routine arguments that is actually used
         routine_arg_list = [
             routine_table.argument_list[i] for i in arg_match_list
@@ -1201,7 +1206,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             routine_arg_list, node.arguments
         ):
             self._validate_inline_of_call_and_routine_argument_pairs(
-                call_node=node,
                 call_arg=actual_arg,
                 routine_node=routine,
                 routine_arg=routine_arg,
@@ -1213,7 +1217,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     # pylint: disable=too-many-arguments
     def _validate_inline_of_call_and_routine_argument_pairs(
         self,
-        call_node: Call,
         call_arg: DataNode,
         routine_node: Routine,
         routine_arg: DataSymbol,

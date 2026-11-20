@@ -55,10 +55,10 @@ def test_explicitly_private_symbols_attibute(fortran_reader):
     assert a_ref.symbol not in new_directive.explicitly_private_symbols
     assert new_a_ref.symbol in new_directive.explicitly_private_symbols
 
-    # The 'replace_symbols_using' can also be called with a Symbol
+    # The 'replace_symbols_using' can also be called with an identity mapping
     previous_sym = new_a_ref.symbol
     a_sym = Symbol("a")
-    new_directive.replace_symbols_using(a_sym)
+    new_directive.replace_symbols_using({previous_sym: a_sym})
     assert previous_sym not in new_directive.explicitly_private_symbols
     assert a_sym in new_directive.explicitly_private_symbols
     # Inner references are also updated because the method is recursive

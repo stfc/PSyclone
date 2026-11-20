@@ -30,6 +30,33 @@ def test_struct_ref_init():
             "object but found 'str'." in str(excinfo.value))
 
 
+@pytest.mark.parametrize("use_table", [False, True])
+def test_struct_ref_replace_symbols_using(use_table):
+    '''Update an explicit datatype as well as the base and index symbols.'''
+    kind = symbols.DataSymbol("kind", ScalarType.integer_type())
+    index = symbols.DataSymbol("idx", ScalarType.integer_type())
+    base = symbols.DataSymbol("base", symbols.UnresolvedType())
+    datatype = ArrayType(
+        ScalarType(ScalarType.Intrinsic.REAL, nodes.Reference(kind)),
+        [nodes.Reference(index)])
+    ref = nodes.StructureReference.create(
+        base, [("member", [nodes.Reference(index)])],
+        overwrite_datatype=datatype)
+    new_kind, new_index, new_base = kind.copy(), index.copy(), base.copy()
+    mapping = {kind: new_kind, index: new_index, base: new_base}
+    if use_table:
+        mapping = symbols.SymbolTable()
+        for symbol in (new_kind, new_index, new_base):
+            mapping.add(symbol)
+
+    ref.replace_symbols_using(mapping)
+
+    assert ref.symbol is new_base
+    assert ref.member.indices[0].symbol is new_index
+    assert ref.datatype.precision.symbol is new_kind
+    assert ref.datatype.shape[0].upper.symbol is new_index
+
+
 def test_struct_ref_create():
     ''' Tests for the create method. '''
     region_type = symbols.StructureType.create(

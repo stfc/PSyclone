@@ -7,7 +7,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from typing import Union, Optional
+from typing import Optional
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
@@ -15,7 +15,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 
@@ -381,33 +381,6 @@ class Loop(Statement):
         if self.loop_type:
             result += f", loop_type='{self.loop_type}'"
         return result + "]"
-
-    def replace_symbols_using(
-        self,
-        table_or_symbol: Union[SymbolTable, Symbol]
-    ):
-        '''
-        Replace the Symbol referred to by this object's `variable` with those
-        in the supplied SymbolTable (or just the supplied Symbol instance) if
-        they have matching names. If there is no match for a given Symbol then
-        it is left unchanged.
-
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-
-        '''
-        if self.variable:
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.variable.name.lower():
-                    self.variable = table_or_symbol
-            else:
-                try:
-                    new_sym = table_or_symbol.lookup(self.variable.name)
-                    self.variable = new_sym
-                except KeyError:
-                    pass
-
-        super().replace_symbols_using(table_or_symbol)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name

@@ -14,13 +14,14 @@ import pytest
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
-    CodeBlock, PSyDataNode, Schedule, Return, Routine)
+    Assignment, CodeBlock, PSyDataNode, Reference, Schedule, Return, Routine)
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
-    UnresolvedType, DataSymbol, UnsupportedFortranType)
+    UnresolvedType, DataSymbol, UnsupportedFortranType, ScalarType,
+    CommonBlockInterface)
 from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -384,6 +385,37 @@ def test_psy_data_node_lower_to_language_level():
         'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
     assert codeblocks[1].get_fortran_lines()[0] == \
         'CALL psy_data % PostEnd'
+
+
+def test_psy_data_lower_reuses_symbols():
+    '''Lowering merges declarations before moving the body so references to
+    duplicate parameters and COMMON aliases use the enclosing symbols.
+    '''
+    routine = Routine.create("test")
+    outer_param = DataSymbol("n", ScalarType.integer_type(), is_constant=True,
+                             initial_value=3)
+    outer_common = DataSymbol("value", ScalarType.real_type(),
+                              interface=CommonBlockInterface("blk", 0))
+    routine.symbol_table.add(outer_param)
+    routine.symbol_table.add(outer_common)
+    psy_node = PSyDataNode.create([], routine.symbol_table)
+    routine.addchild(psy_node)
+    inner_param = outer_param.copy()
+    inner_common = DataSymbol("alias", ScalarType.real_type(),
+                              interface=CommonBlockInterface("blk", 0))
+    psy_node.psy_data_body.symbol_table.add(inner_param)
+    psy_node.psy_data_body.symbol_table.add(inner_common)
+    assignment = Assignment.create(Reference(inner_common),
+                                   Reference(inner_param))
+    psy_node.psy_data_body.addchild(assignment)
+
+    psy_node.lower_to_language_level()
+
+    assert assignment.parent is routine
+    assert assignment.lhs.symbol is outer_common
+    assert assignment.rhs.symbol is outer_param
+    assert "alias" not in routine.symbol_table
+    assert "n_1" not in routine.symbol_table
 
 
 def test_psy_data_node_lower_to_language_level_with_kwargs():
