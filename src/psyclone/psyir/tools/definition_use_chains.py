@@ -216,8 +216,6 @@ class DefinitionUseChain:
         :returns: the forward accesses of the references given to this
                   DefinitionUseChain
         """
-        if len(self._references) == 0:
-            return []
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
@@ -629,9 +627,8 @@ class DefinitionUseChain:
         elif (isinstance(reference.parent, Loop) and
               reference.parent.variable_reference is reference):
             # If we have a Loop variable it is always written to.
-            if self._defsout[sig]:
-                self._killed[sig].extend(self._defsout[sig])
-                self._defsout[sig] = []
+            # Loop variables are the only write in blocks they can appear in
+            # so we don't need to check for existing defsout.
             self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
@@ -1040,9 +1037,8 @@ class DefinitionUseChain:
         elif (isinstance(reference.parent, Loop) and
               reference.parent.variable_reference is reference):
             # If we have a Loop variable it is always written to.
-            if self._defsout[sig]:
-                self._killed[sig].extend(self._defsout[sig])
-                self._defsout[sig] = []
+            # Loop variables are the only write in blocks they can appear in
+            # so we don't need to check for existing defsout.
             self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
@@ -1239,8 +1235,6 @@ class DefinitionUseChain:
         :returns: the backward accesses of the reference given to this
                   DefinitionUseChain
         """
-        if len(self._references) == 0:
-            return []
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
