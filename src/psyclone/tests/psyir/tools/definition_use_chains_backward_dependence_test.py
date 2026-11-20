@@ -1207,3 +1207,82 @@ def test_backward_accesses_unsupportedtype_pure_call_argument(fortran_reader):
     assert len(reaches[a_sig]) == 1
     assert reaches[a_sig][0] is routine.walk(Call)[1].arguments[0]
     assert len(reaches[i_sig]) == 0
+
+
+def test_backward_accesses_select_type(fortran_reader):
+    '''Test that dependencies pass through a select type node as
+    PSyclone doesn't know which code might be accessed.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i
+
+    i = 1
+    select type(a)
+        type is(integer)
+           i = 2
+        type is(real)
+           i = 3
+    end select
+    i = 4
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+
+    # Test for i = 4 lhs. Should have 3 prev accesses to all of the
+    # previous accesses to i
+    prev_accesses = references[4].previous_accesses()
+
+    assert len(prev_accesses) == 3
+    # The second reference in the list is a, the rest are the is in order.
+    assert prev_accesses[0] is references[3]
+    assert prev_accesses[1] is references[2]
+    assert prev_accesses[2] is references[0]
+
+    # Test for i = 3 lhs. Should only have one prev access to
+    # the i = 1.
+    prev_accesses = references[3].previous_accesses()
+    assert len(prev_accesses) == 1
+    assert prev_accesses[0] is references[0]
+
+
+def test_backward_accesses_select_type_inside_loop(fortran_reader):
+    '''Test that dependencies for nodes inside a select type node inside
+    a loop can find any of the containing references.'''
+    code = """subroutine test(a)
+    class(*), allocatable :: a
+
+    integer :: i, loop
+
+    i = 1
+    do loop = 1, 100
+        select type(a)
+            type is(integer)
+               i = 2
+            type is(real)
+               i = 3
+        end select
+    end do
+    i = 4
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+
+    # Test for i = 4 lhs. Should have 3 prev accesses to all of the
+    # previous accesses to i, unchanged as to when there is no loop.
+    previous_accesses = references[5].previous_accesses()
+
+    assert len(previous_accesses) == 3
+    assert previous_accesses[0] is references[4]
+    assert previous_accesses[1] is references[3]
+    assert previous_accesses[2] is references[0]
+
+    # Test for i = 2 lhs. Should have prev accesses to any of the references
+    # inside the select type and i = 1.
+    previous_accesses = references[4].previous_accesses()
+    assert len(previous_accesses) == 3
+    assert previous_accesses[0] is references[4]
+    assert previous_accesses[1] is references[3]
+    assert previous_accesses[2] is references[0]

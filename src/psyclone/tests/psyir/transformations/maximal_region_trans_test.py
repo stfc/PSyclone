@@ -17,6 +17,7 @@ from psyclone.psyir.nodes import (
     Loop,
     OMPParallelDirective,
     Node,
+    SelectType
 )
 from psyclone.psyir.transformations import (
     MaximalRegionTrans,
@@ -59,6 +60,33 @@ def test_can_be_in_region(fortran_reader, statement, expected):
         {statement}
     end subroutine test
     """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    trans = MaxParTrans()
+    assert trans._can_be_in_region(routine.children[0], []) == expected
+
+
+@pytest.mark.parametrize(
+    "body,expected",
+    [
+        ("i = 1", True),
+        ("call some_func", False)
+    ]
+)
+def test_can_be_in_region_select_type(fortran_reader, body, expected):
+    '''Test the _can_be_in_region functionality of MaxParallelRegionTrans when
+    the code contains a SelectType node.'''
+    code = f"""
+    subroutine test
+    use some_module
+    class(*) :: a
+    integer :: i, j
+
+    select type(a)
+        type is(integer)
+        {body}
+    end select
+    end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     trans = MaxParTrans()
@@ -232,6 +260,47 @@ def test_apply(fortran_reader):
     assert len(nodes[0].if_body.children) == 2
     assert isinstance(nodes[0].if_body.children[1], OMPParallelDirective)
     assert isinstance(nodes[0].else_body.children[0], OMPParallelDirective)
+
+    # Test it works for a select type correctly.
+    code = """subroutine test
+    use some_mod
+    class(*) :: a
+    integer :: i
+
+    i = 1
+
+    select type(a)
+        type is(integer)
+            i = 1
+        class default
+            i = 1
+    end select
+
+    select type(a)
+        type is(integer)
+            i = 1
+        class default
+            call abc()
+    end select
+
+    i = 1
+
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    nodes = psyir.walk(Routine)[0].children[:]
+    mtrans.apply(nodes)
+    nodes = psyir.walk(Routine)[0]
+    assert len(psyir.walk(OMPParallelDirective)) == 3
+    assert isinstance(nodes.children[0], OMPParallelDirective)
+    # Second node is a seelct type where the first typeguard has a parallel
+    # and the second does not.
+    assert isinstance(nodes.children[1], SelectType)
+    selt = nodes.children[1]
+    assert isinstance(selt.children[1].body.children[0], OMPParallelDirective)
+    assert not isinstance(selt.children[2].body.children[0],
+                          OMPParallelDirective)
+    # Last node is a parallel again
+    assert isinstance(nodes.children[2], OMPParallelDirective)
 
     # Dummy class to test failing validation.
     class Faketrans(Transformation):

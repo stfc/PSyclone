@@ -20,6 +20,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall,
     Loop,
     Node,
+    SelectType
 )
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -36,6 +37,7 @@ class OMPTaskTrans(ParallelLoopTrans):
     In the future it may be possible to do this through an _update_node
     implementation.
     '''
+    excluded_node_types = (SelectType, )
 
     def __str__(self):
         return "Adds an 'OMP TASK' directive to a statement"

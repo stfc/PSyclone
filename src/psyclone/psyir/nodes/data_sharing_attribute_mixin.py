@@ -18,6 +18,7 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.select_type import SelectType
 from psyclone.psyir.symbols import DataSymbol, Symbol, SymbolTable
 
 
@@ -242,7 +243,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     # had a value before the loop (as some compilers don't
                     # like uninitialised firstprivates)
                     conditional_write = access.node.ancestor(
-                        IfBlock,
+                        (IfBlock, SelectType),
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:

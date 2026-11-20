@@ -15,6 +15,7 @@ from psyclone.psyir.nodes import (
     Schedule,
     Loop,
     IfBlock,
+    SelectType,
     WhileLoop,
 )
 from psyclone.psyGen import Transformation
@@ -118,6 +119,15 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                                self._can_be_in_region(child, current_block))
             return allowed
 
+        if isinstance(node, SelectType):
+            allowed = True
+            for child in node.children[1:]:
+                for subchild in child.body.children:
+                    allowed = (allowed and self._can_be_in_region(
+                        subchild, current_block)
+                    )
+            return allowed
+
         # All other node types we default to False.
         return False
 
@@ -198,6 +208,16 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                         child.loop_body[:], trans, trans_kwargs
                     )
                     all_blocks = loop_blocks + all_blocks
+                if isinstance(child, SelectType):
+                    # Loop through the typeguards backwards
+                    for typeguard in child.children[-1:0:-1]:
+                        typeguard_blocks = (
+                            self._compute_transformable_sections(
+                                typeguard.body[:], trans, trans_kwargs
+                            )
+                        )
+                        all_blocks = typeguard_blocks + all_blocks
+
         # If any nodes are left in the current block at the end of the
         # node_list, then add them to a transformed region
         if current_block:
