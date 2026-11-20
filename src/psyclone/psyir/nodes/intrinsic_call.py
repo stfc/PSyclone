@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
-from typing import List, Tuple, Callable, Union
+from typing import Callable, List, Tuple, Union
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
@@ -20,14 +20,15 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol, Symbol
+from psyclone.psyir.symbols import DataTypeSymbol, IntrinsicSymbol, Symbol
 from psyclone.psyir.symbols.datatypes import (
-    DataType,
     ArrayType,
+    DataType,
+    NoType,
     ScalarType,
     UnresolvedType,
     UnsupportedFortranType,
-    NoType,
+    UnsupportedType,
 )
 
 # pylint: disable=too-many-branches
@@ -4860,9 +4861,14 @@ class IntrinsicCall(Call):
 
     @property
     def datatype(self) -> DataType:
-        """Return the datatype of this IntrinsicCall.
+        """Return the datatype of this intrinsic call.
 
-        :returns: The datatype corresponding to this IntrinsicCall.
+        :returns: the datatype of the result, or
+            :py:class:`psyclone.psyir.symbols.UnresolvedType` when type
+            information is insufficient.
+
+        :raises InternalError: if the datatype computation fails because the
+            node is incomplete or its arguments are invalid for the intrinsic.
         """
         # If the return type is None then return NoType
         if self.intrinsic.return_type is None:
@@ -4879,29 +4885,34 @@ class IntrinsicCall(Call):
                     or "ScalarType expected 'precision' argument to be of "
                         "type " in str(err)):
                     return UnresolvedType()
-                # This should never happen, propogate as an InternalError.
+                # This should never happen, propagate as an InternalError.
                 outerr = err
             except AttributeError as err:
-                # This is to handle when we call .intrinsic or
-                # .precision on an UnresolvedType
-                # If we get an attribute error, and its because of attempting
-                # to lookup the precision or intrinsic, then it is likely
-                # due to looking up the datatype elements of an Unresolved
-                # or UnsupportedType - in those cases then we should
-                # return an UnresolvedType and not error.
-                if (("has no attribute 'precision'" or
-                     "has no attribute 'intrinsic'" in str(err))
-                    and "NoneType" not in
-                        str(err)):
+                # Missing type information can prevent queries of intrinsic,
+                # precision or shape. Only handle errors on those datatype
+                # objects; errors on known types or missing arguments indicate
+                # invalid or incomplete PSyIR and must still be reported.
+                # TODO #3416: Python 3.9 does not provide AttributeError.obj
+                if not hasattr(err, "obj"):
+                    if str(err).startswith(tuple(
+                            f"'{dtype.__name__}' object has no attribute "
+                            for dtype in (UnresolvedType,
+                                          UnsupportedType,
+                                          DataTypeSymbol))):
+                        return UnresolvedType()
+                elif isinstance(err.obj, (UnresolvedType,
+                                          UnsupportedType,
+                                          DataTypeSymbol)):
                     return UnresolvedType()
                 outerr = err
             # Fall through to the internalerror.
             # Can't use debug string due to this being a potentially
             # incomplete IntrinsicCall
             raise InternalError(
-                f"Failed to compute the datatype of a "
-                f"'{self.intrinsic.name}' intrinsic. This is likely due "
-                f"to not fully initialising the intrinsic correctly."
+                f"Failed to compute the datatype of a '{self.intrinsic.name}' "
+                f"intrinsic. This is likely due "
+                f"to an incomplete node or the provided arguments are not "
+                f"valid for the intrinsic."
             ) from outerr
         else:
             return self.intrinsic.return_type

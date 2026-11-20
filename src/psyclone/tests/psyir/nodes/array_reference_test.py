@@ -8,14 +8,15 @@
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
 import pytest
+
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
+    ArrayReference, Assignment, BinaryOperation, IntrinsicCall, KernelSchedule,
+    Literal, Range, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol,
-    UnsupportedFortranType, StructureType, UnresolvedType)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, StructureType, Symbol,
+    UnresolvedType, UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 from psyclone.utils import colored
 
@@ -609,6 +610,30 @@ def test_array_datatype(fortran_reader):
     aref10.addchild(Range.create(one.copy(), four.copy()))
     aref10.addchild(Range.create(one.copy(), four.copy()))
     assert aref10.datatype.elemental_type == UnresolvedType()
+
+
+def test_array_datatype_full_slice_generic_symbol():
+    '''A full slice of an unresolved Symbol has known rank but unknown type.
+
+    The frontend can construct ArrayReferences to generic Symbols before
+    their declarations are available.
+    '''
+    symbol = Symbol("imported_array")
+    bounds = [
+        IntrinsicCall.create(
+            intrinsic, [Reference(symbol),
+                        ("dim", Literal("1", ScalarType.integer_type()))])
+        for intrinsic in (IntrinsicCall.Intrinsic.LBOUND,
+                          IntrinsicCall.Intrinsic.UBOUND)
+    ]
+    reference = ArrayReference(symbol)
+    reference.addchild(Range.create(*bounds))
+
+    dtype = reference.datatype
+    assert isinstance(dtype, ArrayType)
+    assert isinstance(dtype.elemental_type, UnresolvedType)
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0].upper.debug_string() == "SIZE(imported_array, dim=1)"
 
 
 def test_array_create_colon(fortran_writer):

@@ -15,11 +15,11 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, IntrinsicCall,
+    ArrayReference, Assignment, BinaryOperation, DataNode, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, UnresolvedType, ScalarType, Symbol, StructureType,
-    UnsupportedFortranType)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, StructureType, Symbol,
+    UnresolvedType, UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 from psyclone.utils import colored
 
@@ -413,6 +413,32 @@ def test_binaryop_unresolved_datatype():
     assert isinstance(binop4.datatype, UnresolvedType)
 
 
+@pytest.mark.parametrize("operator", [BinaryOperation.Operator.ADD,
+                                      BinaryOperation.Operator.EQ])
+@pytest.mark.parametrize("is_array", [False, True])
+@pytest.mark.parametrize("resolved", [False, True])
+def test_binaryop_derived_datatype(operator, is_array, resolved):
+    '''Derived-type operands cannot determine an overloaded operator's type.
+
+    This applies to scalars and arrays, even when the type definition is
+    available, and regardless of which operand has the derived type.
+    '''
+    dtype = DataTypeSymbol("my_type", StructureType() if resolved
+                           else UnresolvedType())
+    if is_array:
+        dtype = ArrayType(dtype, [10])
+    derived = Reference(DataSymbol("derived", dtype))
+    intrinsic = Reference(DataSymbol("intrinsic", ScalarType.real_type()))
+    for lhs, rhs in [(derived, intrinsic), (intrinsic, derived),
+                     (derived, derived)]:
+        operation = BinaryOperation.create(operator, lhs.copy(), rhs.copy())
+        assert isinstance(operation.datatype, UnresolvedType)
+        # An unresolved inner operation also makes the outer type unresolved.
+        outer = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                       intrinsic.copy(), operation)
+        assert isinstance(outer.datatype, UnresolvedType)
+
+
 def test_binaryop_partial_datatype():
     '''
     Test the BinaryOperation datatype works when one or both arguments only
@@ -494,6 +520,30 @@ def test_binaryoperation_intrinsic_fn_datatype():
     binop = BinaryOperation.create(oper, arg1, arg2)
     assert isinstance(binop.datatype, ScalarType)
     assert binop.datatype == ScalarType.real_single_type()
+
+
+def test_datatype_overloaded_operator(fortran_reader):
+    '''An overloaded derived-type expression has an unresolved result type.
+
+    An imported derived type has a DataTypeSymbol, even when operator(+) is
+    also imported. Accessing the expression's datatype must not assume that
+    this has an intrinsic type.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine example(b, c, d)
+          use types_mod, only: my_type, operator(+)
+          implicit none
+          type(my_type), intent(out) :: b
+          type(my_type), intent(in) :: c, d
+          b = c + d
+        end subroutine example
+    ''')
+    rhs = psyir.walk(Assignment)[0].rhs
+    assert isinstance(rhs, DataNode)
+    assert isinstance(rhs, BinaryOperation)
+    assert isinstance(rhs.children[0].datatype, DataTypeSymbol)
+
+    assert isinstance(rhs.datatype, UnresolvedType)
 
 
 # Test UnaryOperation class
