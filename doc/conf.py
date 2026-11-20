@@ -35,11 +35,6 @@ docs_dir = os.path.dirname(os.path.abspath(__file__))
 # add these directories to sys.path here.
 sys.path.insert(0, os.path.join(docs_dir, "_ext"))
 
-# A simple function interface_example.py is included in this directory to
-# show proper sphinx documentation of code. In order to find this file,
-# the current directory must be added to Python's system path:
-sys.path.insert(0, os.path.abspath('developer_guide'))
-
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
