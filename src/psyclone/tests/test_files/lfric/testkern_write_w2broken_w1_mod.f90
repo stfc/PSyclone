@@ -6,7 +6,7 @@
 ! -----------------------------------------------------------------------------
 
 ! A kernel which writes to two fields, one on W2broken (discontinuous) and
-! one on W1 (continuous). The generated loop bounds in the PSy layer must
+! one on W1V (continuous). The generated loop bounds in the PSy layer must
 ! therefore be for the 'worst case' which is the continuous space.
 module testkern_write_w2broken_w1_mod
 
@@ -22,7 +22,7 @@ module testkern_write_w2broken_w1_mod
           arg_type(gh_field,   gh_real, gh_read,  w3),        &
           arg_type(gh_field,   gh_real, gh_read,  w0),        &
           arg_type(gh_field,   gh_real, gh_read,  w2),        &
-          arg_type(gh_field,   gh_real, gh_inc,   w1),        &
+          arg_type(gh_field,   gh_real, gh_inc,   w1v),       &
           arg_type(gh_field*3, gh_real, gh_read,  wchi),      &
           arg_type(gh_field,   gh_real, gh_read,  wtheta),    &
           arg_type(gh_field,   gh_real, gh_read,  w2h),       &
