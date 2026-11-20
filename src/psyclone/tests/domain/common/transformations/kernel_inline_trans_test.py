@@ -188,7 +188,8 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
     for child in schedule.children:
         if child is loops[0]:
             break
-        prior_loops += 1
+        if isinstance(child, Loop):
+            prior_loops += 1
 
     second_loop = loops[1].detach()
     second_kernel = second_loop.loop_body[0].detach()
@@ -285,7 +286,7 @@ def test_lfric_kernel_with_automatic_array(tmp_path, monkeypatch):
     allocate(lhs_e(ndf_ads1_f4__1))
     !$omp parallel default(shared) private(cell)
     !$omp do schedule(static)
-    do cell = loop1_start, loop1_stop, 1
+    do cell = 1, loop1_stop, 1
       ! deferred-inline successful for kernel 'dg_matrix_vector_code_r_\
 double_inlined_'
       do k = 0, nlayers_f4 - 1, 1_i_def
