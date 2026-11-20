@@ -17,7 +17,7 @@ import os
 import sys
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any
 import warnings
 
 
@@ -1169,8 +1169,8 @@ class CodedKern(Kern):
     def __init__(self,
                  KernelArguments: type,
                  call: KernelCall,
-                 parent: Optional[Node] = None,
-                 check: Optional[bool] = True):
+                 parent: Node | None = None,
+                 check: bool | None = True):
         # Set module_name first in case there is an error when
         # processing arguments, as we can then return the module_name
         # from where it happened.
@@ -1192,7 +1192,7 @@ class CodedKern(Kern):
 
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
-        self.routine: Optional[Reference] = None
+        self.routine: Reference | None = None
 
         # If we have an ancestor InvokeSchedule then add the necessary
         # symbols.
@@ -1310,7 +1310,7 @@ class CodedKern(Kern):
         _, position = self._find_position(self.ancestor(Routine))
         return f"kernel_{self.name}_{position}"
 
-    def node_str(self, colour: Optional[bool] = True) -> str:
+    def node_str(self, colour: bool | None = True) -> str:
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
@@ -1322,7 +1322,7 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) +
                 f" {self.name}({self.arguments.names})")
 
-    def lower_to_language_level(self) -> Optional[Node]:
+    def lower_to_language_level(self) -> Node | None:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
@@ -1990,7 +1990,7 @@ class Argument():
         ''' set the node that this argument is associated with '''
         self._call = value
 
-    def backward_dependence(self) -> Union[Argument, None]:
+    def backward_dependence(self) -> Argument | None:
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a Call, a HaloExchange, or a GlobalReduction.
@@ -2038,7 +2038,7 @@ class Argument():
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def forward_dependence(self) -> Union[Argument, None]:
+    def forward_dependence(self) -> Argument | None:
         '''Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
         exist in a Call, a HaloExchange or a GlobalReduction.
@@ -2540,7 +2540,7 @@ class Transformation(metaclass=abc.ABCMeta):
         return kwargs.get(option_name, valid_options[option_name].default)
 
     @classmethod
-    def get_valid_options(cls) -> Dict[str, ValidOption]:
+    def get_valid_options(cls) -> dict[str, ValidOption]:
         '''
         Pulls the valid options from the apply method. It also recurses
         upwards to the superclasses of this transformation and pulls

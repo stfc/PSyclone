@@ -16,7 +16,7 @@ import inspect
 import copy
 import logging
 import re
-from typing import Any, List, Optional, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -567,7 +567,7 @@ class SymbolTable():
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol: Symbol, tag: Optional[str] = None):
+    def add(self, new_symbol: Symbol, tag: str | None = None):
         '''Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
@@ -1091,8 +1091,8 @@ class SymbolTable():
     def lookup(
             self,
             name: str,
-            visibility: Optional[Union[Symbol.Visibility,
-                                       List[Symbol.Visibility]]] = None,
+            visibility: Symbol.Visibility | list[Symbol.Visibility] | None =
+            None,
             scope_limit=None,
             otherwise: Any = DEFAULT_SENTINEL) -> Any:
         '''Look up a symbol in the symbol table. The lookup can be limited
@@ -1754,7 +1754,7 @@ class SymbolTable():
 
     def _import_symbols_from(self, csymbol: ContainerSymbol,
                              container,
-                             symbol_target: Optional[Symbol] = None
+                             symbol_target: Symbol | None = None
                              ) -> set[Symbol]:
         '''
         Imports symbols from the supplied Container into this table. If
@@ -2144,7 +2144,7 @@ class SymbolTable():
                 symbols.update(sym.get_all_accessed_symbols())
         return symbols
 
-    def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
+    def wildcard_imports(self, scope_limit=None) -> list[ContainerSymbol]:
         '''
         Searches this symbol table and then up through any parent symbol
         tables for ContainerSymbols that have a wildcard import.

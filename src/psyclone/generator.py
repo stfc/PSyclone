@@ -22,7 +22,7 @@ import pathlib
 import shutil
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -84,12 +84,12 @@ FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
 
 def load_script(
         script_name: str,
-        kwargs_str: Optional[str] = None,
+        kwargs_str: str | None = None,
         function_name: str = "trans",
         is_optional: bool = False
-) -> Tuple[Optional[Callable],
-           List[str],
-           Union[bool, List[str]],
+) -> tuple[Callable | None,
+           list[str],
+           bool | list[str],
            dict[str, str]]:
     ''' Loads the specified script containing a PSyclone recipe. This is done
     without adding the imported symbol to the system list of all Python
@@ -190,17 +190,17 @@ def load_script(
 
 def generate(filename: str,
              api: str = "",
-             kernel_paths: Optional[list[str]] = None,
-             script_name: Optional[str] = None,
-             kwargs_str: Optional[str] = None,
+             kernel_paths: list[str] | None = None,
+             script_name: str | None = None,
+             kwargs_str: str | None = None,
              line_length: bool = False,
-             distributed_memory: Optional[bool] = None,
+             distributed_memory: bool | None = None,
              kern_out_path: str = "",
              keep_comments: bool = False,
              keep_directives: bool = False,
              keep_conditional_openmp_statements: bool = False,
              free_form: bool = True
-             ) -> Tuple[Optional[str], str]:
+             ) -> tuple[str | None, str]:
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -905,7 +905,7 @@ def code_transformation_mode(input_file: str,
                              keep_comments: bool,
                              keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
-                             kwargs_str: Optional[str] = None,
+                             kwargs_str: str | None = None,
                              free_form: bool = True,
                              line_length: str = "off"):
     '''

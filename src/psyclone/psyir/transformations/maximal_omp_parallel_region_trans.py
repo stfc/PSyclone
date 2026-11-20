@@ -7,8 +7,6 @@
 
 '''This module contains the MaximalOMPParallelRegionTrans.'''
 
-from typing import Union
-
 from psyclone.psyir.nodes import (
         Assignment,
         OMPTaskwaitDirective,
@@ -155,7 +153,7 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         added_node.append_preceding_comment(comment)
 
     def apply(
-        self, nodes: Union[Node, Schedule, list[Node]], **kwargs
+        self, nodes: Node | Schedule | list[Node], **kwargs
     ) -> None:
         '''Applies the transformation to the nodes provided.
 

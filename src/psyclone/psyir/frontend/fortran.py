@@ -7,7 +7,6 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-from typing import Optional, Union, List
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
 from psyclone.psyir.symbols import SymbolTable
@@ -43,7 +42,7 @@ class FortranReader():
                  ignore_directives: bool = True,
                  conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
-                 resolve_modules: Union[bool, List[str]] = False):
+                 resolve_modules: bool | list[str] = False):
 
         if ignore_comments and not ignore_directives:
             raise ValueError(
@@ -84,7 +83,7 @@ class FortranReader():
     def psyir_from_expression(
         self,
         source_code: str,
-        symbol_table: Optional[SymbolTable] = None
+        symbol_table: SymbolTable | None = None
     ) -> Node:
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the
@@ -124,7 +123,7 @@ class FortranReader():
     def psyir_from_statement(
         self,
         source_code: str,
-        symbol_table: Optional[SymbolTable] = None
+        symbol_table: SymbolTable | None = None
     ) -> Node:
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the

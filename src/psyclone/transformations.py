@@ -12,7 +12,7 @@
 
 # pylint: disable=too-many-lines
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
 import warnings
 
 import psyclone
@@ -139,7 +139,7 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+    def apply(self, node: Loop, options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         ''' Apply LFRic specific OMPLoopTrans.
 
@@ -233,7 +233,7 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         super().validate(node, options=local_options, **kwargs)
 
     def apply(self, node: LFRicLoop,
-              options: Optional[dict[str, Any]] = None,
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''
         Applies the LFRicOMPParallelLoopTrans to the supplied Loop.
@@ -286,7 +286,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
     def apply(self, node: Loop,
-              options: Optional[dict[str, Any]] = None,
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
@@ -332,7 +332,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
     def validate(self, node: Loop,
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''
         Checks that the supplied node is a valid target for parallelisation
@@ -353,7 +353,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
-    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+    def apply(self, node: Loop, options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Apply this transformation to a GOcean loop.
 
@@ -383,7 +383,7 @@ class ColourTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into colours"
 
-    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None,
+    def apply(self, node: Loop, options: dict[str, Any] | None = None,
               tiling: bool = False, **kwargs):
         '''
         Converts the Loop represented by :py:obj:`node` into a
@@ -492,7 +492,7 @@ class LFRicColourTrans(ColourTrans):
         return "Split an LFRic loop over cells into colours"
 
     def validate(self, node: LFRicLoop,
-                 options: Optional[Dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs):
         ''' Validate the transformation.
 
@@ -531,7 +531,7 @@ class LFRicColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-    def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
+    def apply(self, node: LFRicLoop, options: dict[str, Any] | None = None,
               **kwargs):
         ''' Convert the given LFRic-specific loop into a double or triple
         nested loop where the outer loop iterates over colours and the inner
@@ -772,9 +772,9 @@ class OMPSingleTrans(ParallelRegionTrans):
                                         nowait=self.omp_nowait)
         return _directive
 
-    def apply(self, node_list: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
-              nowait: Optional[bool] = None, **kwargs: Any) -> None:
+    def apply(self, node_list: Node | list[Node],
+              options: dict[str, Any] | None = None,
+              nowait: bool | None = None, **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
@@ -846,8 +846,8 @@ class OMPMasterTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenMP Master region"
 
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Apply this transformation to the supplied nodes.
 
@@ -920,8 +920,8 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    def validate(self, node_list: Union[Node, list[Node]],
-                 options: Optional[dict[str, Any]] = None,
+    def validate(self, node_list: Node | list[Node],
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''
         Validate this transformation.
@@ -990,9 +990,9 @@ class ACCParallelTrans(ParallelRegionTrans):
                         f"accelerator device, and therefore it cannot "
                         f"be called from within an ACC parallel region.")
 
-    def apply(self, target_nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
-              default_present: Optional[bool] = None,
+    def apply(self, target_nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
+              default_present: bool | None = None,
               allow_strings: bool = False,
               device_string: str = "",
               verbose: bool = False,
@@ -1059,7 +1059,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         return "LFRicAsyncHaloExchangeTrans"
 
     def apply(self, node: psyGen.HaloExchange,
-              options: Optional[dict[str, Any]] = None,
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Transforms a synchronous halo exchange, represented by a
         HaloExchange node, into an asynchronous halo exchange,
@@ -1090,7 +1090,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         node.detach()
 
     def validate(self, node: psyGen.HaloExchange,
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         # pylint: disable=signature-differs
         '''Internal method to check whether the node is valid for this
@@ -1172,11 +1172,11 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
         return "LFRicKernelConstTrans"
 
     def apply(self, node: LFRicKern,
-              options: Optional[dict[str, Any]] = None,
+              options: dict[str, Any] | None = None,
               cellshape: str = "quadrilateral",
-              element_order_h: Optional[int] = None,
-              element_order_v: Optional[int] = None,
-              number_of_layers: Optional[int] = None,
+              element_order_h: int | None = None,
+              element_order_v: int | None = None,
+              number_of_layers: int | None = None,
               quadrature: bool = False, **kwargs: Any) -> None:
         # pylint: disable=too-many-statements, too-many-locals
         '''Transforms a kernel so that the values for the number of degrees of
@@ -1348,7 +1348,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                                   function_space=info.function_space)
 
     def validate(self, node: LFRicKern,
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''This method checks whether the input arguments are valid for
         this transformation.
@@ -1484,8 +1484,8 @@ class ACCEnterDataTrans(Transformation):
         return "ACCEnterDataTrans"
 
     def apply(self, node: "psyclone.psyir.nodes.Schedule",
-              options: Optional[dict[str, Any]] = None,
-              async_queue: Union[bool, int] = False,
+              options: dict[str, Any] | None = None,
+              async_queue: bool | int = False,
               **kwargs: Any) -> None:
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
@@ -1559,7 +1559,7 @@ class ACCEnterDataTrans(Transformation):
                     'different than the one in child kernels !')
 
     def validate(self, sched: Schedule,
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         # pylint: disable=arguments-differ, arguments-renamed
         '''
@@ -1776,8 +1776,8 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, node: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, node: Node | list[Node],
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''
         Put the supplied node or list of nodes within an OpenACC data region.
@@ -1801,8 +1801,8 @@ class ACCDataTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes: Union[Node, list[Node]],
-                 options: Optional[dict[str, Any]] = None,
+    def validate(self, nodes: Node | list[Node],
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         # pylint: disable=signature-differs
         '''
@@ -1897,7 +1897,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                 " in the kernel call.")
 
     def validate(self, node: CodedKern,
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''
         Check that the supplied node is a valid target for this transformation.
@@ -1948,7 +1948,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
         super().validate(node, options=options, **kwargs)
 
     def apply(self, node: CodedKern,
-              options: Optional[dict[str, Any]] = None,
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''
         Convert the imported variables used inside the kernel into arguments

@@ -8,7 +8,6 @@
 ''' This module contains the ComplexLiteral node implementation.'''
 
 from __future__ import annotations
-from typing import Union, Optional
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes import Node
 from psyclone.psyir.nodes.datanode import DataNode
@@ -37,9 +36,9 @@ class ComplexLiteral(DataNode):
         super().__init__(parent=parent)
 
     @staticmethod
-    def create(re_part: Union[Literal, Reference],
-               im_part: Union[Literal, Reference],
-               parent: Optional[Node] = None) -> ComplexLiteral:
+    def create(re_part: Literal | Reference,
+               im_part: Literal | Reference,
+               parent: Node | None = None) -> ComplexLiteral:
         '''Create a ComplexLiteral with given real and imaginary parts.
         :param precision: the precision of this literal.
         :param parent: the parent node of this ComplexLiteral in the PSyIR.
@@ -66,12 +65,12 @@ class ComplexLiteral(DataNode):
         return True
 
     @property
-    def re_part(self) -> Union[Literal, Reference]:
+    def re_part(self) -> Literal | Reference:
         '''Return the real part'''
         return self.children[0]
 
     @property
-    def im_part(self) -> Union[Literal, Reference]:
+    def im_part(self) -> Literal | Reference:
         '''Return the imaginary part'''
         return self.children[1]
 
@@ -128,7 +127,7 @@ class ComplexLiteral(DataNode):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: SymbolTable | Symbol) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they

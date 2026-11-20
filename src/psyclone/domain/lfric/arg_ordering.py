@@ -10,7 +10,6 @@ kernel calls.
 '''
 
 import abc
-from typing import Optional, Union
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -90,10 +89,10 @@ class ArgOrdering:
 
     def append(self,
                var_name: str,
-               var_accesses: Optional[VariablesAccessMap] = None,
-               var_access_name: Optional[str] = None,
+               var_accesses: VariablesAccessMap | None = None,
+               var_access_name: str | None = None,
                mode: AccessType = AccessType.READ,
-               metadata_posn: Optional[int] = None
+               metadata_posn: int | None = None
                ) -> None:
         # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
@@ -189,8 +188,8 @@ class ArgOrdering:
         return sym
 
     def get_array_reference(self, array_name, indices,
-                            intrinsic_type: Optional[ScalarType] = None,
-                            tag: Optional[str] = None, symbol=None):
+                            intrinsic_type: ScalarType | None = None,
+                            tag: str | None = None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
@@ -240,10 +239,10 @@ class ArgOrdering:
 
     def append_array_reference(self,
                                array_name: str,
-                               indices: list[Union[str, Node]],
-                               intrinsic_type: Optional[ScalarType] = None,
-                               tag: Optional[str] = None,
-                               symbol: Optional[Symbol] = None) -> Symbol:
+                               indices: list[str | Node],
+                               intrinsic_type: ScalarType | None = None,
+                               tag: str | None = None,
+                               symbol: Symbol | None = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -323,7 +322,7 @@ class ArgOrdering:
         return self._arg_index_to_metadata_index[idx]
 
     def generate(self,
-                 var_accesses: Optional[VariablesAccessMap] = None
+                 var_accesses: VariablesAccessMap | None = None
                  ) -> None:
         # pylint: disable=too-many-statements, too-many-branches
         '''
@@ -541,7 +540,7 @@ class ArgOrdering:
         '''
 
     def mesh_height(self,
-                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+                    var_accesses: VariablesAccessMap | None = None) -> None:
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
@@ -550,7 +549,7 @@ class ArgOrdering:
         '''
 
     def field_ndata(self,
-                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+                    var_accesses: VariablesAccessMap | None = None) -> None:
         '''Add any distinct values of ndata (number of data values per dof)
         required by field arguments to the argument list. Also add these
         accesses to `var_accesses` if supplied.
@@ -560,7 +559,7 @@ class ArgOrdering:
         '''
 
     def _mesh_ncell2d(self,
-                      var_accesses: Optional[VariablesAccessMap] = None
+                      var_accesses: VariablesAccessMap | None = None
                       ) -> None:
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
@@ -571,7 +570,7 @@ class ArgOrdering:
 
     def _mesh_ncell2d_no_halos(
             self,
-            var_accesses: Optional[VariablesAccessMap] = None) -> None:
+            var_accesses: VariablesAccessMap | None = None) -> None:
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
@@ -768,7 +767,7 @@ class ArgOrdering:
 
     def fs_common(self,
                   function_space: FunctionSpace,
-                  var_accesses: Optional[VariablesAccessMap] = None):
+                  var_accesses: VariablesAccessMap | None = None):
         '''Add function-space related arguments common to LMA operators and
         fields. If supplied it also stores this access in var_accesses.
 

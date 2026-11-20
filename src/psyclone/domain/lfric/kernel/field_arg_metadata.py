@@ -10,8 +10,6 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
-from typing import Optional, Union
-
 from fparser.two import Fortran2003
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
@@ -52,8 +50,8 @@ class FieldArgMetadata(ScalarArgMetadata):
     fparser2_class = (Fortran2003.Structure_Constructor, Fortran2003.Part_Ref)
 
     def __init__(self, datatype: str, access: str, function_space: str,
-                 stencil: Optional[str] = None,
-                 nlayers: Optional[str] = None,
+                 stencil: str | None = None,
+                 nlayers: str | None = None,
                  ndata: str = "1"):
         super().__init__(datatype, access)
         self.function_space = function_space
@@ -64,9 +62,9 @@ class FieldArgMetadata(ScalarArgMetadata):
     @classmethod
     def _get_metadata(
             cls,
-            fparser2_tree: Union[Fortran2003.Part_Ref,
-                                 Fortran2003.Structure_Constructor]
-    ) -> tuple[str, str, str, Optional[str], Optional[str], Optional[str]]:
+            fparser2_tree: Fortran2003.Part_Ref |
+            Fortran2003.Structure_Constructor
+    ) -> tuple[str, str, str, str | None, str | None, str | None]:
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -92,7 +90,7 @@ class FieldArgMetadata(ScalarArgMetadata):
     @classmethod
     def get_stencil(
             cls,
-            fparser2_tree: Fortran2003.Structure_Constructor) -> Optional[str]:
+            fparser2_tree: Fortran2003.Structure_Constructor) -> str | None:
         '''Retrieves the stencil metadata value found within the supplied
         fparser2 tree (if there is one) and checks that it is valid.
 

@@ -20,13 +20,9 @@ from psyclone.psyir.nodes.codeblock import (
     CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
 )
 from psyclone.errors import GenerationError, InternalError
-from psyclone.tests.utilities import min_version_3_10
 from psyclone.utils import colored
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_codeblock_create():
     """ Check the create method of the Code Block class."""
 
@@ -146,9 +142,6 @@ def test_abstract_methods():
     assert "Use appropriate CodeBlock subclass" in str(err.value)
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_codeblock_get_fortran_lines():
     """
     Test the get_fortran_lines method for fparser and treesiteer codeblocks.
@@ -447,9 +440,6 @@ def test_fparser_codeblock_contains_stop_stmt(fortran_reader):
     assert not codeblocks[2].contains_stop_stmt()
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_treesitter_codeblock_contains_goto_stmt():
     """Test the contains_goto_stmt function works correctly for treesitter
     codeblocks."""
@@ -471,9 +461,6 @@ def test_treesitter_codeblock_contains_goto_stmt():
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_treesitter_codeblock_contains_cycle_stmt():
     """Test the contains_cycle_stmt function works correctly for treesitter
     codeblocks."""
@@ -497,9 +484,6 @@ def test_treesitter_codeblock_contains_cycle_stmt():
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_treesitter_codeblock_contains_exit_stmt():
     """Test the contains_exit_stmt function works correctly for treesitter
     codeblocks."""
@@ -523,9 +507,6 @@ def test_treesitter_codeblock_contains_exit_stmt():
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_treesitter_codeblock_contains_stop_stmt(fortran_reader):
     """Test the contains_stop_stmt function works correctly for treesitter
     codeblocks."""

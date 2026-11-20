@@ -9,7 +9,6 @@
 classes.'''
 
 import abc
-from typing import Union
 
 from psyclone.psyir.nodes.acc_clauses import ACCAsyncQueueClause
 from psyclone.psyir.nodes.datanode import DataNode
@@ -30,7 +29,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
     '''
     def __init__(
                 self,
-                async_queue: Union[bool, int, DataNode] = False
+                async_queue: bool | int | DataNode = False
             ):
         clause = self._create_clause(async_queue)
         if clause:
@@ -38,7 +37,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
 
     @staticmethod
     def convert_queue(
-            async_queue: Union[bool, int, DataNode]) -> Union[bool, DataNode]:
+            async_queue: bool | int | DataNode) -> bool | DataNode:
         '''
         Utility to convert the provided queue value to PSyIR when
         applicable.
@@ -64,8 +63,8 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
 
     @staticmethod
     def _create_clause(
-            async_queue: Union[bool, int, DataNode]
-    ) -> Union[ACCAsyncQueueClause, None]:
+            async_queue: bool | int | DataNode
+    ) -> ACCAsyncQueueClause | None:
         '''
         Utility to create a new ACCAsyncQueueClause for the specified queue.
 
@@ -92,7 +91,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         return clause
 
     @property
-    def async_clause(self) -> Union[ACCAsyncQueueClause, None]:
+    def async_clause(self) -> ACCAsyncQueueClause | None:
         '''
         :returns: the queue clause associated with this node or None.
         '''
@@ -102,7 +101,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         return None
 
     @property
-    def async_queue(self) -> Union[bool, int, DataNode]:
+    def async_queue(self) -> bool | int | DataNode:
         '''
         :returns: whether or not async is enabled and if so, which queue this
                   node is associated with. (True indicates the default stream.)
@@ -120,7 +119,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         return False
 
     @async_queue.setter
-    def async_queue(self, async_queue: Union[bool, int, DataNode]):
+    def async_queue(self, async_queue: bool | int | DataNode):
         '''
         Set the asynchronous behaviour associated with this node.
 

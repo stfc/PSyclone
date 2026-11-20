@@ -7,8 +7,6 @@
 
 '''This module contains the IncreaseRankLoopArrays transformation.'''
 
-from typing import Optional, Union
-
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Call, CodeBlock, Loop, Range, Reference,
@@ -300,7 +298,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     def apply(
         self,
         node: Loop,
-        arrays: Optional[list[Union[DataSymbol, str]]] = None,
+        arrays: list[DataSymbol | str] | None = None,
         **kwargs
     ):
         '''Applies the transformation.

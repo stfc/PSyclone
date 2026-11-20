@@ -8,7 +8,7 @@
 '''This module provides the Profile transformation.
 '''
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Node, ProfileNode, Return, Routine
@@ -43,8 +43,8 @@ class ProfileTrans(PSyDataTrans):
     def __init__(self):
         super().__init__(ProfileNode)
 
-    def validate(self, nodes: Union[Node, list[Node]],
-                 options: Optional[dict[str, Any]] = None,
+    def validate(self, nodes: Node | list[Node],
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid for profiling
@@ -90,8 +90,8 @@ class ProfileTrans(PSyDataTrans):
                         f"could skip the end of profiling caliper. "
                         f"Found:\n'{block.debug_string()}'")
 
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None, force: bool = False,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None, force: bool = False,
               **kwargs: Any) -> None:
         '''Apply this profiling transformation.
 

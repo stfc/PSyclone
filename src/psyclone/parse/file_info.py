@@ -14,7 +14,7 @@ import hashlib
 import logging
 import os
 import pickle
-from typing import Optional, Union, Iterable
+from typing import Iterable
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -73,8 +73,8 @@ class FileInfo:
     def __init__(self,
                  filepath: str,
                  cache_active: bool = False,
-                 cache_path: Optional[str] = None,
-                 resolve_imports: Union[bool, Iterable[str]] = False
+                 cache_path: str | None = None,
+                 resolve_imports: bool | Iterable[str] = False
                  ):
 
         # Full path to file
@@ -121,7 +121,7 @@ class FileInfo:
 
         # Whether to resolve imports. It can be a list of module names to
         # provide finer control.
-        self._resolve_imports: Union[bool, Iterable[str]] = resolve_imports
+        self._resolve_imports: bool | Iterable[str] = resolve_imports
 
     def _get_cache_filepath(self):
         """Return the filepath of the cache.

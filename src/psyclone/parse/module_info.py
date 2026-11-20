@@ -12,7 +12,7 @@ It makes use of the FileInfo class which is then used for caching.
 
 '''
 
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -123,7 +123,7 @@ class ModuleInfo:
                 f" to read source code for module '{self._name}'") from err
 
     # ------------------------------------------------------------------------
-    def get_fparser_tree(self) -> Union[Program, None]:
+    def get_fparser_tree(self) -> Program | None:
         '''Returns the fparser AST for this module.
 
         :returns: The fparser AST for this module.
@@ -261,7 +261,7 @@ class ModuleInfo:
                             f"module named '{self.name}'")
 
     # ------------------------------------------------------------------------
-    def get_symbol(self, name: str) -> Union[Symbol, None]:
+    def get_symbol(self, name: str) -> Symbol | None:
         '''
         Gets the PSyIR Symbol with the supplied name from the Container
         representing this Fortran module (if available).

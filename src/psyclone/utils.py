@@ -10,7 +10,7 @@
 import ast
 from collections import OrderedDict
 import sys
-from typing import Any, Type, TYPE_CHECKING, Union
+from typing import Any, Type, TYPE_CHECKING
 
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
@@ -89,8 +89,8 @@ def stringify_annotation(annotation) -> str:
 
 def transformation_documentation_wrapper(*args,
                                          inherit:
-                                         Union[list[Type["Transformation"]],
-                                               bool] = True,
+                                         list[Type["Transformation"]] |
+                                         bool = True,
                                          add_subtransformations: bool = True,
                                          **kwargs):
     '''

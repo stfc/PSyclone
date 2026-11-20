@@ -8,7 +8,6 @@
 ''' This module contains the implementation of the StructureReference node. '''
 
 from __future__ import annotations
-from typing import Optional, Tuple, Union
 
 from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
@@ -110,9 +109,9 @@ class StructureReference(StructureAccessorMixin, Reference):
     def _create(cls,
                 symbol: DataSymbol,
                 symbol_type: DataTypeSymbol,
-                members: list[Union[str, Tuple[str, list[Node]]]],
-                parent: Optional[Node] = None,
-                overwrite_datatype: Optional[DataType] = None,
+                members: list[str | tuple[str, list[Node]]],
+                parent: Node | None = None,
+                overwrite_datatype: DataType | None = None,
                 ) -> StructureReference:
         # pylint: disable=too-many-arguments
         '''

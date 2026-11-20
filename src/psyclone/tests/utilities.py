@@ -14,7 +14,6 @@ from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
-from typing import Optional, Tuple, Union
 
 import pytest
 
@@ -164,7 +163,7 @@ class Compile():
         Compile.F90 = config.getoption("--f90")
         Compile.F90FLAGS = config.getoption("--f90flags")
 
-    def __init__(self, tmpdir: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, tmpdir: str | Path | None = None) -> None:
         if tmpdir:
             self._tmpdir = str(tmpdir)
         else:
@@ -307,7 +306,7 @@ class Compile():
 
     def _code_compiles(self,
                        psy_ast: PSy,
-                       dependencies: Optional[list[str]] = None) -> bool:
+                       dependencies: list[str] | None = None) -> bool:
         '''
         Use the given PSy class to generate the necessary PSyKAl components
         to compile the psy-layer. Returns True for success, False otherwise.
@@ -413,7 +412,7 @@ class Compile():
 
     def code_compiles(self,
                       psy_ast: PSy,
-                      dependencies: Optional[list[str]] = None) -> bool:
+                      dependencies: list[str] | None = None) -> bool:
         '''Attempts to build the Fortran code supplied as a PSy object.
         Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
@@ -524,9 +523,9 @@ def get_infrastructure_path(api: str) -> str:
 
 def get_invoke(algfile: str,
                api: str,
-               idx: Optional[int] = None,
-               name: Optional[str] = None,
-               dist_mem: Optional[bool] = None) -> Tuple[PSy, Invoke]:
+               idx: int | None = None,
+               name: str | None = None,
+               dist_mem: bool | None = None) -> tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
@@ -673,8 +672,3 @@ def make_external_module(monkeypatch,
     # that it will be found when the named module is requested.
     mman = ModuleManager.get()
     monkeypatch.setitem(mman._modules, mod_name, minfo)
-
-
-min_version_3_10 = pytest.mark.skipif(
-    sys.version_info < (3, 10), reason="tests require python 3.10 or higher"
-)

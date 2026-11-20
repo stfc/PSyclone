@@ -7,7 +7,7 @@
 
 ''' This module provides the LFRic redundant-computation transformation. '''
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
@@ -225,8 +225,8 @@ class LFRicRedundantComputationTrans(LoopTrans):
 
     def apply(self,
               node: Loop,
-              options: Optional[dict[str, Any]] = None,
-              depth: Optional[Union[int, DataNode]] = None,
+              options: dict[str, Any] | None = None,
+              depth: int | DataNode | None = None,
               **kwargs):
         # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop

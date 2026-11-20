@@ -8,7 +8,7 @@
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
@@ -39,7 +39,7 @@ class LFRicStencils(LFRicCollection):
                              direction.
 
     '''
-    def __init__(self, node: Union["LFRicInvoke", LFRicKern]):
+    def __init__(self, node: "LFRicInvoke | LFRicKern"):
         # pylint: disable=too-many-branches
         super().__init__(node)
 

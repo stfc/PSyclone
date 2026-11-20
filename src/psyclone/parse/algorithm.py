@@ -11,7 +11,6 @@ PSyclone-conformant Algorithm code.
 '''
 from __future__ import annotations
 from collections import OrderedDict
-from typing import Union
 
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -573,9 +572,9 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     return invoke_label
 
 
-def get_kernel(parse_tree: Union[Part_Ref, Structure_Constructor],
+def get_kernel(parse_tree: Part_Ref | Structure_Constructor,
                alg_filename: str,
-               arg_type_defns: dict[str, tuple[str, Union[str, None]]]
+               arg_type_defns: dict[str, tuple[str, str | None]]
                ) -> tuple[str, list[Arg]]:
     '''Takes the parse tree of an invoke kernel argument and returns the
     name of the kernel and a list of Arg instances which capture the

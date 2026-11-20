@@ -8,7 +8,7 @@
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
-from typing import Union, Any
+from typing import Any
 
 from psyclone.psyir.nodes import (
     Node,
@@ -122,7 +122,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         return False
 
     def _compute_transformable_sections(
-            self, node_list: Union[list[Node], Schedule],
+            self, node_list: list[Node] | Schedule,
             trans: Transformation,
             trans_kwargs: dict[str, Any],
     ) -> list[list[Node]]:
@@ -206,7 +206,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         return all_blocks
 
-    def validate(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def validate(self, nodes: Node | Schedule | list[Node], **kwargs):
         '''Validates whether this transformation can be applied to the
         nodes provided.
 
@@ -252,7 +252,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         '''
         self._transformation().apply(block, **kwargs)
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def apply(self, nodes: Node | Schedule | list[Node], **kwargs):
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.

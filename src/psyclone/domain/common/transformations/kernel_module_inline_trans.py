@@ -11,7 +11,7 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-from typing import Any, Optional, Union
+from typing import Any
 import warnings
 
 from psyclone.psyGen import Transformation, CodedKern
@@ -99,8 +99,8 @@ class KernelModuleInlineTrans(Transformation):
 
     # pylint: disable=too-many-branches
     def validate(self,
-                 node: Union[CodedKern, Call],
-                 options: Optional[dict[str, Any]] = None,
+                 node: CodedKern | Call,
+                 options: dict[str, Any] | None = None,
                  **kwargs) -> None:
         '''
         Checks that the supplied node is a Kernel or Call and that it is
@@ -183,7 +183,7 @@ class KernelModuleInlineTrans(Transformation):
                                    interfaces_permitted, set())
 
     def _validate_routine(self,
-                          node: Union[CodedKern, Call],
+                          node: CodedKern | Call,
                           kname: str,
                           kern_or_call: str,
                           routine: Routine,
@@ -451,7 +451,7 @@ class KernelModuleInlineTrans(Transformation):
                             routine_map,
                             local_routines)
 
-    def _target_is_local(self, node: Union[Call, CodedKern]) -> bool:
+    def _target_is_local(self, node: Call | CodedKern) -> bool:
         '''
         :returns: whether or not the target of the supplied call/kernel
                   is already in local scope.
@@ -478,7 +478,7 @@ class KernelModuleInlineTrans(Transformation):
         return True
 
     def apply(self,
-              node: Union[CodedKern, Call],
+              node: CodedKern | Call,
               options: dict[str, Any] = None,
               update_all: bool = True,
               **kwargs):

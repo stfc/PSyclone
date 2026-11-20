@@ -8,7 +8,7 @@
 '''This module provides a meta-transformation that applies colouring and
 then OpenMP parallelisation to the loops in an LFRic routine.'''
 
-from typing import Any, Union
+from typing import Any
 
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.psyGen import Transformation
@@ -30,7 +30,7 @@ class LFRicColourAndOMPTrans(Transformation):
                             LFRicOMPLoopTrans]
 
     def validate(self, node: Routine,
-                 reprod: Union[bool, None] = None, **kwargs):
+                 reprod: bool | None = None, **kwargs):
         # TODO: #2668: this disable can be removed once the options dict
         # has been removed from Transformation.validate/apply.
         # pylint: disable=arguments-renamed
@@ -77,7 +77,7 @@ class LFRicColourAndOMPTrans(Transformation):
                 ctrans.apply(child, **colour_kwargs)
 
     def _parallelise_loops(self, node: Routine,
-                           reprod: Union[bool, None] = None,
+                           reprod: bool | None = None,
                            **par_kwargs: Any):
         '''
         Applies OpenMP parallelisation to every loop that is not a loop
@@ -105,7 +105,7 @@ class LFRicColourAndOMPTrans(Transformation):
             oregtrans.apply(loop, **par_kwargs)
             otrans.apply(loop, options=options)
 
-    def apply(self, node: Routine, reprod: Union[bool, None] = None, **kwargs):
+    def apply(self, node: Routine, reprod: bool | None = None, **kwargs):
         # TODO: #2668: this disable can be removed once the options dict
         # has been removed from Transformation.validate/apply.
         # pylint: disable=arguments-renamed

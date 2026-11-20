@@ -7,7 +7,6 @@
 
 ''' Tests of the LFRic redundant-computation transformation. '''
 
-import sys
 import pytest
 
 from psyclone.configuration import Config
@@ -164,16 +163,8 @@ def test_rc_invalid_depth_type():
             f"type '{type('txt')}'" in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         rc_trans.apply(loop, depth="2")
-    if sys.version_info < (3, 10):
-        # TODO #3416 - remove this branch once support for Python 3.9 is
-        # dropped.
-        # The 'automatic' type checking of transformation options doesn't
-        # work fully with older Python versions so we get a different msg.
-        assert (f"the supplied depth should be an integer but found "
-                f"type '{type('txt')}'" in str(excinfo.value))
-    else:
-        assert "'depth' option expects type '" in str(excinfo.value)
-        assert "but received '2' of type 'str'" in str(excinfo.value)
+    assert "'depth' option expects type '" in str(excinfo.value)
+    assert "but received '2' of type 'str'" in str(excinfo.value)
 
 
 def test_rc_invalid_depth_continuous():

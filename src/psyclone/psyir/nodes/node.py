@@ -11,7 +11,7 @@ ChildrenList - a custom implementation of list.
 
 '''
 from __future__ import annotations
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import copy
 import graphviz
 
@@ -1083,7 +1083,7 @@ class Node():
         return local_list
 
     def has_descendant(
-            self, descendant_type: Union[type, tuple[type]]
+            self, descendant_type: type | tuple[type]
     ) -> bool:
         '''
         :param descendant_type: type(s) to look for.

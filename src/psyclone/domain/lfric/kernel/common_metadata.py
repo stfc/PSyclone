@@ -10,7 +10,6 @@ common functionality for LFRic kernel metadata.
 
 '''
 from abc import ABC, abstractmethod
-from typing import Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -74,8 +73,8 @@ class CommonMetadata(ABC):
 
     @staticmethod
     def create_fparser2(fortran_string: str,
-                        encoding: Union[tuple[Fortran2003.Base],
-                                        Fortran2003.Base]) -> Fortran2003.Base:
+                        encoding: tuple[Fortran2003.Base] | Fortran2003.Base
+                        ) -> Fortran2003.Base:
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
         argument if the string conforms to the encoding, otherwise an
