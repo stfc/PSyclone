@@ -35,11 +35,10 @@ examples and implement better solutions later.
 
 The training material is split into four parts, and the files
 and documentation here are only the hands-on section. The full
-training is accompanied by presentations
-(a slightly outdated version of the slides are available on the `wiki
-<https://github.com/stfc/PSyclone/wiki/Presentations>`_,
-we are working on updating these, see ticket #3270). It
-contains the following sessions (in the order in which they are presented):
+training is accompanied by the `PSyclone-Advanced-Training.pdf`
+slides in this same directory (the slides are slightly outdated see
+issue #3270). The training contains the following sessions (in the
+order in which they are presented):
 
 
 PSyclone for LFRic Users
