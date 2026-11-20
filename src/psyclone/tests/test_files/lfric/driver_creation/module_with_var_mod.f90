@@ -9,15 +9,20 @@
 ! provide non-local symbols for testing kernel extraction and driver creation.
 
 module module_with_var_mod
-
+  use missing_mod, only: public_var
   integer :: module_var_a, module_var_b
   integer, parameter :: module_const = 123
   real, dimension(100) :: const_size_array
+
+  ! PSyclone won't know the type of this symbol so it will be a Symbol
+  ! rather than a DataSymbol
+  public :: public_var
 
 contains
 
   integer function module_function()
     module_function = module_var_b
+    module_var_b = public_var(1)
   end function module_function
 
   subroutine module_subroutine()

@@ -10,13 +10,13 @@ across different subroutines and modules.'''
 
 import logging
 
-from psyclone.core import Signature, VariablesAccessMap
+from psyclone.core import AccessSequence, Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
-    ImportInterface, IntrinsicSymbol, RoutineSymbol)
+    ArgumentInterface, DataSymbol, DefaultModuleInterface,
+    GenericInterfaceSymbol, ImportInterface, IntrinsicSymbol, RoutineSymbol)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -308,8 +308,12 @@ class CallTreeUtils():
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
-                                    read_write_info):
+    def _resolve_calls_and_unknowns(
+            self,
+            outstanding_nonlocals: list[tuple[str, str, str, Signature,
+                                              AccessSequence]],
+            read_write_info: ReadWriteInfo
+    ) -> None:
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -322,12 +326,8 @@ class CallTreeUtils():
 
         :param outstanding_nonlocals: the information about symbol type,
             module_name, symbol_name, signature and access information.
-        :type outstanding_nonlocals: list[tuple[
-            str, str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.AccessSequence`]]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
@@ -456,7 +456,7 @@ class CallTreeUtils():
 
                     # Check whether the unknown symbol is a constant, which
                     # can be ignored
-                    if sym.is_constant:
+                    if isinstance(sym, DataSymbol) and sym.is_constant:
                         continue
                 # Otherwise fall through to the code that adds a reference:
 
