@@ -10,7 +10,7 @@ across different subroutines and modules.'''
 
 import logging
 
-from psyclone.core import Signature, VariablesAccessMap
+from psyclone.core import AccessSequence, Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
