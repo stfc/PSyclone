@@ -8,7 +8,7 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
@@ -22,7 +22,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, ArrayType, UnresolvedType, UnsupportedType)
+    ArrayType, ScalarType, UnresolvedType, UnsupportedType)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -545,19 +545,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return (self.indices,)
 
-    def _extent(self, idx):
+    def _extent(self, idx: int) -> DataNode:
         '''
-        Create PSyIR for the number of elements in dimension `idx` of this
+        Create PSyIR for the number of elements in dimension ``idx`` of this
         array access. It is given by (stop - start)/step + 1 or, if it is for
-        the full range, by the SIZE intrinsic.
+        the full range, by the ``SIZE`` intrinsic.
 
-        :param int idx: the array index for which to compute the number of
-                        elements.
+        :param idx: the array index for which to compute the number of
+            elements.
 
         :returns: the PSyIR expression for the number of elements in the
-                  specified array index.
-        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation` |
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+            specified array index.
         '''
         expr = self.indices[idx]
 
@@ -575,7 +573,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # compute the size and return it as a literal. This only works for
             # an ArrayReference as ArrayMembers don't have a symbol to find
             # the shape from.
-            # pylint: disable=import-outside-toplevel
+            # Avoid a circular import because ArrayReference uses ArrayMixin.
+            # pylint: disable-next=import-outside-toplevel
             from psyclone.psyir.nodes import ArrayReference
             if (isinstance(self, ArrayReference) and
                 isinstance(self.symbol, DataSymbol) and

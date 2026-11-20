@@ -15,11 +15,11 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, IntrinsicCall, Literal, Range, Reference,
-    Return, StructureReference, UnaryOperation, Assignment, DataNode)
+    ArrayReference, Assignment, BinaryOperation, DataNode, IntrinsicCall,
+    Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType, Symbol,
-    StructureType, UnsupportedFortranType)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, StructureType, Symbol,
+    UnresolvedType, UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 from psyclone.utils import colored
 

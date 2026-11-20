@@ -8,14 +8,15 @@
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
 import pytest
+
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
+    ArrayReference, Assignment, BinaryOperation, IntrinsicCall, KernelSchedule,
+    Literal, Range, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol,
-    UnsupportedFortranType, StructureType, UnresolvedType)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, StructureType, Symbol,
+    UnresolvedType, UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 from psyclone.utils import colored
 

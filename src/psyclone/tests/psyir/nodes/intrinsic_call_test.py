@@ -12,8 +12,9 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 """
 
-import pytest
 from enum import Enum
+
+import pytest
 
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
@@ -24,32 +25,32 @@ from psyclone.psyir.nodes import (
     Call,
     DataNode,
     Literal,
-    Schedule,
     Reference,
+    Schedule,
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     ArgDesc,
-    IntrinsicCall,
     IAttr,
+    IntrinsicCall,
+    _findloc_return_type,
+    _get_bound_function_return_type,
+    _int_return_type,
+    _matmul_return_type,
     _type_of_arg_with_rank_minus_one,
-    _type_of_named_argument,
-    _type_of_named_arg_with_optional_kind_and_dim,
-    _type_of_named_arg_accounting_for_dim_arg,
-    _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
-    _findloc_return_type,
-    _int_return_type,
-    _get_bound_function_return_type,
-    _matmul_return_type,
+    _type_of_named_arg_accounting_for_dim_arg,
+    _type_of_named_arg_with_optional_kind_and_dim,
+    _type_of_named_argument,
+    _type_of_scalar_with_optional_kind,
 )
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
-    ScalarType,
     IntrinsicSymbol,
+    NoType,
+    ScalarType,
     UnresolvedType,
-    NoType
 )
 
 

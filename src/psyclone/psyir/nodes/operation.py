@@ -10,7 +10,7 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-from typing import Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
@@ -335,20 +335,21 @@ class BinaryOperation(Operation):
                 f"supported") from err
 
     @property
-    def datatype(self):
+    def datatype(self) -> "DataType":
         '''
         Determines the datatype of this operation. If it cannot be determined
-        for any reason then an instance of UnresolvedType is returned.
+        from the available type information then an instance of
+        :py:class:`psyclone.psyir.symbols.UnresolvedType` is returned.
 
-        :returns: the datatype of the result of this BinaryOperation.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        :returns: the datatype of the result of this operation.
 
         :raises InternalError: if the operands are both arrays but are of
-                               different shapes.
+            different ranks.
         '''
-        # pylint: disable=import-outside-toplevel
+        # Avoid a circular import because datatypes use operation nodes.
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-            ArrayType, UnresolvedType, ScalarType,
+            ArrayType, ScalarType, UnresolvedType,
             UnsupportedFortranType, UnsupportedType)
         # Get the types of the operands.
         optypes = []

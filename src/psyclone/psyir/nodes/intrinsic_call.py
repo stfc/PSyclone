@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
-from typing import List, Tuple, Callable, Union
+from typing import Callable, List, Tuple, Union
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
@@ -22,13 +22,13 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataTypeSymbol, IntrinsicSymbol, Symbol
 from psyclone.psyir.symbols.datatypes import (
-    DataType,
     ArrayType,
+    DataType,
+    NoType,
     ScalarType,
     UnresolvedType,
-    UnsupportedType,
     UnsupportedFortranType,
-    NoType,
+    UnsupportedType,
 )
 
 # pylint: disable=too-many-branches
@@ -4861,9 +4861,14 @@ class IntrinsicCall(Call):
 
     @property
     def datatype(self) -> DataType:
-        """Return the datatype of this IntrinsicCall.
+        """Return the datatype of this intrinsic call.
 
-        :returns: The datatype corresponding to this IntrinsicCall.
+        :returns: the datatype of the result, or
+            :py:class:`psyclone.psyir.symbols.UnresolvedType` when type
+            information is insufficient.
+
+        :raises InternalError: if the datatype computation fails because the
+            node is incomplete or its arguments are invalid for the intrinsic.
         """
         # If the return type is None then return NoType
         if self.intrinsic.return_type is None:
@@ -4880,7 +4885,7 @@ class IntrinsicCall(Call):
                     or "ScalarType expected 'precision' argument to be of "
                         "type " in str(err)):
                     return UnresolvedType()
-                # This should never happen, propogate as an InternalError.
+                # This should never happen, propagate as an InternalError.
                 outerr = err
             except AttributeError as err:
                 # Missing type information can prevent queries of intrinsic,
