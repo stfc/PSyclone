@@ -7,7 +7,7 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessMap, AccessType, Signature
+from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
@@ -213,12 +213,13 @@ class Assignment(Statement):
         '''
         return isinstance(self.rhs, Literal)
 
-    def previous_accesses(self) -> dict[Signature, list[Node]]:
+    def previous_accesses(self) -> list[Node]:
         '''
         :returns: the nodes containing the previous accesses of the symbols
                   accessed within this node. It can be multiple nodes for
-                  each symbol if the control flow diverges and there are
-                  multiple possible accesses.
+                  each symbol as it contains all previous accesses until a
+                  guaranteed write (i.e. a write with no optional control
+                  flow) is encountered.
         '''
         # Find all of the read/write References in this assignment.
         refs = []
@@ -229,14 +230,18 @@ class Assignment(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(refs)
-        return chain.find_backward_accesses()
+        accesses = chain.find_backward_accesses()
+        results = []
+        self._merge_accesses_dict(results, accesses)
+        return results
 
-    def next_accesses(self) -> dict[Signature, list[Node]]:
+    def next_accesses(self) -> list[Node]:
         '''
         :returns: the nodes containing the next accesses of the symbols
                   accessed within this node. It can be multiple nodes for
-                  each symbol if the control flow diverges and there are
-                  multiple possible accesses.
+                  each symbol as it contains all following accesses until a
+                  guaranteed write (i.e. a write with no optional control
+                  flow) is encountered.
         '''
         # Find all of the read/write References in this assignment.
         refs = []
@@ -247,4 +252,7 @@ class Assignment(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(refs)
-        return chain.find_forward_accesses()
+        accesses = chain.find_forward_accesses()
+        results = []
+        self._merge_accesses_dict(results, accesses)
+        return results
