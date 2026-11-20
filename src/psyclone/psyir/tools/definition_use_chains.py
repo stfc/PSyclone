@@ -331,11 +331,15 @@ class DefinitionUseChain:
                         # to a should not return the second Reference to a.
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
-            for block in basic_blocks:
+            for cfn, block in zip(control_flow_nodes[:], basic_blocks):
                 # If we have a basic block with no children then skip it,
                 # e.g. for an if block with no code before the else
                 # statement.
                 if len(block) == 0:
+                    # We need to remove the corresponding control_flow_node
+                    # to keep the chains and control_flow_node arrays
+                    # associated correctly.
+                    control_flow_nodes.remove(cfn)
                     continue
                 chain = DefinitionUseChain(
                     self._references[:],
@@ -395,30 +399,6 @@ class DefinitionUseChain:
                     # TODO #2760: In theory we could analyse loop structures
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
-                    # If the control flow node is a Loop we have to check
-                    # if the variable is the same symbol as any of the
-                    # References in _references.
-                    if isinstance(cfn, Loop):
-                        cfn_abs_pos = cfn.abs_position
-                        for i, ref in enumerate(self._references[:]):
-                            if (
-                                cfn.variable == ref.symbol
-                                and cfn_abs_pos >= self._start_point
-                                and cfn_abs_pos < self._stop_point
-                            ):
-                                # The loop variable is always written to.
-                                sig = self._reference_signatures[i]
-                                self._reaches[sig].append(cfn)
-                                # This reference is killed by this access.
-                                self._references.pop(i)
-                                self._reference_signatures.pop(i)
-                                # If we have found an end point for all
-                                # references then we can finish.
-                                if len(self._references) == 0:
-                                    self._start_point = save_start_position
-                                    self._stop_point = save_stop_position
-                                    return self._reaches
-
                     for sig in chain._reaches:
                         # Not all signatures are still being searched for,
                         # some have already been killed by previous accesses
@@ -644,6 +624,12 @@ class DefinitionUseChain:
                 self._killed[sig].extend(self._defsout[sig])
                 self._defsout[sig] = []
             self._defsout[sig].append(reference)
+        elif (isinstance(reference.parent, Loop) and
+              reference.parent.variable_reference is reference):
+            # If we have a Loop variable it is always written to.
+            # Loop variables are the only write in blocks they can appear in
+            # so we don't need to check for existing defsout.
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.
@@ -825,9 +811,10 @@ class DefinitionUseChain:
                     basic_blocks.append(current_block)
                     control_flow_nodes.append(None)
                     current_block = []
-                # The start/stop/step expr are non-conditional (but also
-                # read only).
+                # The start/stop/step expr are non-conditional (but
+                # also read only).
                 control_flow_nodes.append(None)
+                current_block.append(node.variable_reference)
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
                 current_block.append(node.step_expr)
@@ -1047,6 +1034,12 @@ class DefinitionUseChain:
                     self._killed[sig].extend(self._defsout[sig])
                     self._defsout[sig] = []
                 self._defsout[sig].append(reference)
+        elif (isinstance(reference.parent, Loop) and
+              reference.parent.variable_reference is reference):
+            # If we have a Loop variable it is always written to.
+            # Loop variables are the only write in blocks they can appear in
+            # so we don't need to check for existing defsout.
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.
@@ -1272,11 +1265,15 @@ class DefinitionUseChain:
             chains = []
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
-            for block in basic_blocks:
+            for cfn, block in zip(control_flow_nodes[:], basic_blocks):
                 # If we have a basic block with no children then skip it,
                 # e.g. for an if block with no code before the else
                 # statement.
                 if len(block) == 0:
+                    # We need to remove the corresponding control_flow_node
+                    # to keep the chains and control_flow_node arrays
+                    # associated correctly.
+                    control_flow_nodes.remove(cfn)
                     continue
                 # Create a copy of the list as it can modify elements
                 # in the list.
@@ -1329,8 +1326,20 @@ class DefinitionUseChain:
                             start_point=sub_start_point,
                             stop_point=sub_stop_point,
                         )
-                        chains.append(chain)
-                        control_flow_nodes.append(ancestor)
+                        # If the ancestor is a Loop, we need to add the chain
+                        # before immediately before it in the list, so the
+                        # variable_reference is accessed before the loop body
+                        # after the list of chains is reversed later.
+                        if isinstance(ancestor, Loop):
+                            for i, l_chain in enumerate(chains[:]):
+                                var_ref = ancestor.variable_reference
+                                if l_chain._scope[0] is var_ref:
+                                    chains.insert(i, chain)
+                                    control_flow_nodes.insert(i, ancestor)
+                                    break
+                        else:
+                            chains.append(chain)
+                            control_flow_nodes.append(ancestor)
                     # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
@@ -1364,8 +1373,9 @@ class DefinitionUseChain:
                         control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
-                        # b = a * a, that next_access to the first Reference
-                        # to a should not return the second Reference to a.
+                        # b = a * a, that prev/next_access to the first
+                        # Reference to a should not return the second
+                        # Reference to a.
 
             # For backwards we want to reverse the order.
             chains.reverse()
@@ -1416,28 +1426,6 @@ class DefinitionUseChain:
                     # TODO #2760: In theory we could analyse loop structures
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
-                    # If the control flow node is a Loop we have to check
-                    # if the variable is the same symbol as the _reference.
-                    if isinstance(cfn, Loop):
-                        cfn_abs_pos = cfn.abs_position
-                        for i, ref in enumerate(self._references[:]):
-                            if (
-                                cfn.variable == ref.symbol
-                                and cfn_abs_pos >= self._start_point
-                                and cfn_abs_pos < self._stop_point
-                            ):
-                                # The loop variable is always written
-                                sig = self._reference_signatures[i]
-                                self._reaches[sig].append(cfn)
-                                # This reference is killed by this access.
-                                self._references.pop(i)
-                                self._reference_signatures.pop(i)
-                                # If we have found an end point for all
-                                # references then we can finish.
-                                if len(self._references) == 0:
-                                    self._start_point = save_start_position
-                                    self._stop_point = save_stop_position
-                                    return self._reaches
                     for sig in chain._reaches:
                         if sig in self._reference_signatures:
                             for ref in chain._reaches[sig]:

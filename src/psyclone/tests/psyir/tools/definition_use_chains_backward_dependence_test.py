@@ -274,19 +274,19 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[a_sig]
     # We should have 4? reaches
-    # First  b = A + 2
-    # Second a = A + i
+    # First a = A + i
+    # Second  b = A + 2
     # Third (?) is A = a + i
     # Last is A = 1
     assert len(reaches) == 4
     assert (
-        reaches[0] is routine.walk(Assignment)[2].rhs.children[0]
+        reaches[0] is routine.walk(Assignment)[1].rhs.children[0]
     )
     assert (
-        reaches[1] is routine.walk(Assignment)[1].lhs
+        reaches[1] is routine.walk(Assignment)[2].rhs.children[0]
     )
     assert (
-        reaches[2] is routine.walk(Assignment)[1].rhs.children[0]
+        reaches[2] is routine.walk(Assignment)[1].lhs
     )
     assert reaches[3] is routine.walk(Assignment)[0].lhs
 
@@ -310,9 +310,10 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[i_sig]
     # We should have 1 reaches
-    # It should be the loop
-    assert len(reaches) == 1
-    assert reaches[0] is routine.walk(Loop)[0]
+    # It should be the loop and the i in the loop.
+    assert len(reaches) == 2
+    assert reaches[0] is routine.walk(Assignment)[0].rhs.children[1]
+    assert reaches[1] is routine.walk(Loop)[0].variable_reference
 
 
 def test_definition_use_chain_find_backward_accesses_while_loop_example(
@@ -730,8 +731,8 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     # TODO #2760 The backwards accesses should not continue past a = a + i
     # when searching backwards in the loop, or to a = 1
     assert len(reaches) == 3
-    assert reaches[0] is routine.walk(Call)[0].children[1]
-    assert reaches[1] is routine.walk(Assignment)[1].lhs
+    assert reaches[0] is routine.walk(Assignment)[1].lhs
+    assert reaches[1] is routine.walk(Call)[0].children[1]
     assert reaches[2] is routine.walk(Assignment)[0].lhs
 
 
@@ -1207,3 +1208,26 @@ def test_backward_accesses_unsupportedtype_pure_call_argument(fortran_reader):
     assert len(reaches[a_sig]) == 1
     assert reaches[a_sig][0] is routine.walk(Call)[1].arguments[0]
     assert len(reaches[i_sig]) == 0
+
+
+def test_backward_access_loop_var(fortran_reader):
+    ''' Test that the DUCs find a loop variable when searching
+    for backward_accesses.'''
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine test
+        integer :: a, i
+
+        i = a
+        do i = 1, 100
+
+        end do
+        i = 1
+        end subroutine
+        """)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[1].lhs
+    l_sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    reaches = chains.find_backward_accesses()[l_sig]
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference

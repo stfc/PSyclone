@@ -340,10 +340,11 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert len(blocks) == 3
     assert len(blocks[0]) == 1
     assert blocks[0][0] is ifblock.if_body.children[0]
-    assert len(blocks[1]) == 3
-    assert blocks[1][0] is ifblock.if_body.children[1].start_expr
-    assert blocks[1][1] is ifblock.if_body.children[1].stop_expr
-    assert blocks[1][2] is ifblock.if_body.children[1].step_expr
+    assert len(blocks[1]) == 4
+    assert blocks[1][0] is ifblock.if_body.children[1].variable_reference
+    assert blocks[1][1] is ifblock.if_body.children[1].start_expr
+    assert blocks[1][2] is ifblock.if_body.children[1].stop_expr
+    assert blocks[1][3] is ifblock.if_body.children[1].step_expr
     assert blocks[2] == ifblock.if_body.children[1].loop_body.children[:]
 
     # Try for the basic blocks in the else_body. Since else if we have a
@@ -658,9 +659,8 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     reaches = chains.find_forward_accesses()[i_sig]
     # We should have 1 reaches
     assert len(reaches) == 1
-    # TODO #3486: Currently it is the whole loop, but now the loop variable
-    # is in the tree, so it should point to it
-    assert reaches[0] is routine.walk(Loop)[0]
+    # The result is the loop variable
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
 
 
 def test_definition_use_chain_find_forward_accesses_while_loop_example(
@@ -1541,3 +1541,26 @@ def test_if_else_behaviour(fortran_reader):
     assert len(next_accesses) == 2
     assert next_accesses[0] is references[6]
     assert next_accesses[1] is references[7]
+
+
+def test_forward_access_loop_var(fortran_reader):
+    ''' Test that the DUCs find a loop variable when searching
+    for forward_accesses.'''
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine test
+        integer :: a, i
+
+        i = a
+        do i = 1, 100
+
+        end do
+        i = 1
+        end subroutine
+        """)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    l_sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    reaches = chains.find_forward_accesses()[l_sig]
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
