@@ -49,8 +49,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
     >>> trans.apply(assignment)
     >>> print(psyir.debug_string())
     subroutine sub()
-      real, dimension(10) :: tmp
       integer :: idx
+      real, dimension(10) :: tmp
     <BLANKLINE>
       do idx = LBOUND(tmp, dim=1), UBOUND(tmp, dim=1), 1
         tmp(idx) = tmp(idx) + 3

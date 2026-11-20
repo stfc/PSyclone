@@ -71,6 +71,7 @@ class Routine(Schedule, CommentableMixin):
         self._is_program = is_program
         self._is_recursive = None
         self.is_recursive = is_recursive
+        self._bind_c = None
 
         # Add the symbol into the routine itself, unless the symbol table
         # already contains a symbol with that name (e.g. a Function's return
@@ -93,6 +94,7 @@ class Routine(Schedule, CommentableMixin):
         is_eq = is_eq and self.name == other.name
         is_eq = is_eq and self.is_program == other.is_program
         is_eq = is_eq and self.is_recursive == other.is_recursive
+        is_eq = is_eq and self.bind_c == other.bind_c
         is_eq = is_eq and self.return_symbol == other.return_symbol
 
         return is_eq
@@ -513,6 +515,29 @@ class Routine(Schedule, CommentableMixin):
         self._is_recursive = value
 
     @property
+    def bind_c(self) -> Optional[str]:
+        '''
+        :returns: None if this Routine has no C binding, otherwise its binding
+            label: the expression given to NAME= in a Fortran
+            BIND(C, NAME=...) (e.g. "'my_name'"), or an empty string for
+            BIND(C) without a label.
+        '''
+        return self._bind_c
+
+    @bind_c.setter
+    def bind_c(self, value: Optional[str]):
+        '''
+        :param value: None if this Routine has no C binding, otherwise its
+            binding label (an empty string if it has none).
+
+        :raises TypeError: if the value is not a str or None.
+        '''
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"bind_c for a {type(self).__name__} must be a "
+                            f"str or None but got '{type(value).__name__}'")
+        self._bind_c = value
+
+    @property
     def return_symbol(self):
         '''
         :returns: the symbol which will hold the return value of this Routine \
@@ -554,6 +579,7 @@ class Routine(Schedule, CommentableMixin):
         self._symbol = other._symbol.copy()
         self._is_program = other._is_program
         self._is_recursive = other._is_recursive
+        self._bind_c = other._bind_c
         super()._refine_copy(other)
         if other.return_symbol is not None:
             self.return_symbol = self.symbol_table.lookup(

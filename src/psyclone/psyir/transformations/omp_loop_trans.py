@@ -85,9 +85,9 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> omplooptrans1.apply(loop)
     >>> print(FortranWriter()(psyir))
     subroutine my_subroutine()
-      integer, dimension(10,10) :: a
       integer :: i
       integer :: j
+      integer, dimension(10,10) :: a
     <BLANKLINE>
       !$omp parallel do default(shared) private(i,j) schedule(dynamic)
       do i = 1, 10, 1

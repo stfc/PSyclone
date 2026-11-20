@@ -80,9 +80,9 @@ def test_correct(func, output, tmpdir):
     result = writer(root)
     assert (
         f"subroutine sign_example(arg, arg_1)\n"
+        f"  real :: psyir_tmp\n"
         f"  real, intent(inout) :: arg\n"
-        f"  real, intent(inout) :: arg_1\n"
-        f"  real :: psyir_tmp\n\n"
+        f"  real, intent(inout) :: arg_1\n\n"
         f"  psyir_tmp = SIGN({output}, arg_1)\n\n"
         f"end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
@@ -90,13 +90,13 @@ def test_correct(func, output, tmpdir):
     result = writer(root)
     assert (
         f"subroutine sign_example(arg, arg_1)\n"
-        f"  real, intent(inout) :: arg\n"
-        f"  real, intent(inout) :: arg_1\n"
         f"  real :: psyir_tmp\n"
-        f"  real :: res_sign\n"
-        f"  real :: tmp_sign\n"
         f"  real :: res_abs\n"
-        f"  real :: tmp_abs\n\n"
+        f"  real :: res_sign\n"
+        f"  real :: tmp_abs\n"
+        f"  real :: tmp_sign\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real, intent(inout) :: arg_1\n\n"
         f"  tmp_abs = {output}\n"
         f"  if (tmp_abs > 0.0) then\n"
         f"    res_abs = tmp_abs\n"
@@ -135,9 +135,9 @@ def test_correct_expr(tmpdir):
     result = writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
+        "  real :: psyir_tmp\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
@@ -145,13 +145,13 @@ def test_correct_expr(tmpdir):
     result = writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
-        "  real :: res_sign\n"
-        "  real :: tmp_sign\n"
         "  real :: res_abs\n"
-        "  real :: tmp_abs\n\n"
+        "  real :: res_sign\n"
+        "  real :: tmp_abs\n"
+        "  real :: tmp_sign\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs = tmp_abs\n"
@@ -190,9 +190,9 @@ def test_correct_2sign(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
+        "  real :: psyir_tmp\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
@@ -201,17 +201,17 @@ def test_correct_2sign(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
-        "  real :: res_sign\n"
-        "  real :: tmp_sign\n"
         "  real :: res_abs\n"
-        "  real :: tmp_abs\n"
-        "  real :: res_sign_1\n"
-        "  real :: tmp_sign_1\n"
         "  real :: res_abs_1\n"
-        "  real :: tmp_abs_1\n\n"
+        "  real :: res_sign\n"
+        "  real :: res_sign_1\n"
+        "  real :: tmp_abs\n"
+        "  real :: tmp_abs_1\n"
+        "  real :: tmp_sign\n"
+        "  real :: tmp_sign_1\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs = tmp_abs\n"

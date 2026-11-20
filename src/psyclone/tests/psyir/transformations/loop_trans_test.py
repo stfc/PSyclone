@@ -177,8 +177,8 @@ def test_loop_trans_base_apply(fortran_reader, fortran_writer):
     out = fortran_writer(psyir_test)
     correct = """subroutine test()
   integer :: i
-  integer, target :: a
   integer, pointer :: b
+  integer, target :: a
 
   do i = 1, 10, 1
     b => a

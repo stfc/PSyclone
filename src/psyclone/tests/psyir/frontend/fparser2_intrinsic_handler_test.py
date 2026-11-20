@@ -204,6 +204,7 @@ def test_handling_intrinsics(code, expected_intrinsic, arg_names,
         assert named_arg == arg_names[i]
 
 
+@pytest.mark.usefixtures("parser")
 def test_handling_unsupported_intrinsics(symbol_table):
     '''Test that unsupported intrinsics are converted to codeblock.
     (Note that all Fortran 2018 intrinsics are supported but there

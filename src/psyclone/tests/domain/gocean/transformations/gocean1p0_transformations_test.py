@@ -1313,13 +1313,13 @@ def test_acc_enter_directive_infrastructure_setup():
   subroutine read_from_device(from, to, startx, starty, nx, ny, blocking)
     use iso_c_binding, only : c_ptr
     use kind_params_mod, only : go_wp
-    type(c_ptr), intent(in) :: from
-    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
-    integer, intent(in) :: startx
-    integer, intent(in) :: starty
     integer, intent(in) :: nx
     integer, intent(in) :: ny
+    integer, intent(in) :: startx
+    integer, intent(in) :: starty
     logical, intent(in) :: blocking
+    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
+    type(c_ptr), intent(in) :: from
 
     !$acc update host(to)
 

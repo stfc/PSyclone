@@ -47,9 +47,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     >>> OMPTargetTrans().apply(tree.walk(Loop)[0])
     >>> print(FortranWriter()(tree))
     subroutine my_subroutine()
-      integer, dimension(10,10) :: a
       integer :: i
       integer :: j
+      integer, dimension(10,10) :: a
     <BLANKLINE>
       !$omp target
       do i = 1, 10, 1

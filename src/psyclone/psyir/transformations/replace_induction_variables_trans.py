@@ -42,8 +42,8 @@ class ReplaceInductionVariablesTrans(Transformation):
     >>> print(FortranWriter()(psyir))
     subroutine sub()
       integer :: i
-      integer :: im
       integer :: ic
+      integer :: im
       integer, dimension(100) :: tmp
     <BLANKLINE>
       do i = 1, 100, 1
