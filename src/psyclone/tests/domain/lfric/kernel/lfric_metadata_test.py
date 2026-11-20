@@ -194,8 +194,10 @@ def test_auxiliary_metadata_classes():
     funcs = MetaFuncsArgMetadata("W0", True, True)
     assert funcs.fortran_string() == (
         "func_type(w0, gh_basis, gh_diff_basis)")
+    errmsg = ("meta_funcs must be associated with either basis or "
+              "differential-basis functions but neither are set")
     for basis, diff in ((False, False),):
-        with pytest.raises(ValueError, match="At least one"):
+        with pytest.raises(ValueError, match=errmsg):
             MetaFuncsArgMetadata("w0", basis, diff)
     with pytest.raises(TypeError, match="flags must be booleans"):
         MetaFuncsArgMetadata("w0", 1, False)
@@ -231,7 +233,9 @@ def test_language_metadata_validation_and_queries():
             _kernel_metadata([field], **{name: "invalid"})
     with pytest.raises(TypeError, match="meta_args entries"):
         _kernel_metadata([object()])
-    with pytest.raises(TypeError, match="meta_funcs entries"):
+    errmsg = ("All meta_func entries must be MetaFuncsArgMetadatabut found "
+              "FieldArgMetadata")
+    with pytest.raises(TypeError, match=errmsg):
         _kernel_metadata([field], meta_funcs=[object()])
     with pytest.raises(ValueError, match="operates_on is required"):
         LFRicKernelMetadata(meta_args=[field])

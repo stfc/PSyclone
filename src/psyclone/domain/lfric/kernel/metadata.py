@@ -530,7 +530,8 @@ class MetaFuncsArgMetadata:
             raise TypeError("Basis-function flags must be booleans.")
         if not self.basis_function and not self.diff_basis_function:
             raise ValueError(
-                "At least one basis-function flag must be true."
+                "meta_funcs must be associated with either basis or "
+                "differential-basis functions but neither are set"
             )
 
     def fortran_string(self) -> str:
@@ -610,18 +611,6 @@ KernelArgumentMetadata = Union[
     FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
     OperatorArgMetadata, ColumnwiseOperatorArgMetadata,
 ]
-
-
-_ARG_TYPES = (
-    ScalarArgMetadata,
-    ScalarArrayArgMetadata,
-    FieldArgMetadata,
-    FieldVectorArgMetadata,
-    InterGridArgMetadata,
-    InterGridVectorArgMetadata,
-    OperatorArgMetadata,
-    ColumnwiseOperatorArgMetadata,
-)
 
 
 @dataclass(frozen=True)
@@ -731,15 +720,16 @@ class LFRicKernelMetadata(KernelMetadata):
                 for value in self.evaluator_targets
             ),
         )
-        if any(not isinstance(arg, _ARG_TYPES) for arg in self.meta_args):
-            raise TypeError("All meta_args entries must be argument metadata.")
-        if any(
-            not isinstance(arg, MetaFuncsArgMetadata)
-            for arg in self.meta_funcs
-        ):
-            raise TypeError(
-                "All meta_funcs entries must be MetaFuncsArgMetadata."
-            )
+        for meta_arg in self.meta_args:
+            if not isinstance(meta_arg, KernelArgumentMetadata):
+                raise TypeError(
+                    f"All meta_args entries must be KernelArgumentMetadata"
+                    f"but found {type(meta_arg).__name__}")
+        for meta_func in self.meta_funcs:
+            if not isinstance(meta_func, MetaFuncsArgMetadata):
+                raise TypeError(
+                    f"All meta_func entries must be MetaFuncsArgMetadata"
+                    f"but found {type(meta_arg).__name__}")
         if self.procedure_name is not None:
             FortranReader.validate_name(self.procedure_name)
             object.__setattr__(
@@ -1225,8 +1215,7 @@ class LFRicKernelMetadata(KernelMetadata):
         """Validate that the kernel has a permitted written argument.
 
         :raises ParseError: if a read-only space or a user-kernel scalar is
-            written,
-            or no argument is updated.
+            written, or no argument is updated.
         """
         # Avoid a circular import with the built-in metadata definitions.
         # pylint: disable=import-outside-toplevel
