@@ -428,32 +428,37 @@ Each symbol has a Symbol Interface with the information about how the
 variable data is provided into the local context. The currently available
 Interfaces are:
 
+- .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+    :no-index:
+
+- .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
     :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
     :no-index:
 
+- .. autoclass:: psyclone.psyir.symbols.ExternalInterface
+    :no-index:
+
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
     :no-index:
 
-- .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+- .. autoclass:: psyclone.psyir.symbols.IntrinsicInterface
+    :no-index:
+
+- .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
     :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.StaticInterface
-    :no-index:
-
-- .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
     :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
     :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
-    :no-index:
-
-- .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
     :no-index:
 
 

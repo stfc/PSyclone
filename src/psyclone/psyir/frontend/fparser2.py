@@ -41,9 +41,9 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    NoType, RoutineSymbol, StaticInterface,
-    StructureType, Symbol, SymbolError, UnknownInterface,
+    DefaultModuleInterface, ExternalInterface, GenericInterfaceSymbol,
+    IntrinsicInterface, ImportInterface, NoType, RoutineSymbol,
+    StaticInterface, StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
 
@@ -2815,11 +2815,32 @@ class Fparser2Reader():
                                               preceding_comments)
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
-                                   Fortran2003.Procedure_Declaration_Stmt)):
+                                   Fortran2003.Procedure_Declaration_Stmt
+                                   )):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
 
+            elif isinstance(node, Fortran2003.Intrinsic_Stmt):
+                for name in node.items[1].items:
+                    parent.symbol_table.new_symbol(
+                        root_name=str(name),
+                        symbol_type=DataSymbol,
+                        datatype=UnsupportedFortranType(
+                            f"intrinsic :: {str(name)}"
+                        ),
+                        interface=IntrinsicInterface()
+                    )
+            elif isinstance(node, Fortran2003.External_Stmt):
+                for name in node.items[1].items:
+                    parent.symbol_table.new_symbol(
+                        root_name=str(name),
+                        symbol_type=DataSymbol,
+                        datatype=UnsupportedFortranType(
+                            f"external :: {str(name)}"
+                        ),
+                        interface=ExternalInterface()
+                    )
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
                                    Fortran2003.Data_Stmt,
