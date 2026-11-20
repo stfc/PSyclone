@@ -11,6 +11,7 @@ import pytest
 
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Node
@@ -294,10 +295,18 @@ def test_variables_access_map_domain_loop() -> None:
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
-        "a: READ, b: READ, f1_data: READWRITE, f2_data: READWRITE, "
-        "field_proxy_type: CONSTANT, field_type: CONSTANT, i_def: CONSTANT, "
-        "map_w3: READ, ncell_2d_no_halos: READ, ndf_w3: READ, "
-        "nlayers_f1: READ, nlayers_f2: READ, r_def: CONSTANT, undf_w3: READ")
+        "a: READ, b: READ, f1%get_proxy: CALL, f1_data: WRITE+READWRITE, "
+        "f1_proxy%data: READ, f1_proxy%vspace%get_mesh: CALL, "
+        "f1_proxy%vspace%get_ndf: CALL, f1_proxy%vspace%get_nlayers: CALL, "
+        "f1_proxy%vspace%get_undf: CALL, f1_proxy%vspace%get_whole_dofmap: "
+        "CALL, f1_proxy: WRITE, f2%get_proxy: CALL, f2_data: WRITE+READWRITE, "
+        "f2_proxy%data: READ, f2_proxy%vspace%get_nlayers: CALL, "
+        "f2_proxy: WRITE, field_proxy_type: CONSTANT, field_type: CONSTANT, "
+        "i_def: CONSTANT, map_w3: WRITE+READ, max_halo_depth_mesh: WRITE, "
+        "mesh%get_halo_depth: CALL, mesh%get_last_edge_cell: CALL, "
+        "mesh: WRITE, ncell_2d_no_halos: WRITE+READ, ndf_w3: WRITE+READ, "
+        "nlayers_f1: WRITE+READ, nlayers_f2: WRITE+READ, r_def: CONSTANT, "
+        "undf_w3: WRITE+READ")
 
 
 # -----------------------------------------------------------------------------
@@ -309,7 +318,7 @@ def test_lfric_access_map() -> None:
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vam = schedule.reference_accesses()
+    vam = schedule.walk(LFRicLoop)[0].reference_accesses()
 
     # Make sure literals (e.g. 1_i_def or 2.0_r_def in this example) are not
     # reported as variables in the access list (but that the associated
@@ -317,12 +326,11 @@ def test_lfric_access_map() -> None:
     assert (
         "basis_w1_qr: READ, basis_w3_qr: READ, cell: WRITE+READ, "
         "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: INC, "
-        "f2_data: READ, field_proxy_type: CONSTANT, field_type: CONSTANT, "
-        "i_def: CONSTANT, m1_data: "
-        "READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, "
+        "f2_data: READ, i_def: CONSTANT, loop0_stop: READ, "
+        "m1_data: READ, m2_data: READ, "
+        "map_w1: READ, map_w2: READ, map_w3: READ, "
         "ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, "
-        "np_xy_qr: READ, np_z_qr: READ, quadrature_xyoz_type: CONSTANT, "
+        "np_xy_qr: READ, np_z_qr: READ, "
         "r_def: CONSTANT, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
-        "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ, "
         "weights_xy_qr: READ, weights_z_qr: READ"
         == str(vam))

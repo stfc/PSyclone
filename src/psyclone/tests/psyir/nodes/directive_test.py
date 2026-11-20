@@ -12,6 +12,7 @@ from collections import OrderedDict
 import pytest
 
 from psyclone.core import Signature
+from psyclone.domain.lfric import LFRicGlobalSum, LFRicLoop
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -34,15 +35,16 @@ def test_directive_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans = LFRicOMPParallelLoopTrans()
-    for child in schedule.children:
+    for child in schedule.walk(LFRicLoop):
         otrans.apply(child)
+    directives = schedule.walk(nodes.OMPDirective)
     # 1: omp directive no backwards dependence
-    omp3 = schedule.children[2]
+    omp3 = directives[2]
     assert not omp3.backward_dependence()
     # 2: omp to omp backward dependence
     # a) many steps
-    last_omp_node = schedule.children[6]
-    prev_dep_omp_node = schedule.children[3]
+    last_omp_node = directives[-1]
+    prev_dep_omp_node = directives[3]
     assert last_omp_node.backward_dependence() == prev_dep_omp_node
     # b) previous
     assert prev_dep_omp_node.backward_dependence() == omp3
@@ -53,13 +55,13 @@ def test_directive_backward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans.apply(schedule.children[0])
-    otrans.apply(schedule.children[1])
-    otrans.apply(schedule.children[3])
-    omp1 = schedule.children[0]
-    omp2 = schedule.children[1]
-    global_sum = schedule.children[2]
-    omp3 = schedule.children[3]
+    loops = schedule.walk(LFRicLoop)
+    for idx in range(3):
+        otrans.apply(loops[idx])
+    omp1 = loops[0].parent.parent
+    omp2 = loops[1].parent.parent
+    global_sum = schedule.walk(LFRicGlobalSum)[0]
+    omp3 = loops[2].parent.parent
     # a) omp3 depends on global sum
     assert omp3.backward_dependence() == global_sum
     # b) global sum depends on omp2

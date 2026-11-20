@@ -10,6 +10,7 @@
 
 import os
 import logging
+from typing import Union
 import warnings
 
 import pytest
@@ -20,7 +21,7 @@ from fparser.two import Fortran2003
 from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.common.psylayer import GlobalReduction, PSyLoop
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
@@ -53,6 +54,20 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
+
+
+def _dsl_nodes(schedule: Schedule) -> list[Union[PSyLoop,
+                                                 HaloExchange,
+                                                 GlobalReduction]]:
+    """Return LFRic operations, omitting the generated PSy setup nodes.
+
+    LFRic invoke schedules contain proxy and loop-bound initialisation
+    before their loops. Tests that exercise operation dependencies should
+    select the DSL nodes rather than depend on their positions among
+    those setup nodes.
+    """
+    return [node for node in schedule.children
+            if isinstance(node, (PSyLoop, HaloExchange, GlobalReduction))]
 
 
 # Module fixtures
@@ -707,11 +722,9 @@ def test_invokeschedule_lowering_with_preexisting_globals():
 def test_kern_get_callees():
     ''' Tests the get_callees method in the Kern class.
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[0].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0,
+                           dist_mem=False)
+    kern = invoke.schedule.walk(PSyLoop)[0].loop_body[0]
     kern_schedules = kern.get_callees()
     assert len(kern_schedules) == 1
     assert isinstance(kern_schedules[0], KernelSchedule)
@@ -736,22 +749,20 @@ def test_codedkern_node_str():
 def test_codedkern_lower_to_language_level(monkeypatch):
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[0].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0,
+                           dist_mem=False)
+    schedule = invoke.schedule
+    kern = schedule.walk(PSyLoop)[0].loop_body[0]
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    lowered = kern.lower_to_language_level()
+    call = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
-    call = schedule.children[0].loop_body[0]
-    assert call is lowered
+    assert call.parent.parent.parent is schedule
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
@@ -781,8 +792,9 @@ def test_kern_coloured_text():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ckern = schedule.children[0].loop_body[0]
-    bkern = schedule.children[1].loop_body[0]
+    loops = schedule.walk(PSyLoop)
+    ckern = loops[0].loop_body[0]
+    bkern = loops[1].loop_body[0]
     ret_str = ckern.coloured_name(True)
     assert colored("CodedKern", ckern._colour) in ret_str
     ret_str = bkern.coloured_name(True)
@@ -889,15 +901,14 @@ def test_incremented_arg():
 
 def test_kern_is_coloured1():
     ''' Check that the is_coloured method behaves as expected. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
+    schedule = invoke.schedule
     kern = schedule.walk(Kern)[0]
     assert not kern.is_coloured()
     # Colour the loop around the kernel
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule[0])
+    ctrans.apply(kern.ancestor(PSyLoop))
     assert kern.is_coloured()
     # Test when the Kernel appears to have no parent loop
     schedule.addchild(kern.detach())
@@ -957,16 +968,14 @@ def test_args_filter():
     are not returned. The simplest way to do this is to use an
     LFRic example which includes two kernels which share argument
     names. We choose dm=False to make it easier to fuse the loops.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=False).create(invoke_info)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
     # fuse our loops so we have more than one Kernel in a loop
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    ftrans.apply(schedule.walk(PSyLoop)[0:2])
     # get our loop and call our method ...
-    loop = schedule.children[0]
+    loop = schedule.walk(PSyLoop)[0]
     args = loop.args_filter(unique=True)
     expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
     for arg in args:
@@ -978,11 +987,10 @@ def test_args_filter2():
     ''' The args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the cases
     when one or both of the intent and type arguments are not specified. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    _, invoke = get_invoke("10_operator.f90", api="lfric", dist_mem=True,
+                           idx=0)
+    schedule = invoke.schedule
+    loop = schedule.walk(PSyLoop)[0]
 
     # arg_accesses
     args = loop.args_filter(arg_accesses=[AccessType.READ])
@@ -1171,17 +1179,15 @@ def test_argument_infer_datatype():
 def test_argument_depends_on():
     '''Check that the depends_on method returns the appropriate boolean
     value for arguments with combinations of read and write access'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.5_multikernel_invokes.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.5_multikernel_invokes.f90", api="lfric",
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
-    arg_f1_inc_1 = schedule.children[0].loop_body[0].arguments.args[0]
-    arg_f1_inc_2 = schedule.children[2].loop_body[0].arguments.args[0]
-    arg_f2_read_1 = schedule.children[0].loop_body[0].arguments.args[2]
-    arg_f2_inc = schedule.children[1].loop_body[0].arguments.args[0]
-    arg_f2_read_2 = schedule.children[2].loop_body[0].arguments.args[1]
+    loops = schedule.walk(PSyLoop)
+    arg_f1_inc_1 = loops[0].loop_body[0].arguments.args[0]
+    arg_f1_inc_2 = loops[2].loop_body[0].arguments.args[0]
+    arg_f2_read_1 = loops[0].loop_body[0].arguments.args[2]
+    arg_f2_inc = loops[1].loop_body[0].arguments.args[0]
+    arg_f2_read_2 = loops[2].loop_body[0].arguments.args[1]
     # different names returns False
     assert not arg_f2_inc._depends_on(arg_f1_inc_1)
     # same name both reads returns False
@@ -1193,29 +1199,24 @@ def test_argument_depends_on():
     # write to read returns True
     assert arg_f2_inc._depends_on(arg_f2_read_1)
     # same name both writes (the 4.5 example only uses inc) returns True
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                           idx=0, api="lfric", dist_mem=False)
     schedule = invoke.schedule
-    arg_f1_write_1 = schedule.children[0].loop_body[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].loop_body[0].arguments.args[0]
+    loops = schedule.walk(PSyLoop)
+    arg_f1_write_1 = loops[0].loop_body[0].arguments.args[1]
+    arg_f1_write_2 = loops[1].loop_body[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
 def test_argument_find_argument():
     ''' Check that the find_argument method returns the first dependent
     argument in a list of nodes, or None if none are found. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.1_multi_aX_plus_Y_builtin.f90", idx=0,
+                           api="lfric", dist_mem=True)
     schedule = invoke.schedule
+    loops = schedule.walk(PSyLoop)
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
+    f1_first_read = loops[0].loop_body[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -1223,40 +1224,38 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
-    f3_first_read = schedule.children[0].loop_body[0].arguments.args[3]
+    f3_write = loops[3].loop_body[0].arguments.args[0]
+    f3_first_read = loops[0].loop_body[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                           api="lfric", idx=0, dist_mem=True)
     schedule = invoke.schedule
+    loops = schedule.walk(PSyLoop)
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[4].loop_body[0].arguments.args[4]
-    m2_halo_field = schedule.children[3].field
-    result = m2_read_arg._find_argument(schedule.children)
+    m2_read_arg = loops[0].loop_body[0].arguments.args[4]
+    halos = schedule.walk(HaloExchange)
+    m2_halo = halos[3]
+    m2_halo_field = m2_halo.field
+    result = m2_read_arg._find_argument(_dsl_nodes(schedule))
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
-    result = m2_halo_field._find_argument([schedule.children[4].loop_body[0]])
+    result = m2_halo_field._find_argument(
+        [_dsl_nodes(schedule)[4].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90", api="lfric",
+                           idx=0, dist_mem=True)
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
-    kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
-    glob_sum_arg = schedule.children[2].scalar
-    result = kern_asum_arg._find_argument(schedule.children)
+    kern_asum_arg = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[1]
+    glob_sum_arg = _dsl_nodes(schedule)[2].scalar
+    result = kern_asum_arg._find_argument(_dsl_nodes(schedule))
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
-    result = glob_sum_arg._find_argument([schedule.children[3].loop_body[0]])
+    result = glob_sum_arg._find_argument(
+        [_dsl_nodes(schedule)[3].loop_body[0]])
     assert result == kern_asum_arg
 
 
@@ -1270,27 +1269,27 @@ def test_argument_find_read_arguments():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
+    f1_first_read = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[2]
     call_nodes = schedule.kernels()
     assert f1_first_read._find_read_arguments(call_nodes) == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_write = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes[4:])
     assert len(result) == 3
     for idx in range(3):
-        loop = schedule.children[idx+4]
+        loop = _dsl_nodes(schedule)[idx+4]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
+    f2_write = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[0]
     assert f2_write._find_read_arguments(call_nodes[1:]) == []
     # 4: Return list of readers before a subsequent writer
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_write = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[0]
     result = f3_write._find_read_arguments(call_nodes)
     assert len(result) == 3
     for idx in range(3):
-        loop = schedule.children[idx]
+        loop = _dsl_nodes(schedule)[idx]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
@@ -1304,7 +1303,7 @@ def test_haloexchange_arg():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange = schedule.children[2]
+    halo_exchange = _dsl_nodes(schedule)[2]
     halo_exchange_arg = halo_exchange.field
     assert halo_exchange_arg.access == AccessType.READWRITE
     assert halo_exchange_arg.call == halo_exchange
@@ -1320,20 +1319,20 @@ def test_argument_forward_read_dependencies():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
-    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
+    f1_first_read = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[2]
     _ = schedule.kernels()
     assert f1_first_read.forward_read_dependencies() == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
+    f3_write = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[0]
     result = f3_write.forward_read_dependencies()
     assert len(result) == 3
     for idx in range(3):
-        loop = schedule.children[idx+4]
+        loop = _dsl_nodes(schedule)[idx+4]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
-    f2_write = schedule.children[0].loop_body[0].arguments.args[0]
+    f2_write = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[0]
     assert f2_write.forward_read_dependencies() == []
 
 
@@ -1353,13 +1352,13 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
+    f1_first_read = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_first_read.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
-    f3_next_read = schedule.children[4].loop_body[0].arguments.args[3]
+    f3_write = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[0]
+    f3_next_read = _dsl_nodes(schedule)[4].loop_body[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
     # 3: haloexchange dependencies
@@ -1373,9 +1372,9 @@ def test_argument_forward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
-    f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
+    f2_prev_arg = _dsl_nodes(schedule)[index-1].loop_body[0].arguments.args[0]
+    f2_halo_field = _dsl_nodes(schedule)[index].field
+    f2_next_arg = _dsl_nodes(schedule)[index+1].loop_body[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1389,10 +1388,10 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
-    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
+    prev_arg = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[1]
+    sum_arg = _dsl_nodes(schedule)[1].loop_body[0].arguments.args[0]
+    global_sum_arg = _dsl_nodes(schedule)[2].scalar
+    next_arg = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
     assert result == sum_arg
@@ -1420,13 +1419,13 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_last_read = schedule.children[6].loop_body[0].arguments.args[2]
+    f1_last_read = _dsl_nodes(schedule)[6].loop_body[0].arguments.args[2]
     # 1: returns none if none found (check many reads)
     assert not f1_last_read.backward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].loop_body[0].arguments.args[0]
-    f3_prev_read = schedule.children[2].loop_body[0].arguments.args[3]
+    f3_write = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[0]
+    f3_prev_read = _dsl_nodes(schedule)[2].loop_body[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
     # 3: haloexchange dependencies
@@ -1440,9 +1439,9 @@ def test_argument_backward_dependence(monkeypatch, annexed):
         index = 7
     else:
         index = 8
-    f2_prev_arg = schedule.children[index-1].loop_body[0].arguments.args[0]
-    f2_halo_field = schedule.children[index].field
-    f2_next_arg = schedule.children[index+1].loop_body[0].arguments.args[1]
+    f2_prev_arg = _dsl_nodes(schedule)[index-1].loop_body[0].arguments.args[0]
+    f2_halo_field = _dsl_nodes(schedule)[index].field
+    f2_next_arg = _dsl_nodes(schedule)[index+1].loop_body[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -1456,10 +1455,10 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
-    sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].loop_body[0].arguments.args[1]
+    prev_arg = _dsl_nodes(schedule)[0].loop_body[0].arguments.args[1]
+    sum_arg = _dsl_nodes(schedule)[1].loop_body[0].arguments.args[0]
+    global_sum_arg = _dsl_nodes(schedule)[2].scalar
+    next_arg = _dsl_nodes(schedule)[3].loop_body[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
     assert result == global_sum_arg
@@ -1481,8 +1480,8 @@ def test_call_args():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kern = schedule.children[0].loop_body[0]
-    builtin = schedule.children[1].loop_body[0]
+    kern = _dsl_nodes(schedule)[0].loop_body[0]
+    builtin = _dsl_nodes(schedule)[1].loop_body[0]
     # 1) kern
     for idx, arg in enumerate(kern.args):
         assert arg == kern.arguments.args[idx]
@@ -1499,7 +1498,7 @@ def test_haloexchange_can_be_printed():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    for haloexchange in schedule.children[:2]:
+    for haloexchange in _dsl_nodes(schedule)[:2]:
         assert "HaloExchange[field='" in str(haloexchange)
         assert "', type='" in str(haloexchange)
         assert "', depth=" in str(haloexchange)
@@ -1518,7 +1517,7 @@ def test_haloexchange_node_str():
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
     # to test is overridden in LFRicHaloExchange.
-    out = HaloExchange.node_str(schedule.children[2])
+    out = HaloExchange.node_str(_dsl_nodes(schedule)[2])
     assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
 
@@ -1544,7 +1543,7 @@ def test_haloexchange_args():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    for haloexchange in schedule.children[:2]:
+    for haloexchange in _dsl_nodes(schedule)[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
 
@@ -1561,20 +1560,20 @@ def test_call_forward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply((schedule.children[0], schedule.children[1]),
+        ftrans.apply((_dsl_nodes(schedule)[0], _dsl_nodes(schedule)[1]),
                      {"same_space": True})
-    read4 = schedule.children[0].loop_body[4]
+    read4 = _dsl_nodes(schedule)[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
     assert not read4.forward_dependence()
     # 2: returns first dependent kernel arg when there are many
     # dependencies
     # a) check first read returned
-    writer = schedule.children[0].loop_body[3]
-    next_read = schedule.children[0].loop_body[4]
+    writer = _dsl_nodes(schedule)[0].loop_body[3]
+    next_read = _dsl_nodes(schedule)[0].loop_body[4]
     assert writer.forward_dependence() == next_read
     # a) check writer returned
-    first_loop = schedule.children[0].loop_body[0]
+    first_loop = _dsl_nodes(schedule)[0].loop_body[0]
     assert first_loop.forward_dependence() == writer
 
 
@@ -1590,15 +1589,15 @@ def test_call_backward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply((schedule.children[0], schedule.children[1]),
+        ftrans.apply((_dsl_nodes(schedule)[0], _dsl_nodes(schedule)[1]),
                      {"same_space": True})
     # 1: loop no backwards dependence
-    call3 = schedule.children[0].loop_body[2]
+    call3 = _dsl_nodes(schedule)[0].loop_body[2]
     assert not call3.backward_dependence()
     # 2: call to call backward dependence
     # a) many steps
-    last_call_node = schedule.children[0].loop_body[6]
-    prev_dep_call_node = schedule.children[0].loop_body[3]
+    last_call_node = _dsl_nodes(schedule)[0].loop_body[6]
+    prev_dep_call_node = _dsl_nodes(schedule)[0].loop_body[3]
     assert last_call_node.backward_dependence() == prev_dep_call_node
     # b) previous
     assert prev_dep_call_node.backward_dependence() == call3
@@ -1628,10 +1627,12 @@ def test_haloexchange_vector_index_depend():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    first_e_field_halo_exchange = schedule.children[3]
+    first_e_field_halo_exchange = _dsl_nodes(schedule)[3]
     field = first_e_field_halo_exchange.field
     all_nodes = schedule.walk(Node)
-    following_nodes = all_nodes[5:]
+    index = next(idx for idx, node in enumerate(all_nodes)
+                 if node is first_e_field_halo_exchange)
+    following_nodes = all_nodes[index+1:]
     result_list = field._find_read_arguments(following_nodes)
     assert len(result_list) == 1
     assert result_list[0].call.name == 'ru_code'
@@ -1652,7 +1653,7 @@ def test_find_write_arguments_for_write():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[13]
+    loop = _dsl_nodes(schedule)[13]
     kernel = loop.loop_body[0]
     field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
@@ -1685,14 +1686,14 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_e_v3 = schedule.children[index]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[index]
     field_e_v3 = halo_exchange_e_v3.field
     monkeypatch.setattr(field_e_v3, "_vector_size", 1)
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
-    halo_exchange_e_v2 = schedule.children[index-1]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[index-1]
     field_e_v2 = halo_exchange_e_v2.field
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v2.forward_read_dependencies()
@@ -1728,14 +1729,14 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_e_v3 = schedule.children[index]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[index]
     field_e_v3 = halo_exchange_e_v3.field
     monkeypatch.setattr(field_e_v3, "_vector_size", 2)
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
-    halo_exchange_e_v2 = schedule.children[index-1]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[index-1]
     field_e_v2 = halo_exchange_e_v2.field
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v2.forward_read_dependencies()
@@ -1771,16 +1772,16 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_e_v3 = schedule.children[index]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[index]
     field_e_v3 = halo_exchange_e_v3.field
-    halo_exchange_e_v2 = schedule.children[index-1]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[index-1]
     monkeypatch.setattr(halo_exchange_e_v2, "_vector_index", 3)
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
             "for 'e' are the same. This should never happen"
             in str(excinfo.value))
-    halo_exchange_e_v2 = schedule.children[index-1]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[index-1]
     field_e_v2 = halo_exchange_e_v2.field
     with pytest.raises(InternalError) as excinfo:
         _ = field_e_v2.forward_read_dependencies()
@@ -1816,13 +1817,13 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_e_v3 = schedule.children[index]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[index]
     field_e_v3 = halo_exchange_e_v3.field
     # There are two halo exchanges before e_v3 which should not count
     # as dependencies.
     node_list = field_e_v3.backward_write_dependencies()
     assert node_list == []
-    halo_exchange_e_v1 = schedule.children[index-2]
+    halo_exchange_e_v1 = _dsl_nodes(schedule)[index-2]
     field_e_v1 = halo_exchange_e_v1.field
     # There are two halo exchanges after e_v1 which should not count
     # as dependencies. We should only get the read access from a
@@ -1864,9 +1865,9 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
     else:
         index = 4
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[index], {"depth": 2})
-    del schedule.children[index]
-    loop = schedule.children[index+2]
+    rc_trans.apply(_dsl_nodes(schedule)[index], {"depth": 2})
+    _dsl_nodes(schedule)[index].detach()
+    loop = _dsl_nodes(schedule)[index+2]
     kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(InternalError) as excinfo:
@@ -1902,8 +1903,8 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
         index = 3
     else:
         index = 4
-    del schedule.children[index]
-    loop = schedule.children[index+1]
+    _dsl_nodes(schedule)[index].detach()
+    loop = _dsl_nodes(schedule)[index+1]
     kernel = loop.loop_body[0]
     e_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
@@ -1940,8 +1941,8 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     else:
         index = 4
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[index], {"depth": 2})
-    loop = schedule.children[index+3]
+    rc_trans.apply(_dsl_nodes(schedule)[index], {"depth": 2})
+    loop = _dsl_nodes(schedule)[index+3]
     kernel = loop.loop_body[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size
@@ -1990,16 +1991,16 @@ def test_dataaccess_vector():
     schedule = invoke.schedule
 
     # e from halo exchange vector 1
-    halo_exchange_e_v1 = schedule.children[3]
+    halo_exchange_e_v1 = _dsl_nodes(schedule)[3]
     field_e_v1 = halo_exchange_e_v1.field
     # e from halo exchange vector 2
-    halo_exchange_e_v2 = schedule.children[4]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[4]
     field_e_v2 = halo_exchange_e_v2.field
     # e from halo exchange vector 3
-    halo_exchange_e_v3 = schedule.children[5]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[5]
     field_e_v3 = halo_exchange_e_v3.field
     # e from a kernel argument
-    loop = schedule.children[6]
+    loop = _dsl_nodes(schedule)[6]
     kernel = loop.loop_body[0]
     e_arg = kernel.arguments.args[5]
 
@@ -2041,10 +2042,10 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # e for this halo exchange is for vector component 2
-    halo_exchange_e_v2 = schedule.children[4]
+    halo_exchange_e_v2 = _dsl_nodes(schedule)[4]
     field_e_v2 = halo_exchange_e_v2.field
     # modify e from vector component 3 to be component 2
-    halo_exchange_e_v3 = schedule.children[5]
+    halo_exchange_e_v3 = _dsl_nodes(schedule)[5]
     field_e_v3 = halo_exchange_e_v3.field
     monkeypatch.setattr(halo_exchange_e_v3, "_vector_index", 2)
 

@@ -11,9 +11,10 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.lfric import LFRicHaloExchange
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
     ProfileNode, Loop, Literal, Assignment, Return, Reference,
@@ -438,10 +439,9 @@ def test_profile_fused_kernels_lfric():
     fuse_trans.apply((loops[0], loops[1]))
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = psy.gen
-    print(code)
     expected = '''\
     CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
-    do cell = loop0_start, loop0_stop, 1
+    do cell = 1, loop0_stop, 1
       call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
@@ -493,7 +493,7 @@ def test_profile_kernels_in_directive_lfric():
     CALL profile_psy_data % PreStart("single_invoke_w3_psy", \
 "invoke_0_testkern_w3_type-testkern_w3_code-r0", 0, 0)
     !$acc kernels
-    do cell = loop0_start, loop0_stop, 1
+    do cell = 1, loop0_stop, 1
 '''
     assert expected in code
 
@@ -628,9 +628,9 @@ def test_region(fortran_writer):
     prt = ProfileTrans()
 
     # Just halo exchanges.
-    prt.apply(schedule[0:4])
+    prt.apply(schedule.walk(LFRicHaloExchange)[0:4])
     # Two loops.
-    prt.apply(schedule[1:3])
+    prt.apply(schedule.walk(LFRicLoop)[0:2])
 
     # Ensure PSy-layer fully initialised as we don't use psy.gen.
     invoke.setup_psy_layer_symbols()
@@ -669,9 +669,10 @@ def test_multi_prefix_profile(monkeypatch):
     monkeypatch.setattr(config, "_valid_psy_data_prefixes",
                         ["profile", "tool1"])
     # Use the 'tool1' prefix for the region around the halo exchanges.
-    prt.apply(schedule[0:4], options={"prefix": "tool1"})
+    prt.apply(schedule.walk(LFRicHaloExchange)[0:4],
+              options={"prefix": "tool1"})
     # Use the default prefix for the two loops.
-    prt.apply(schedule[1:3])
+    prt.apply(schedule.walk(LFRicLoop)[0:2])
     result = psy.gen
 
     assert ("  use profile_psy_data_mod, only : profile_PSyDataType\n" in
@@ -687,13 +688,14 @@ def test_multi_prefix_profile(monkeypatch):
             "    if (f1_proxy%is_dirty(depth=1)) then\n" in result)
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
-    assert ("    CALL tool1_psy_data % PostEnd\n"
-            "    CALL profile_psy_data % PreStart(\"multi_functions_multi_"
+    assert ("    end if\n"
+            "    CALL tool1_psy_data % PostEnd\n" in result)
+    assert ("    CALL profile_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)\n"
-            "    do cell = loop0_start, loop0_stop, 1\n" in result)
+            "    do cell = 1, loop0_stop, 1\n" in result)
     assert ("    call f1_proxy%set_dirty()\n"
             "    CALL profile_psy_data % PostEnd\n"
-            "    do cell = loop2_start, loop2_stop, 1\n" in result)
+            "    do cell = 1, loop2_stop, 1\n" in result)
 
 
 # -----------------------------------------------------------------------------

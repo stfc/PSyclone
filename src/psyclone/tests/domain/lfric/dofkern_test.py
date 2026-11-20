@@ -134,18 +134,16 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
     # Distributed memory
     if annexed and dist_mem:
         expected = (
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
         )
     elif not annexed and dist_mem:
         expected = (
-            "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
         )
 
     # Shared memory
     elif not dist_mem:
-        expected = "    loop0_start = 1\n    loop0_stop = undf_w1"
+        expected = "do df = 1, undf_w1, 1\n"
 
     assert expected in code
     # Check compilation
@@ -194,19 +192,22 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
 
     # Since (redundant) computation over annexed dofs is enabled, there
     # should be no halo exchange before the first kernel call
-    assert isinstance(first_invoke.schedule[0], LFRicLoop)
+    nodes = first_invoke.schedule.walk((LFRicHaloExchange, LFRicLoop))
+    assert isinstance(nodes[0], LFRicLoop)
 
     # Now transform the first loop to perform redundant computation out to
     # the level-3 halo
     rtrans = LFRicRedundantComputationTrans()
-    rtrans.apply(first_invoke.schedule[0], options={"depth": 3})
+    rtrans.apply(nodes[0], options={"depth": 3})
 
     # There should now be a halo exchange for f2
-    assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
-    assert first_invoke.schedule[0].field.name == "f2"
+    nodes = first_invoke.schedule.walk((LFRicHaloExchange, LFRicLoop))
+    assert isinstance(nodes[0], LFRicHaloExchange)
+    assert nodes[0].field.name == "f2"
     # Check the correct depth is set
-    assert "halo_exchange(depth=3)" in str(psy.gen)
-    assert "halo_exchange(depth=1)" not in str(psy.gen)
+    output = str(psy.gen)
+    assert "halo_exchange(depth=3)" in output
+    assert "halo_exchange(depth=1)" not in output
 
     # There should be one halo exchange for each field that is not f1
     # (f2, f3, f4)
@@ -287,12 +288,12 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             assert (
                 "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_owned"
                 in code)
+        assert "    do df = 1, loop0_stop, 1\n" in code
     else:
-        assert "loop0_stop = undf_w1" in code
+        assert "do df = 1, undf_w1, 1" in code
 
     # Check that dof kernels are called correctly
     output = (
-        "    do df = loop0_start, loop0_stop, 1\n"
         "      call testkern_dofs_vector_write_code(field_vec_1_data(df), "
         "field_vec_2_data(df), field_vec_3_data(df))\n"
         "    enddo\n"
@@ -300,7 +301,6 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     assert output in code
 
     output = (
-        "    do df = loop1_start, loop1_stop, 1\n"
         "      call testkern_dofs_code(f1_data(df), f2_data(df), "
         "f3_data(df), f4_data(df), field_vec_1_data(df), "
         "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -314,7 +314,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             # Check f1 field has halo exchange performed when annexed == False
             output = (
-                "    do df = loop1_start, loop1_stop, 1\n"
+                "    do df = 1, loop1_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -328,7 +328,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         else:
             # Check f1 field is set dirty but no halo exchange is performed
             output = (
-                "    do df = loop1_start, loop1_stop, 1\n"
+                "    do df = 1, loop1_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -351,7 +351,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             "    if (m2_proxy%is_dirty(depth=1)) then\n"
             "      call m2_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
-            "    do cell = loop2_start, loop2_stop, 1\n"
+            "    do cell = 1, loop2_stop, 1\n"
             "      call testkern_code"
         )
         output += common_halo_exchange_code  # Append common
@@ -359,7 +359,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check cell-column kern is called correctly
     output = (
-        "    do cell = loop2_start, loop2_stop, 1\n"
+        "    do cell = 1, loop2_stop, 1\n"
         "      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
         "m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -368,12 +368,14 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     assert output in code
 
     # Check built-in is called correctly
-    output = (
-        "    do df = loop3_start, loop3_stop, 1\n"
-        "      ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
-        "      f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
-        "    enddo\n"
-    )
+    if dist_mem:
+        output = "    do df = 1, loop3_stop, 1\n"
+    else:
+        output = "    do df = 1, undf_as1_f1__1, 1\n"
+    output += ("      ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
+               "      f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
+               "    enddo\n")
+
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

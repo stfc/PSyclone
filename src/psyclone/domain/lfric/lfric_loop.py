@@ -24,7 +24,7 @@ from psyclone.psyir.nodes import (
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, ScalarType, UnresolvedType)
+    ArrayType, AutomaticInterface, DataSymbol, ScalarType, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -519,7 +519,12 @@ class LFRicLoop(PSyLoop):
             root_name = "last_edge_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = sym_tab.find_or_create_tag(root_name)
+            sym = sym_tab.find_or_create_tag(
+                root_name,
+                symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]))
             colour = sym_tab.lookup_with_tag("colours_loop_idx")
             return ArrayReference.create(sym, [Reference(colour)])
         if self._upper_bound_name == "colour_halo":

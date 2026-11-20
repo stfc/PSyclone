@@ -13,12 +13,12 @@ import os
 import sys
 from psyclone.domain.common.transformations import (
     KernelInlineTrans, KernelModuleInlineTrans)
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.transformations import (
     LFRicRedundantComputationTrans, LFRicLoopFuseTrans)
 from psyclone.psyir.nodes import (
-    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
+    Call, Directive, IntrinsicCall, Routine, Schedule)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError,
     OMPDeclareTargetTrans, OMPParallelTrans)
@@ -128,7 +128,7 @@ def trans(psyir):
         # Make setval_c compute redundantly to the level 1 halo if it
         # is in its own loop and only if it has an iteration space that is
         # *not* restricted to owned dofs.
-        for loop in subroutine.loops():
+        for loop in subroutine.walk(LFRicLoop):
             if loop.iteration_space == "dof":
                 if len(loop.kernels()) == 1:
                     if loop.kernels()[0].name in ["setval_c"]:
@@ -146,7 +146,7 @@ def trans(psyir):
 
         # Colour loops over cells unless they are on discontinuous spaces
         # (alternatively we could annotate the kernels with atomics)
-        for loop in subroutine.loops():
+        for loop in subroutine.walk(LFRicLoop):
             if loop.iteration_space.endswith("cell_column"):
                 if (loop.field_space.orig_name not in
                         const.VALID_DISCONTINUOUS_NAMES):
@@ -154,7 +154,7 @@ def trans(psyir):
 
         # We need to Module-inline all Kernels inside the loops and then mark
         # them with GPU-enabling directive or Inline them.
-        for loop in subroutine.loops():
+        for loop in subroutine.walk(LFRicLoop):
             for kern in loop.kernels():
                 if not offload or isinstance(kern, LFRicBuiltIn):
                     # BuiltIns and kernels inside excluded invokes do
@@ -204,7 +204,7 @@ def trans(psyir):
                           f"due to:\n{err.value}")
 
         # Try to fuse all of the loops.
-        loops = subroutine.loops()
+        loops = subroutine.walk(LFRicLoop)
         num_loops = len(loops)
         current_index = 0
         # Keep trying to fuse loops wherever possible
@@ -224,7 +224,7 @@ def trans(psyir):
                 # If fusion fails we move to the next loop.
                 current_index = current_index + 1
         # Add GPU offloading to loops
-        for loop in subroutine.walk(Loop):
+        for loop in subroutine.walk(LFRicLoop):
             kernel_names = [k.name.lower() for k in loop.kernels()]
             if offload and all(name not in failed_to_offload for name in
                                kernel_names):
@@ -263,7 +263,7 @@ def trans(psyir):
 
         # Apply OpenMP thread parallelism for any kernels we've not been able
         # to offload to GPU.
-        for loop in subroutine.walk(Loop):
+        for loop in subroutine.walk(LFRicLoop):
             if not offload or any(kern.name.lower() in failed_to_offload for
                                   kern in loop.kernels()):
                 if loop.loop_type not in ["colours", "null"]:

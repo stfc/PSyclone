@@ -14,7 +14,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicStencils)
+                                   LFRicKernMetadata, LFRicLoop, LFRicStencils)
 from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -219,8 +219,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         assert "halo_exchange(depth=extent)" not in result
         assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
         assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
-    assert "do cell = loop1_start, loop1_stop" in result
+    assert "do cell = 1, loop0_stop" in result
+    assert "do cell = 1, loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):
@@ -1610,7 +1610,7 @@ def test_stencil_extent_specified():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[4].loop_body[0]
+    kernel = schedule.walk(LFRicLoop)[0].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1

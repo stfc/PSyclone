@@ -12,6 +12,7 @@ import logging
 
 import pytest
 
+from psyclone.domain.lfric import LFRicGlobalSum, LFRicLoop
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.psyir import nodes
 from psyclone import psyGen
@@ -573,10 +574,11 @@ def test_directiveinfer_sharing_attributes_lfric():
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": True})
+    loop = schedule.walk(LFRicLoop)[0]
+    otrans.apply(loop, {"reprod": True})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
-    rtrans.apply(schedule.children[0])
-    directive = schedule.children[0]
+    rtrans.apply(loop.parent.parent)
+    directive = loop.parent.parent.parent.parent
     assert isinstance(directive, OMPParallelDirective)
 
     # Now check that infer_sharing_attributes returns what we expect
@@ -1155,9 +1157,10 @@ def test_omp_forward_dependence():
                            dist_mem=False, idx=0)
     schedule = invoke.schedule
     otrans = LFRicOMPParallelLoopTrans()
-    for child in schedule.children:
+    for child in schedule.walk(LFRicLoop):
         otrans.apply(child)
-    read4 = schedule.children[4]
+    directives = schedule.walk(OMPParallelDirective)
+    read4 = directives[4]
     # 1: returns none if none found
     # a) check many reads
     assert not read4.forward_dependence()
@@ -1166,23 +1169,23 @@ def test_omp_forward_dependence():
     # 2: returns first dependent kernel arg when there are many
     # dependencies
     # a) check first read returned
-    writer = schedule.children[3]
-    next_read = schedule.children[4]
+    writer = directives[3]
+    next_read = directives[4]
     assert writer.forward_dependence() == next_read
     # b) check writer returned
-    first_omp = schedule.children[0]
+    first_omp = directives[0]
     assert first_omp.forward_dependence() == writer
     # 3: directive and globalsum dependencies
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", dist_mem=True, idx=0)
     schedule = invoke.schedule
-    otrans.apply(schedule.children[0])
-    otrans.apply(schedule.children[1])
-    otrans.apply(schedule.children[3])
-    prev_omp = schedule.children[0]
-    sum_omp = schedule.children[1]
-    global_sum_loop = schedule.children[2]
-    next_omp = schedule.children[3]
+    for loop in schedule.walk(LFRicLoop):
+        otrans.apply(loop)
+    directives = schedule.walk(OMPParallelDirective)
+    prev_omp = directives[0]
+    sum_omp = directives[1]
+    global_sum_loop = schedule.walk(LFRicGlobalSum)[0]
+    next_omp = directives[2]
     # a) prev omp depends on sum omp
     assert prev_omp.forward_dependence() == sum_omp
     # b) sum omp depends on global sum loop
@@ -1424,23 +1427,22 @@ def test_omp_taskloop_validate_global_constraints():
     schedule = invoke.schedule
 
     taskloop = OMPTaskloopTrans()
-    taskloop.apply(schedule.children[0])
+    taskloop.apply(schedule.walk(LFRicLoop)[0])
+    tloop = schedule.walk(OMPTaskloopDirective)[0]
     with pytest.raises(GenerationError) as excinfo:
-        schedule.children[0].validate_global_constraints()
-    assert ("OMPTaskloopDirective must be inside an OMP "
-            "Serial region but could not find an ancestor node"
-            in str(excinfo.value))
+        tloop.validate_global_constraints()
+    assert ("OMPTaskloopDirective must be inside an OMP Serial region but "
+            "could not find an ancestor node" in str(excinfo.value))
 
     # Ensure a taskloop clause can't have two nogroup clauses.
-    taskloop = schedule.children[0]
-    taskloop.addchild(OMPNogroupClause())
-    taskloop.addchild(OMPNogroupClause())
+    tloop.addchild(OMPNogroupClause())
+    tloop.addchild(OMPNogroupClause())
     singletrans = OMPSingleTrans()
     paralleltrans = OMPParallelTrans()
-    singletrans.apply(taskloop)
-    paralleltrans.apply(schedule.children[0])
+    singletrans.apply(tloop)
+    paralleltrans.apply(schedule.walk(OMPSingleDirective)[0])
     with pytest.raises(GenerationError) as excinfo:
-        taskloop.validate_global_constraints()
+        tloop.validate_global_constraints()
     assert ("OMPTaskloopDirective has two Nogroup clauses as "
             "children which is not allowed." in str(excinfo.value))
 

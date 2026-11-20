@@ -24,6 +24,8 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
+from psyclone.domain.lfric import LFRicLoop
+from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.transformations import LFRicAsyncHaloExchangeTrans
 from psyclone.psyir.transformations import MoveTrans
 
@@ -45,13 +47,18 @@ def trans(psyir):
 
     # Get the first subroutine in the first module
     schedule = psyir.children[0].children[0]
-    # Reference a specific node that we can move
-    hex_node = schedule[2]
+    # Find the halo exchange for div_star (the third exchange in the
+    # original schedule).
+    hex_node = next(node for node in schedule.walk(LFRicHaloExchange)
+                    if node.field.name == "div_star")
     async_hex_trans.apply(hex_node)
 
     # Move the (specific) halo exchange start node to the start of the
     # schedule
-    move_trans.apply(schedule[2], schedule[0])
+    hex_start = next(node for node in schedule.walk(LFRicHaloExchangeStart)
+                     if node.field.name == "div_star")
+    first_loop = schedule.walk(LFRicLoop)[0]
+    move_trans.apply(hex_start, first_loop)
 
     # Take a look at the modified PSy-layer PSyIR
     print(schedule.view())

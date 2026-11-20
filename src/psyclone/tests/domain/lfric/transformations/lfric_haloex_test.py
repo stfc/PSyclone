@@ -13,7 +13,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicLoop
+from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicLoop
 from psyclone.domain.lfric.transformations import (
     LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
@@ -57,19 +57,19 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    def check_schedule(schedule):
+    def check_schedule(schedule: LFRicInvokeSchedule):
         '''Check this schedule has expected structure (loop, haloexchange,
         loop). In particular there should be no halo exchange for the
         write-to-gh_inc dependence.
 
         :param schedule: an LFRic API schedule object
-        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
 
         '''
-        assert len(schedule.children) == 3
-        loop1 = schedule.children[0]
-        haloex = schedule.children[1]
-        loop2 = schedule.children[2]
+        nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+        assert len(nodes) == 3
+        loop1 = nodes[0]
+        haloex = nodes[1]
+        loop2 = nodes[2]
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f2"
@@ -77,7 +77,8 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         assert isinstance(loop2, LFRicLoop)
 
     # 1st loop should iterate over dofs to nannexed. Check output
-    assert schedule.children[0].upper_bound_name == "nannexed"
+    loop1 = schedule.walk(LFRicLoop)[0]
+    assert loop1.upper_bound_name == "nannexed"
     check_schedule(schedule)
 
     # just check compilation here (not later in this test) as
@@ -86,16 +87,16 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], {"depth": 1})
-    assert schedule.children[0].upper_bound_name == "dof_halo"
-    assert schedule.children[0].upper_bound_halo_depth.value == "1"
+    rc_trans.apply(loop1, {"depth": 1})
+    assert loop1.upper_bound_name == "dof_halo"
+    assert loop1.upper_bound_halo_depth.value == "1"
     check_schedule(schedule)
 
     # make 1st loop iterate over dofs to the maximum halo depth and
     # check output
-    rc_trans.apply(schedule.children[0])
-    assert schedule.children[0].upper_bound_name == "dof_halo"
-    assert not schedule.children[0].upper_bound_halo_depth
+    rc_trans.apply(loop1)
+    assert loop1.upper_bound_name == "dof_halo"
+    assert not loop1.upper_bound_halo_depth
     check_schedule(schedule)
 
 
@@ -119,11 +120,12 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
 
     # 1st loop should iterate over dofs to ndofs. Check output
-    loop1 = schedule.children[0]
-    haloex1 = schedule.children[1]
-    haloex2 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert len(schedule.children) == 4
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    loop1 = nodes[0]
+    haloex1 = nodes[1]
+    haloex2 = nodes[2]
+    loop2 = nodes[3]
+    assert len(nodes) == 4
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "ndofs"
     assert isinstance(haloex1, LFRicHaloExchange)
@@ -141,11 +143,12 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], {"depth": 1})
-    loop1 = schedule.children[0]
-    haloex = schedule.children[1]
-    loop2 = schedule.children[2]
-    assert len(schedule.children) == 3
+    rc_trans.apply(loop1, {"depth": 1})
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    loop1 = nodes[0]
+    haloex = nodes[1]
+    loop2 = nodes[2]
+    assert len(nodes) == 3
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert loop1.upper_bound_halo_depth.value == "1"
@@ -156,11 +159,12 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
 
     # make 1st loop iterate over dofs to the maximum halo depth and
     # check output
-    rc_trans.apply(schedule.children[0])
-    loop1 = schedule.children[0]
-    haloex = schedule.children[1]
-    loop2 = schedule.children[2]
-    assert len(schedule.children) == 3
+    rc_trans.apply(loop1)
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    loop1 = nodes[0]
+    haloex = nodes[1]
+    loop2 = nodes[2]
+    assert len(nodes) == 3
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert not loop1.upper_bound_halo_depth
@@ -195,10 +199,11 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
 
     # check we have no halo exchanges for field "f1"
-    assert len(schedule.children) == 3
-    haloex = schedule.children[0]
-    loop1 = schedule.children[1]
-    loop2 = schedule.children[2]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    assert len(nodes) == 3
+    haloex = nodes[0]
+    loop1 = nodes[1]
+    loop2 = nodes[2]
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
@@ -212,26 +217,26 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[1], {"depth": 2})
+    rc_trans.apply(loop1, {"depth": 2})
 
-    def check(schedule, f1depth, f2depth):
+    def check(schedule: LFRicInvokeSchedule, f1depth: int, f2depth: int):
         '''check that the schedule is modified in the expected way. In
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
         :param schedule: an LFRic API schedule object
-        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
-        :param int f1depth: The expected depth of the halo exchange \
-        associated with field f1
-        :param int f2depth: The expected depth of the halo exchange \
-        associated with field f2
+        :param f1depth: The expected depth of the halo exchange associated
+            with field f1
+        :param f2depth: The expected depth of the halo exchange associated
+            with field f2
 
         '''
-        assert len(schedule.children) == 4
-        haloex1 = schedule.children[0]
-        haloex2 = schedule.children[1]
-        loop1 = schedule.children[2]
-        loop2 = schedule.children[3]
+        nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+        assert len(nodes) == 4
+        haloex1 = nodes[0]
+        haloex2 = nodes[1]
+        loop1 = nodes[2]
+        loop2 = nodes[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f2"
         assert haloex1._compute_halo_depth().debug_string() == f2depth
@@ -249,7 +254,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
 
     # make 1st loop iterate over cells to the maximum halo depth and
     # check output
-    rc_trans.apply(schedule.children[2])
+    rc_trans.apply(loop1)
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
     check(schedule, f1depth="max_halo_depth_mesh - 1",
@@ -280,24 +285,24 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    def check(schedule, f1depth, f2depth):
+    def check(schedule: LFRicInvokeSchedule, f1depth: int, f2depth: int):
         '''check that the schedule is modified in the expected way. In
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
         :param schedule: an LFRic API schedule object
-        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
-        :param int f1depth: The expected depth of the halo exchange \
-        associated with field f1
-        :param int f2depth: The expected depth of the halo exchange \
-        associated with field f2
+        :param f1depth: The expected depth of the halo exchange
+            associated with field f1
+        :param f2depth: The expected depth of the halo exchange
+            associated with field f2
 
         '''
-        assert len(schedule.children) == 4
-        haloex1 = schedule.children[0]
-        haloex2 = schedule.children[1]
-        loop1 = schedule.children[2]
-        loop2 = schedule.children[3]
+        nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+        assert len(nodes) == 4
+        haloex1 = nodes[0]
+        haloex2 = nodes[1]
+        loop1 = nodes[2]
+        loop2 = nodes[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f1"
         assert haloex1._compute_halo_depth().debug_string() == f1depth
@@ -318,15 +323,16 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
+    loops = schedule.walk(LFRicLoop)
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[2], {"depth": 2})
+    rc_trans.apply(loops[0], {"depth": 2})
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth 1 and "f2" to depth 2
     check(schedule, f1depth="1", f2depth="2")
 
     # make 1st loop iterate over cells to the maximum halo depth and
     # check output
-    rc_trans.apply(schedule.children[2])
+    rc_trans.apply(loops[0])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
     check(schedule, f1depth="max_halo_depth_mesh - 1",
@@ -353,16 +359,14 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = LFRicRedundantComputationTrans()
 
-    def check(haloex, depth):
+    def check(haloex: LFRicHaloExchange, depth: int):
         '''check the halo exchange has the expected properties
 
         :param haloex: an LFRic API halo-exchange object
-        :type haloex: :py:class:`psyclone.lfric.LFRicHaloExchange`.
-        :param int depth: The expected depth of the halo exchange \
-        passed in as the first argument
+        :param depth: The expected depth of the halo exchange
+            passed in as the first argument
 
         '''
-
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
@@ -376,29 +380,29 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
         haloidx = 4
         loop1idx = 5
         loop2idx = 7
-
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
     # f1 halo exchange should be depth 1 : max(1,0)
-    haloex = schedule.children[haloidx]
-    check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], {"depth": 2})
+    haloex = nodes[haloidx]
+    check(nodes[haloidx], "1")
+    rc_trans.apply(nodes[loop2idx], {"depth": 2})
     # f1 halo exchange should still be depth 1 : max(1,1)
-    haloex = schedule.children[haloidx]
+    haloex = nodes[haloidx]
     check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], {"depth": 3})
+    rc_trans.apply(nodes[loop2idx], {"depth": 3})
     # f1 halo exchange should be depth 2 (max(1,2)
-    haloex = schedule.children[haloidx]
+    haloex = nodes[haloidx]
     check(haloex, "2")
-    rc_trans.apply(schedule.children[loop2idx])
+    rc_trans.apply(nodes[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
-    haloex = schedule.children[haloidx]
+    haloex = nodes[haloidx]
     check(haloex, "MAX(1, max_halo_depth_mesh - 1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    rc_trans.apply(schedule.children[loop1idx])
+    rc_trans.apply(nodes[loop1idx])
     # f1 halo exchange should be depth max
-    haloex = schedule.children[haloidx]
+    haloex = nodes[haloidx]
     check(haloex, "max_halo_depth_mesh")
 
 
@@ -436,23 +440,24 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     first_invoke = psy.invokes.invoke_list[0]
     # Since (redundant) computation over annexed dofs is enabled, there
     # should be no halo exchange before the first (builtin) kernel call
-    assert isinstance(first_invoke.schedule[0], LFRicLoop)
+    nodes = first_invoke.schedule.walk((LFRicLoop, LFRicHaloExchange))
+    assert isinstance(nodes[0], LFRicLoop)
     # There should be a halo exchange for field f1 before the second
     # kernel call
-    assert isinstance(first_invoke.schedule[1], LFRicHaloExchange)
-    assert first_invoke.schedule[1].field.name == "f1"
+    assert isinstance(nodes[1], LFRicHaloExchange)
+    assert nodes[1].field.name == "f1"
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = LFRicRedundantComputationTrans()
-    rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    rtrans.apply(nodes[0], options={"depth": 1})
     # There should now be a halo exchange for f1 before the first
     # (builtin) kernel call
-    assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
-    assert first_invoke.schedule[0].field.name == "f1"
-    assert isinstance(first_invoke.schedule[1], LFRicLoop)
+    nodes = first_invoke.schedule.walk((LFRicLoop, LFRicHaloExchange))
+    assert isinstance(nodes[0], LFRicHaloExchange)
+    assert nodes[0].field.name == "f1"
+    assert isinstance(nodes[1], LFRicLoop)
     # There should only be one halo exchange for field f1
-    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
-                if node.field.name == "f1"]) == 1
+    assert len([node for node in nodes if node.field.name == "f1"]) == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -479,12 +484,13 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
 
     schedule = psy.invokes.invoke_list[0].schedule
 
-    hex_f1 = schedule[1]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    hex_f1 = nodes[1]
     # Modify the adjacent halo exchange to reference field f1 and
     # make the access read-only. This stops the dependence from being
     # the last on the list.
-    schedule[2].field._name = "f1"
-    schedule[2].field.access = AccessType.READ
+    nodes[2].field._name = "f1"
+    nodes[2].field.access = AccessType.READ
     with pytest.raises(InternalError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("If there is a read dependency associated with a halo exchange "
@@ -493,7 +499,7 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
 
     # Now modify a 3rd halo exchange to reference field f1 making more
     # than one dependency associated with a halo exchange.
-    schedule[3].field._name = "f1"
+    nodes[3].field._name = "f1"
     with pytest.raises(InternalError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("There should only ever be at most one read dependency associated "
@@ -515,11 +521,12 @@ def test_compute_halo_read_info_async(monkeypatch):
 
     schedule = psy.invokes.invoke_list[0].schedule
 
-    hex_f1 = schedule[1]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    hex_f1 = nodes[1]
 
-    schedule[2].field._name = "f1"
+    nodes[2].field._name = "f1"
     async_hex = LFRicAsyncHaloExchangeTrans()
-    async_hex.apply(schedule[2])
+    async_hex.apply(nodes[2])
     with pytest.raises(GenerationError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("Please perform redundant computation transformations "
@@ -542,13 +549,15 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule[0]
+    loop = schedule.walk(LFRicLoop)[0]
     rtrans = LFRicRedundantComputationTrans()
     rtrans.apply(loop, options={"depth": 1})
-    f1_field = schedule[0].field
-    del schedule.children[0]
-    schedule[1].field._name = "f1"
-    schedule[2].field._name = "f1"
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f1_field = nodes[0].field
+    # Delete the first halo exchange (for f1)
+    del schedule.children[nodes[0].position]
+    nodes[2].field._name = "f1"
+    nodes[3].field._name = "f1"
     with pytest.raises(InternalError) as info:
         loop._add_field_component_halo_exchange(f1_field)
     assert ("When replacing a halo exchange with another one for field f1, "
@@ -575,7 +584,8 @@ def test_gh_readinc(tmpdir):
     # and after a GH_INC access to a field (f1).
     # Also check that 'check_dirty == False' and 'depth == 1' in the
     # halo exchange.
-    f1_hex = schedule[3]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f1_hex = nodes[3]
     assert isinstance(f1_hex, LFRicHaloExchange)
     assert f1_hex.field.name == "f1"
     _, known = f1_hex.required()
@@ -600,7 +610,8 @@ def test_stencil_then_w3_read(tmpdir):
                     api=API)
     psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    f4_hex = schedule.children[1]
+    nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
+    f4_hex = nodes[1]
     assert isinstance(f4_hex, LFRicHaloExchange)
     assert f4_hex.field.name == "f4"
 

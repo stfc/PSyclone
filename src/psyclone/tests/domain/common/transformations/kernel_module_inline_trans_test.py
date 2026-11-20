@@ -13,6 +13,7 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -381,7 +382,7 @@ def test_apply_name_clashes():
     _, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
                            dist_mem=False)
     schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
+    coded_kern = schedule.walk(LFRicLoop)[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
 
     # Check that name clashes which are not subroutines are handled - add a
@@ -406,7 +407,7 @@ def test_apply_routine_name_clashes():
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
+    coded_kern = schedule.walk(LFRicLoop)[0].loop_body[0]
 
     # Check that if a subroutine with the same name already exists
     # everything still works.

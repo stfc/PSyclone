@@ -100,7 +100,7 @@ def test_lfricpsy_gen(monkeypatch, tmpdir):
     lfric_psy = LFRicPSy(invoke_info)
     result = str(lfric_psy.gen)
     assert (
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = 1, loop0_stop, 1\n"
         "      call testkern_code(nlayers_f1, ginger, f1_data, "
         "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -110,7 +110,7 @@ def test_lfricpsy_gen(monkeypatch, tmpdir):
         "    ! Set halos dirty/clean for fields modified in the above "
         "loop(s)\n"
         "    call f1_proxy%set_dirty()\n"
-        "    do df = loop1_start, loop1_stop, 1\n"
+        "    do df = 1, loop1_stop, 1\n"
         "      ! Built-in: setval_c (set a real-valued field to a real "
         "scalar value)\n"
         "      f1_data(df) = 0.0_r_def\n"

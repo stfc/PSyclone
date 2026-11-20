@@ -63,7 +63,7 @@ def test_sched_getitem():
 
     # Test range indexing
     children = sched[:]
-    assert len(children) == 2
+    assert len(children) == 9
     assert children[0] is sched._children[0]
     assert children[1] is sched._children[1]
 

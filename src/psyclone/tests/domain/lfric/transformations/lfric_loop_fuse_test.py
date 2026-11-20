@@ -163,30 +163,21 @@ def test_loop_fuse(dist_mem, tmpdir):
 
     gen = str(psy.gen)
 
-    cell_loop_idx = -1
-    end_loop_idx = -1
-    call_idx1 = -1
-    call_idx2 = -1
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in gen
-    loop_str = "do cell = loop0_start, loop0_stop"
-    for idx, line in enumerate(gen.split('\n')):
-        if loop_str in line:
-            cell_loop_idx = idx
-        if "call testkern_code" in line:
-            if call_idx1 == -1:
-                call_idx1 = idx
-            else:
-                call_idx2 = idx
-        if "enddo" in line:
-            end_loop_idx = idx
 
-    assert cell_loop_idx != -1
-    assert cell_loop_idx < call_idx1
-    assert call_idx1 < call_idx2
-    assert call_idx2 < end_loop_idx
+    assert """\
+    do cell = 1, loop0_stop, 1
+      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+      call testkern_code(nlayers_f3, a, f3_data, f4_data, m3_data, m4_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+    enddo
+""" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -321,16 +312,12 @@ def test_loop_fuse_conditional_vector_fields(tmpdir):
     loops = schedule.walk(LFRicLoop)
     ftrans.apply(loops[0:2], conditional_fusion=True)
     correct = """! Set-up all of the loop bounds
-    loop0_start = 1
     loop0_stop = f1_proxy(1)%vspace%get_ncell()
-    loop1_start = 1
-    loop1_stop = f1_proxy(1)%vspace%get_ncell()
-    loop2_start = 1
-    loop2_stop = f4_proxy(1)%vspace%get_ncell()
+    loop1_stop = f4_proxy(1)%vspace%get_ncell()
 
     ! Call kernels
     if (f1(1)%which_function_space() == f4(1)%which_function_space()) then
-      do cell = loop0_start, loop0_stop, 1
+      do cell = 1, loop0_stop, 1
         call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
 f1_2_data, f2_data, f3_data, ndf_as1_f1__1, undf_as1_f1__1, \
 map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
@@ -339,12 +326,12 @@ f4_2_data, f2_data, f3_data, ndf_as1_f4__1, undf_as1_f4__1, \
 map_as1_f4__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
       enddo
     else
-      do cell = loop1_start, loop1_stop, 1
+      do cell = 1, loop0_stop, 1
         call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
 f1_2_data, f2_data, f3_data, ndf_as1_f1__1, undf_as1_f1__1, \
 map_as1_f1__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
       enddo
-      do cell = loop2_start, loop2_stop, 1
+      do cell = 1, loop1_stop, 1
         call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, \
 f4_2_data, f2_data, f3_data, ndf_as1_f4__1, undf_as1_f4__1, \
 map_as1_f4__1(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
@@ -366,12 +353,14 @@ def test_loop_fuse_min_max_same_var(fortran_writer, tmpdir):
     loops = schedule.walk(LFRicLoop)
     ftrans.apply(loops[0:2])
     ftrans.apply((loops[0], loops[2]))
+    output = fortran_writer(schedule)
+
     correct = """  ! Initialise reduction variable
   amin = HUGE(0.0_r_def)
 
   ! Initialise reduction variable
   amax = -HUGE(0.0_r_def)
-  do df = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+  do df = 1, undf_as1_f1__1, 1
     ! Built-in: setval_c (set a real-valued field to a real scalar value)
     f1_data(df) = 1.0_r_def
 
@@ -383,7 +372,7 @@ field)
 field)
     amax = MAX(amax, f1_data(df))
   enddo"""
-    assert correct in fortran_writer(schedule)
+    assert correct in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

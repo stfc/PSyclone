@@ -19,7 +19,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicKern, LFRicKernMetadata)
+                                   LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.lfric import LFRicFuncDescriptor, FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -491,7 +491,6 @@ quadrature_xyoz_type
     integer(kind=i_def) :: diff_dim_w0
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: max_halo_depth_mesh
     integer(kind=i_def) :: ndf_w0
@@ -502,9 +501,9 @@ quadrature_xyoz_type
     integer(kind=i_def) :: np_z_qr
     integer(kind=i_def) :: undf_w0
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_w3_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w0_qr
+    real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w2_qr
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
@@ -573,10 +572,6 @@ basis_w3_qr)
     call qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, diff_dim_w2, \
 ndf_w2, diff_basis_w2_qr)
 
-    ! Set-up all of the loop bounds
-    loop0_start = 1
-    loop0_stop = mesh%get_last_halo_cell(1)
-
     ! Call kernels and communication routines
     if (coord_proxy(1)%is_dirty(depth=1)) then
       call coord_proxy(1)%halo_exchange(depth=1)
@@ -587,7 +582,10 @@ ndf_w2, diff_basis_w2_qr)
     if (coord_proxy(3)%is_dirty(depth=1)) then
       call coord_proxy(3)%halo_exchange(depth=1)
     end if
-    do cell = loop0_start, loop0_stop, 1
+
+    ! Set-up all of the loop bounds
+    loop0_stop = mesh%get_last_halo_cell(1)
+    do cell = 1, loop0_stop, 1
       call assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers_mapping, \
 mapping_proxy%ncell_3d, mapping_local_stencil, coord_1_data, coord_2_data, \
 coord_3_data, ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, undf_w0, \
@@ -706,7 +704,7 @@ def test_operator_read_level1_halo(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
     # (of the operator)
     loop.set_upper_bound("cell_halo", halo_depth=2)
@@ -755,7 +753,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
@@ -786,7 +784,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # We have to populate the Symbol table to get to the desired error.
@@ -824,7 +822,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem, monkeypatch):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     monkeypatch.setattr(arg, "_access", AccessType.READ)

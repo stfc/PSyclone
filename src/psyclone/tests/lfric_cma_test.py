@@ -960,7 +960,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
-    assert "do cell = loop0_start, loop0_stop, 1\n" in code
+    assert "do cell = 1, loop0_stop, 1\n" in code
     expected = ("call columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers_lma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, afield_data, "
@@ -1263,9 +1263,7 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
         assert code.count("_stop = mesh%get_last_halo_cell(1)\n") == 3
     else:
         assert ("    loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n"
-                "    loop1_start = 1\n"
                 "    loop1_stop = field_a_proxy%vspace%get_ncell()\n"
-                "    loop2_start = 1\n"
                 "    loop2_stop = cma_opc_proxy%fs_from%get_ncell()\n"
                 in code)
 

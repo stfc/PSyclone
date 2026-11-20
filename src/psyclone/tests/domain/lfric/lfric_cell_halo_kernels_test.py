@@ -242,7 +242,6 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
                         TEST_API, dist_mem=dist_mem, idx=0)
     code = str(psy.gen).lower()
     if dist_mem:
-        assert "loop2_start = 1" in code
         assert "loop2_stop = mesh%get_last_halo_cell(hdepth)" in code
         # Field with stencil access must be clean out to
         # MAX(halo-depth, stencil-depth). (Note that this is not
@@ -255,7 +254,7 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
       call m1_proxy%halo_exchange(depth=max(1, hdepth, other_depth, stdepth))
     end if''' in code
         assert '''\
-    do cell = loop2_start, loop2_stop, 1
+    do cell = 1, loop2_stop, 1
       call testkern_halo_and_owned_stencil_code(nlayers_f1, a, f1_data, \
 f2_data, m1_data, m1_stencil_size(cell), m1_stencil_dofmap(:,:,cell), \
 m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))

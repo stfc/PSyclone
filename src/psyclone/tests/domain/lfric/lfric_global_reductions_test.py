@@ -10,6 +10,7 @@
 
 import pytest
 
+from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.lfric_global_reductions import (
     _LFRicGlobalReduction, LFRicGlobalSum)
 from psyclone.errors import GenerationError
@@ -38,9 +39,7 @@ def test_lfricglobalreduction_unsupported_scalar(monkeypatch):
     # Get an instance of an integer scalar kernel argument.
     _, invoke = get_invoke("1.6.1_single_invoke_1_int_scalar.f90",
                            api=TEST_API, dist_mem=True, idx=0)
-    schedule = invoke.schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
+    kernel = invoke.schedule.walk(LFRicKern)[0]
     argument = kernel.arguments.args[1]
     # Monkeypatch its type.
     monkeypatch.setattr(argument, "_intrinsic_type", "logical")

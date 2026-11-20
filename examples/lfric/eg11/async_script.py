@@ -14,6 +14,8 @@ in the generator.py script.
 
 from psyclone.domain.lfric.transformations import (
     LFRicRedundantComputationTrans)
+from psyclone.domain.lfric import LFRicLoop
+from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import MoveTrans
 from psyclone.transformations import LFRicAsyncHaloExchangeTrans
@@ -36,14 +38,15 @@ def trans(psyir: FileContainer) -> None:
     # annexed_dofs is set to True in the config file (although the
     # transformation still works).
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], {"depth": 1})
+    loops = schedule.walk(LFRicLoop)
+    rc_trans.apply(loops[0], {"depth": 1})
     print(schedule.view())
 
     # This transformation splits the three synchronous halo exchanges
     # (for fields p, hb_inv and u_normalisation) into asynchronous
     # (halo_exchange_start and halo_exchange_end) ones.
     ahex_trans = LFRicAsyncHaloExchangeTrans()
-    for kern in schedule.children[3:0:-1]:
+    for kern in reversed(schedule.walk(LFRicHaloExchange)):
         ahex_trans.apply(kern)
     print(schedule.view())
 
@@ -51,6 +54,6 @@ def trans(psyir: FileContainer) -> None:
     # before the setval_c loop offering the potential for overlap
     # between communication and computation.
     mtrans = MoveTrans()
-    for kern in schedule.children[5:0:-2]:
-        mtrans.apply(kern, schedule.children[0])
+    for kern in reversed(schedule.walk(LFRicHaloExchangeStart)):
+        mtrans.apply(kern, loops[0])
     print(schedule.view())
