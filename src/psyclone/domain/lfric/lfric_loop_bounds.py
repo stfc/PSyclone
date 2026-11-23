@@ -8,6 +8,7 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
+from psyclone.errors import InternalError
 from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Assignment, Literal, Reference
@@ -27,6 +28,8 @@ class LFRicLoopBounds(LFRicCollection):
 
         :returns: Updated cursor value.
 
+        :raises InternalError: if no Kernels exist in the invoke schedule.
+
         '''
         assigns = self._invoke.schedule.walk(Assignment)
         assign_map: dict[Symbol, Assignment] = {}
@@ -36,15 +39,11 @@ class LFRicLoopBounds(LFRicCollection):
         # Loop bounds go just before the first kernel and after any existing
         # assignments (cheap way of ensuring dependencies satisfied).
         kernels = self._invoke.schedule.walk(Kern)
-        if kernels:
-            indices = kernels[0].path_from(self._invoke.schedule)
-            cursor = indices[0]
-        elif assigns:
-            # Allow for the fact that an assignment might be within a loop.
-            indices = assigns[-1].path_from(self._invoke.schedule)
-            cursor = indices[0] + 1
-        else:
-            cursor = 0
+        if not kernels:
+            raise InternalError("Cannot initialise loop bounds until Kernels "
+                                "have been added to Schedule")
+        indices = kernels[0].path_from(self._invoke.schedule)
+        cursor = indices[0]
 
         loops = self._invoke.schedule.walk(LFRicLoop)
         first = True

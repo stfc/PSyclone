@@ -9,8 +9,10 @@
 class. '''
 
 import os
+import pytest
 
-from psyclone.domain.lfric import LFRicLoopBounds
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicLoopBounds
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols
@@ -61,3 +63,10 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
     assert table.lookup("loop0_stop") is stop_sym
+
+    # If there are no kernels then we should get an error.
+    invoke.schedule = LFRicInvokeSchedule(symbols.RoutineSymbol("test"))
+    lbounds = LFRicLoopBounds(invoke)
+    with pytest.raises(InternalError,
+                       match="Cannot initialise loop bounds until Kernels"):
+        lbounds.initialise(0)

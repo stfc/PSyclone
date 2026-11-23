@@ -284,22 +284,12 @@ class LFRicInvoke(Invoke):
                 return field
         return None
 
-    def setup_psy_layer_symbols(self):
+    def setup_psy_layer_symbols(self) -> None:
         ''' Initialise and deallocate all symbols required by the
         PSy-layer Invoke subroutine (the symbols are created in the
         constructor).
 
         '''
-        # for entities in [self.proxies, self.run_time_checks,
-        #                 self.cell_iterators, self.meshes,
-        #                 self.stencil, self.dofmaps,
-        #                 self.cma_ops, self.boundary_conditions,
-        #                 self.function_spaces, self.evaluators,
-        #                 self.reference_element_properties,
-        #                 self.mesh_properties, self.loop_bounds,
-        #                 self.scalar_array_args]:
-        #    cursor = entities.initialise(cursor)
-
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
