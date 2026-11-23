@@ -92,7 +92,6 @@ module fs_continuity_mod
              'W2trace',   &
              'W2Htrace',  &
              'W2Vtrace',  &
-             'W2Htrace',  &
              'W3',        &
              'Wtheta',    &
              'Wchi' ]
