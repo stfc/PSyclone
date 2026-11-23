@@ -11,12 +11,11 @@ from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import (
-    LFRicInvokeSchedule, LFRicConstants, LFRicLoop)
+    LFRicInvokeSchedule, LFRicConstants)
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, DataNode, Directive, Reference)
+    ArrayReference, Assignment, DataNode, Directive)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -280,30 +279,9 @@ class LFRicRedundantComputationTrans(LoopTrans):
             ubound = loop.stop_expr.symbol
             isched = loop.ancestor(LFRicInvokeSchedule)
             # Find the existing assignment to the loop bound.
-            assigns = [assign for assign in isched.walk(Assignment)
-                       if assign.lhs.symbol is ubound]
-
-            # We need to check in case this symbol is re-used in other loops.
-            for other in isched.walk(LFRicLoop):
-                if other is loop:
-                    continue
-                if (isinstance(other.stop_expr, Reference) and
-                        other.stop_expr.symbol is ubound):
-                    # It is used elsewhere so create a new symbol for this
-                    # loop.
-                    # TODO this may not be required (and the tag is new)?
-                    ubound = isched.table.create_with_tag(
-                        tag=f"ubound:{id(loop)}",
-                        root_name=ubound.name,
-                        symbol_type=DataSymbol,
-                        data_type=ScalarType.integer_type())
-                    assign = Assignment.create(lhs=Reference(ubound),
-                                               rhs=loop.upper_bound_psyir())
-                    isched.addchild(assign, assigns[0].position)
-                    break
-            else:
-                # It isn't used elsewhere so update the existing assignment.
-                assigns[0].children[1].replace_with(loop.upper_bound_psyir())
+            assign = next(assign for assign in isched.walk(Assignment)
+                          if assign.lhs.symbol is ubound)
+            assign.children[1].replace_with(loop.upper_bound_psyir())
 
         # Add/remove halo exchanges as required due to the redundant
         # computation
