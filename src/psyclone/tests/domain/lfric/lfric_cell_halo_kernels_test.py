@@ -140,12 +140,13 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     kernel with operates_on=domain and another with
     operates_on=halo_cell_column.
     '''
-    psy, _ = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
-                        TEST_API, dist_mem=dist_mem, idx=0)
+    psy, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                             TEST_API, dist_mem=dist_mem, idx=0)
     code = str(psy.gen).lower()
 
     if dist_mem:
         assert "mesh => f1_proxy%vspace%get_mesh()" in code
+        assert "loop0_start = mesh%get_last_edge_cell() + 1" in code
 
     assert "integer(kind=i_def) :: ncell_2d_no_halos" in code
 
