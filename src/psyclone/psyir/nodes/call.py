@@ -911,7 +911,12 @@ class Call(Statement, DataNode):
 
     def next_accesses(self) -> list[Node]:
         '''
-        :returns: the next_accesses of children of this Call.
+        :returns: the nodes containing the next accesses of the symbols
+                  accessed within this Call. It can be multiple nodes for
+                  each symbol as it contains all nodes containing a following
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all following accesses until a
+                  guaranteed write is found.
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
@@ -927,7 +932,12 @@ class Call(Statement, DataNode):
 
     def previous_accesses(self) -> list[Node]:
         '''
-        :returns: the previous_accesses of children of this Call.
+        :returns: the nodes containing the previous accesses of the symbols
+                  accessed within this Call. It can be multiple nodes for
+                  each symbol as it contains all nodes containing a previous
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all previous accesses until a
+                  guaranteed write is found.
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel

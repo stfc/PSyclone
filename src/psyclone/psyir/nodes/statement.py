@@ -36,11 +36,12 @@ class Statement(Node, CommentableMixin):
 
     def next_accesses(self) -> list[Node]:
         '''
-        Method for finding the next_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return future accesses to any References contained in the statement.
-
-        :returns: an empty list.
+        :returns: the nodes containing the next accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol as it contains all nodes containing a following
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all following accesses until a
+                  guaranteed write is found.
         '''
         return self._get_next_accesses(self.children[:])
 
@@ -63,11 +64,12 @@ class Statement(Node, CommentableMixin):
 
     def previous_accesses(self) -> list[Node]:
         '''
-        Method for finding the previous_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return previous accesses to any References contained in the statement.
-
-        :returns: an empty list.
+        :returns: the nodes containing the previous accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol as it contains all nodes containing a previous
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all previous accesses until a
+                  guaranteed write is found.
         '''
         return self._get_prev_accesses(self.children[:])
 

@@ -217,9 +217,10 @@ class Assignment(Statement):
         '''
         :returns: the nodes containing the previous accesses of the symbols
                   accessed within this node. It can be multiple nodes for
-                  each symbol as it contains all previous accesses until a
-                  guaranteed write (i.e. a write with no optional control
-                  flow) is encountered.
+                  each symbol as it contains all nodes containing a previous
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all previous accesses until a
+                  guaranteed write is found.
         '''
         # Find all of the read/write References in this assignment.
         refs = []
@@ -239,9 +240,10 @@ class Assignment(Statement):
         '''
         :returns: the nodes containing the next accesses of the symbols
                   accessed within this node. It can be multiple nodes for
-                  each symbol as it contains all following accesses until a
-                  guaranteed write (i.e. a write with no optional control
-                  flow) is encountered.
+                  each symbol as it contains all nodes containing a following
+                  access of any symbol accessed within this node. For each
+                  symbol this includes all following accesses until a
+                  guaranteed write is found.
         '''
         # Find all of the read/write References in this assignment.
         refs = []

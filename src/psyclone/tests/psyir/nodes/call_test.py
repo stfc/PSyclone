@@ -2089,3 +2089,58 @@ def test_call_previous_accesses(fortran_reader):
     assert len(access) == 2
     assert access[0] is assigns[1].rhs
     assert access[1] is assigns[0].lhs
+
+
+def test_call_next_accesses_no_arg(fortran_reader):
+    ''' Test the next_accesses method of Call finds no accesses when it has
+    no arguments.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+       use some_mod
+       integer :: i, j ,k
+       call my_fun()
+       j = i
+       i = k
+    end subroutine""")
+
+    call = psyir.walk(Call)[0]
+    access = call.next_accesses()
+    assert len(access) == 0
+
+
+def test_call_previous_accesses_no_arg(fortran_reader):
+    ''' Test the previous_accesses method of Call finds no accesses when it
+    has no arguments.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+       use some_mod
+       integer :: i, j ,k
+       j = i
+       i = k
+       call my_fun()
+    end subroutine""")
+
+    call = psyir.walk(Call)[0]
+    access = call.previous_accesses()
+    assert len(access) == 0
+
+
+def test_call_previous_accesses_indexed_arg(fortran_reader):
+    ''' Test the previous_accesses method of Call finds no accesses when it
+    has no arguments.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+       use some_mod
+       integer, dimension(:) :: i
+       i = 1
+       call my_fun(i(1), i(2))
+    end subroutine""")
+
+    call = psyir.walk(Call)[0]
+    assign = psyir.walk(Assignment)[0]
+    accesses = call.children[1].previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assign.lhs
+    access = call.previous_accesses()
+    assert len(access) == 1
+    assert access[0] is assign[0].lhs
