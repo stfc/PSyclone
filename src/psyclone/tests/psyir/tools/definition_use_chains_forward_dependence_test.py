@@ -341,10 +341,10 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert len(blocks[0]) == 1
     assert blocks[0][0] is ifblock.if_body.children[0]
     assert len(blocks[1]) == 4
-    assert blocks[1][0] is ifblock.if_body.children[1].variable_reference
-    assert blocks[1][1] is ifblock.if_body.children[1].start_expr
-    assert blocks[1][2] is ifblock.if_body.children[1].stop_expr
-    assert blocks[1][3] is ifblock.if_body.children[1].step_expr
+    assert blocks[1][0] is ifblock.if_body.children[1].start_expr
+    assert blocks[1][1] is ifblock.if_body.children[1].stop_expr
+    assert blocks[1][2] is ifblock.if_body.children[1].step_expr
+    assert blocks[1][3] is ifblock.if_body.children[1].variable_reference
     assert blocks[2] == ifblock.if_body.children[1].loop_body.children[:]
 
     # Try for the basic blocks in the else_body. Since else if we have a
@@ -1564,3 +1564,69 @@ def test_forward_access_loop_var(fortran_reader):
     reaches = chains.find_forward_accesses()[l_sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Loop)[0].variable_reference
+
+
+def test_forward_accesses_case_keeps_correct_control_flow(fortran_reader):
+    ''' Test that the DUCs do forward accesses correctly with complex control
+    flow including empty if statements.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+    integer :: a, i
+
+    do i = 1, 10
+    b = a
+    end do
+    if (i > 2) then
+       a = 2
+    end if
+    if (i == 3) then
+
+    end if
+    a = 9
+    end subroutine
+    """)
+
+    routine = psyir.walk(Routine)[0]
+    assigns = routine.walk(Assignment)
+    a_rhs = assigns[0].rhs
+    a_sig = a_rhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([a_rhs])
+
+    # Forward accesses should find itself, followed by the A = 2 in the first
+    # Block, and the final A = 9.
+
+    reaches = chains.find_forward_accesses()[a_sig]
+    assert len(reaches) == 3
+    assert reaches[0] is a_rhs
+    assert reaches[1] is assigns[1].lhs
+    assert reaches[2] is assigns[2].lhs
+
+
+def test_forward_accesses_loop_declarations_order(fortran_reader):
+    ''' Test that the DUCs do forward accesses correctly when the start,
+    stop, step and loop variable are all the same symbol'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+    integer :: i
+
+    i = 0
+    do i = i, i, i
+
+    end do
+    end subroutine test""")
+
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[0]
+    lhs = assign.lhs
+    i_sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    loop = routine.walk(Loop)[0]
+
+    reaches = chains.find_forward_accesses()[i_sig]
+    # The DUCs find the start/stop/step then the variable, as these are
+    # all read before the variable is written to.
+    assert len(reaches) == 4
+    assert reaches[0] is loop.start_expr
+    assert reaches[1] is loop.stop_expr
+    assert reaches[2] is loop.step_expr
+    assert reaches[3] is loop.variable_reference

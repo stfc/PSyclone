@@ -244,6 +244,18 @@ class DefinitionUseChain:
                 self._scope
             )
             chains = []
+            # Remove any empty blocks.
+            base_len = len(basic_blocks)
+            for i, block in enumerate(basic_blocks[::-1]):
+                # If we have a basic block with no children then remove it,
+                # e.g. for an if block with no code before the else
+                # statement.
+                if len(block) == 0:
+                    # We also need to remove the corresponding
+                    # control_flow_node to keep the chains and
+                    # control_flow_node arrays associated correctly.
+                    del basic_blocks[base_len-i-1]
+                    del control_flow_nodes[base_len-i-1]
             # If this is the top level access, we need to check if the
             # reference has an ancestor loop. If it does, we find the
             # highest ancestor Loop in the tree and add a
@@ -260,7 +272,6 @@ class DefinitionUseChain:
                 while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
-                    control_flow_nodes.insert(0, ancestor)
                     # Find the stop point - this needs to be the node after
                     # the ancestor statement.
                     sub_stop_point = (
@@ -280,6 +291,7 @@ class DefinitionUseChain:
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
                         )
+                        control_flow_nodes.insert(0, ancestor)
                         chains.insert(0, chain)
                     # If it's a while loop, create a basic block for the while
                     # condition.
@@ -332,15 +344,6 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for cfn, block in zip(control_flow_nodes[:], basic_blocks):
-                # If we have a basic block with no children then skip it,
-                # e.g. for an if block with no code before the else
-                # statement.
-                if len(block) == 0:
-                    # We need to remove the corresponding control_flow_node
-                    # to keep the chains and control_flow_node arrays
-                    # associated correctly.
-                    control_flow_nodes.remove(cfn)
-                    continue
                 chain = DefinitionUseChain(
                     self._references[:],
                     block,
@@ -348,6 +351,7 @@ class DefinitionUseChain:
                     stop_point=self._stop_point,
                 )
                 chains.append(chain)
+                control_flow_nodes.append(None)
 
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
@@ -814,10 +818,12 @@ class DefinitionUseChain:
                 # The start/stop/step expr are non-conditional (but
                 # also read only).
                 control_flow_nodes.append(None)
-                current_block.append(node.variable_reference)
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
                 current_block.append(node.step_expr)
+                # The variable_reference is written after the start/stop/step
+                # are read, and is also non-conditional.
+                current_block.append(node.variable_reference)
                 basic_blocks.append(current_block)
                 current_block = []
                 # The loop body is a conditional.
@@ -1333,7 +1339,14 @@ class DefinitionUseChain:
                         if isinstance(ancestor, Loop):
                             for i, l_chain in enumerate(chains[:]):
                                 var_ref = ancestor.variable_reference
-                                if l_chain._scope[0] is var_ref:
+                                # Check if any of the References in any of the
+                                # scope nodes of the chain are the Loop
+                                # variable.
+                                refs = []
+                                if l_chain._scope is not None:
+                                    for scope in l_chain._scope[:]:
+                                        refs.extend(scope.walk(Reference))
+                                if any([ref is var_ref for ref in refs]):
                                     chains.insert(i, chain)
                                     control_flow_nodes.insert(i, ancestor)
                                     break
@@ -1343,7 +1356,6 @@ class DefinitionUseChain:
                     # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
-                        control_flow_nodes.append(None)
                         sub_stop_point = ancestor.loop_body.abs_position
                         chain = DefinitionUseChain(
                             [ref.copy() for ref in self._references],
@@ -1351,6 +1363,7 @@ class DefinitionUseChain:
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
                         )
+                        control_flow_nodes.append(None)
                         chains.append(chain)
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
 

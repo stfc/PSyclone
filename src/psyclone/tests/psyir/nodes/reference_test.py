@@ -374,7 +374,6 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(a.previous_accesses()) == 0
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
-    print([x.parent.debug_string() for x in a_2.previous_accesses()])
     assert len(a_2.previous_accesses()) == 1
     assert a_2.previous_accesses()[0] is loop.variable_reference
 
