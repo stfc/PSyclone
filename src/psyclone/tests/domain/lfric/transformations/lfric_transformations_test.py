@@ -5670,9 +5670,9 @@ def test_async_halo_exchange_nomatch1():
     schedule = invoke.schedule
 
     # create vector halo exchanges after the first loop by performing
-    # redundant computation
+    # redundant computation on the second.
     rc_trans = LFRicRedundantComputationTrans()
-    rc_trans.apply(schedule.walk(LFRicLoop)[0], {"depth": 2})
+    rc_trans.apply(schedule.walk(LFRicLoop)[1], depth=2)
 
     # make the first vector component of the halo exchange for f1
     # asynchronous before the first loop.
@@ -5690,8 +5690,9 @@ def test_async_halo_exchange_nomatch1():
     hex_start = schedule.walk(LFRicHaloExchangeStart)[0]
     with pytest.raises(GenerationError) as excinfo:
         hex_start._get_hex_end()
-    assert "Halo exchange start for field 'f1' has no matching" in str(
-        excinfo.value)
+    assert ("Halo exchange start for field 'f1' should match with a halo "
+            "exchange end, but found <class 'psyclone.lfric."
+            "LFRicHaloExchange'>" in str(excinfo.value))
 
 
 def test_async_halo_exchange_nomatch2():

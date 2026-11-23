@@ -67,9 +67,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         '''
         nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
         assert len(nodes) == 3
-        loop1 = nodes[0]
-        haloex = nodes[1]
-        loop2 = nodes[2]
+        loop1, haloex, loop2 = nodes
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f2"
@@ -121,11 +119,8 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
 
     # 1st loop should iterate over dofs to ndofs. Check output
     nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
-    loop1 = nodes[0]
-    haloex1 = nodes[1]
-    haloex2 = nodes[2]
-    loop2 = nodes[3]
     assert len(nodes) == 4
+    loop1, haloex1, haloex2, loop2 = nodes
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "ndofs"
     assert isinstance(haloex1, LFRicHaloExchange)
@@ -145,10 +140,8 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(loop1, {"depth": 1})
     nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
-    loop1 = nodes[0]
-    haloex = nodes[1]
-    loop2 = nodes[2]
     assert len(nodes) == 3
+    loop1, haloex, loop2 = nodes
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert loop1.upper_bound_halo_depth.value == "1"
@@ -161,10 +154,8 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     # check output
     rc_trans.apply(loop1)
     nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
-    loop1 = nodes[0]
-    haloex = nodes[1]
-    loop2 = nodes[2]
     assert len(nodes) == 3
+    loop1, haloex, loop2 = nodes
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert not loop1.upper_bound_halo_depth
@@ -201,9 +192,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     # check we have no halo exchanges for field "f1"
     nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
     assert len(nodes) == 3
-    haloex = nodes[0]
-    loop1 = nodes[1]
-    loop2 = nodes[2]
+    haloex, loop1, loop2 = nodes
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
@@ -233,10 +222,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         '''
         nodes = schedule.walk((LFRicLoop, LFRicHaloExchange))
         assert len(nodes) == 4
-        haloex1 = nodes[0]
-        haloex2 = nodes[1]
-        loop1 = nodes[2]
-        loop2 = nodes[3]
+        haloex1, haloex2, loop1, loop2 = nodes
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f2"
         assert haloex1._compute_halo_depth().debug_string() == f2depth
