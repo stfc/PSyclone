@@ -38,7 +38,8 @@ def test_init_invalid():
         _ = OperatorArgMetadata("GH_REAL", "GH_READ", "invalid", "W1")
     assert ("The 'function_space_to' metadata should be a recognised value "
             "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
-            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'w1', 'w1h', 'w1v', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi', "
             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
@@ -53,7 +54,8 @@ def test_init_invalid():
         _ = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "invalid")
     assert ("The 'function_space_from' metadata should be a recognised value "
             "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
-            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'w1', 'w1h', 'w1v', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi', "
             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
@@ -116,13 +118,14 @@ def test_setter_getter():
     expected, including raising exceptions if values are invalid.
 
     '''
-    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
+    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1h")
 
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_to = "invalid"
     assert ("The 'function_space_to' metadata should be a recognised value "
             "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
-            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'w1', 'w1h', 'w1v', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi', "
             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
@@ -142,7 +145,8 @@ def test_setter_getter():
         operator_arg.function_space_from = "invalid"
     assert ("The 'function_space_from' metadata should be a recognised value "
             "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
-            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'w1', 'w1h', 'w1v', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi', "
             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "

@@ -1489,6 +1489,14 @@ vector variables are:
   part of ``W2``, discontinuous in the horizontal and continuous
   in the vertical;
 
+* ``W1H`` is the space of vector functions based on the horizontal
+  part of ``W1``, continuous in the horizontal in one direction but
+  discontinuous in the other, and continuous in the vertical;
+
+* ``W1V`` is the space of vector functions based on the vertical
+  part of ``W1``, continuous in the horizontal and discontinuous
+  in the vertical;
+
 * ``W2H`` is the space of vector functions based on the horizontal
   part of ``W2``, continuous in the horizontal and discontinuous
   in the vertical;
@@ -1586,7 +1594,7 @@ function spaces are summarised in the table below.
 | Function Space Continuity | Function Space Name                  |
 +===========================+======================================+
 | Continuous                | W0, W1, W2, W2H, W2trace, W2Htrace,  |
-|                           | ANY_W2, ANY_SPACE_<n>                |
+|                           | W1H, W1V, ANY_W2, ANY_SPACE_<n>      |
 +---------------------------+--------------------------------------+
 | Discontinuous             | W2broken, W2V, W2Vtrace, W3, Wtheta, |
 |                           | ANY_DISCONTINUOUS_SPACE_<n>          |
@@ -2249,12 +2257,14 @@ conventions, are:
       | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
       |               |           | W3, Wtheta, Wchi                   |
       |               +-----------+------------------------------------+
-      |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+      |               |    3      | W1, W2, W2H, W2V, W2broken,        |
+      |               |           | ANY_W2, W1H, W1V                   |
       +---------------+-----------+------------------------------------+
       | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
       | Basis         +-----------+------------------------------------+
-      |               |    3      | W0, W1, W2trace, W2Htrace,         |
-      |               |           | W2Vtrace, W3, Wtheta, Wchi         |
+      |               |    3      | W0, W1, W1H, W1V, W2trace,         |
+      |               |           | W2Htrace, W2Vtrace, W3, Wtheta,    |
+      |               |           | Wchi                               |
       +---------------+-----------+------------------------------------+
 
 6) If either the ``normals_to_horizontal_faces`` or

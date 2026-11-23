@@ -1,3 +1,5 @@
+   26) #3686. Adds support for new LFRic W1H and W1V spaces.
+
    25) #3681 for #1577 and #1402. Update style guide and add AGENTS.md
  
    24) #3678 for #3625. Removes deprecated Loop2DTilingTrans in favour of
