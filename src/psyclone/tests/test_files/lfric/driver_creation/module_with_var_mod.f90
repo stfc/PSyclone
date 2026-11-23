@@ -10,6 +10,10 @@
 
 module module_with_var_mod
 
+  use other_module_mod, only : other_module_var
+
+  public :: other_module_var
+
   integer :: module_var_a, module_var_b
   integer, parameter :: module_const = 123
   real, dimension(100) :: const_size_array
