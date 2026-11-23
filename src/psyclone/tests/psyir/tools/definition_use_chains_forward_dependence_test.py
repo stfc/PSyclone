@@ -132,6 +132,12 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
             "must have the same parent in the ancestor Schedule."
             in str(excinfo.value))
 
+    # Check that we can create an empty DUC and the find_forward and
+    # find_backward accesses don't crash either.
+    duc = DefinitionUseChain([])
+    assert duc.find_forward_accesses() == {}
+    assert duc.find_backward_accesses() == {}
+
 
 def test_definition_use_chain_is_basic_block(fortran_reader):
     """Test the is_basic_block property gives the correct result

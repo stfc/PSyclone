@@ -73,6 +73,28 @@ class DefinitionUseChain:
                     f"list of References but found "
                     f"'{type(ref).__name__}'."
                 )
+
+        # These are maps of signatures to node for the region of code provided
+        # to the DUC, for every signature:
+        # - The uses collects every possible read reached from the start of the
+        # region (until we find any guaranteed write).
+        self._uses = {}
+        # - The defout collects the nodes that could represent end points of
+        # the signature use chain (all writes before the guaranteed write).
+        self._defsout = {}
+        # - The killed is a working collection used by compute_x_uses to store
+        # writes found that are defenitely not the final write.
+        self._killed = {}
+        # - The reaches collects all nodes that can be reached for each
+        # signature from the start of the region.
+        self._reaches = {}
+
+        # If there are no references we skip the remainder of the setup, as
+        # we should not crash.
+        if len(references) == 0:
+            self._references = references
+            self._scope = []
+            return
         # We need all the references to have the same ancestor Schedule and
         # belong to the same child of the Schedule.
         # Skip this check if we only have 1 input.
@@ -137,22 +159,7 @@ class DefinitionUseChain:
                 )
             self._scope = control_flow_region
 
-        # These are maps of signatures to node for the region of code provided
-        # to the DUC, for every singature:
-        # - The uses collects every possible read reached from the start of the
-        # region (until we find any guaranteed write).
-        self._uses = {}
-        # - The defout collects the nodes that could represent end points of
-        # the signature use chain (all writes before the guaranteed write).
-        self._defsout = {}
-        # - The killed is a working collection used by compute_x_uses to store
-        # writes found that are defenitely not the final write.
-        self._killed = {}
-        # - The reaches collects all nodes that can be reached for each
-        # signature from the start of the region.
-        self._reaches = {}
-
-        # Initialise the maps.
+        # Initialise the maps with empty lists for each Signature.
         for sig in self._reference_signatures:
             self._uses[sig] = []
             self._defsout[sig] = []
@@ -216,6 +223,8 @@ class DefinitionUseChain:
         :returns: the forward accesses of the references given to this
                   DefinitionUseChain
         """
+        if len(self._references) == 0:
+            return {}
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
@@ -1242,6 +1251,8 @@ class DefinitionUseChain:
         :returns: the backward accesses of the reference given to this
                   DefinitionUseChain
         """
+        if len(self._references) == 0:
+            return {}
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
