@@ -19,7 +19,7 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, SymbolError
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import (get_base_path, get_infrastructure_path,
                                       get_invoke)
@@ -192,6 +192,7 @@ def test_call_tree_get_used_symbols_from_modules():
             ('routine', 'testkern_import_symbols_mod', "local_func"),
             ("routine", "module_with_var_mod", "module_subroutine"),
             ("unknown", "module_with_var_mod", "module_var_a"),
+            ("unknown", "module_with_var_mod", "other_module_var"),
             ("unknown", "module_with_var_mod", "module_function"),
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
             ("routine", None, "unknown_subroutine")]
@@ -477,6 +478,42 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot get PSyIR for module 'module_with_var_mod' - ignoring "
             "unknown symbol 'module_subroutine'" in caplog.text)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_call_tree_utils_resolve_unknowns_symbol_error(caplog, monkeypatch):
+    '''Tests that an unknown generic Symbol that cannot be resolved is
+    reported, and still added as a non-local access.
+    '''
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
+    # 'other_module_var' is imported into 'module_with_var_mod' from
+    # 'other_module_mod', so it is a generic Symbol that needs resolving.
+    cntr = mod_man.get_module_info("module_with_var_mod").get_psyir()
+    sym = cntr.symbol_table.lookup("other_module_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(sym) is Symbol
+
+    def raise_error():
+        raise SymbolError("dummy error")
+    monkeypatch.setattr(sym, "resolve_type", raise_error)
+
+    info = AccessSequence(Signature("other_module_var"))
+    todo = [('unknown', 'module_with_var_mod',
+             Signature("other_module_var"), info)]
+    ctu = CallTreeUtils()
+    rw_info = ReadWriteInfo()
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
+    assert ("Cannot resolve symbol 'other_module_var' in module "
+            "'module_with_var_mod': PSyclone SymbolTable error: dummy error"
+            in caplog.text)
+    assert rw_info.read_list == [("module_with_var_mod",
+                                  Signature("other_module_var"))]
+    assert rw_info.write_list == []
 
 
 # -----------------------------------------------------------------------------

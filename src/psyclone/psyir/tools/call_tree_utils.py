@@ -15,8 +15,9 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
-    ImportInterface, IntrinsicSymbol, RoutineSymbol)
+    ArgumentInterface, DataSymbol, DefaultModuleInterface,
+    GenericInterfaceSymbol, ImportInterface, IntrinsicSymbol, RoutineSymbol,
+    Symbol, SymbolError)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -454,9 +455,22 @@ class CallTreeUtils():
                         # have been added, so this entry is done.
                         continue
 
+                    # A generic Symbol (e.g. one imported into this module
+                    # from yet another module) needs to be resolved first
+                    # to find out whether it is a constant.
+                    # pylint-disable=unidiomatic-typecheck
+                    if type(sym) is Symbol:
+                        try:
+                            sym.resolve_type()
+                        except SymbolError as err:
+                            logger.warning(
+                                "[CallTreeUtils._resolve_calls_and_unknowns] "
+                                "Cannot resolve symbol '%s' in module '%s': "
+                                "%s", signature[0], module_name, err)
+
                     # Check whether the unknown symbol is a constant, which
-                    # can be ignored
-                    if sym.is_constant:
+                    # can be ignored. Only DataSymbols have is_constant.
+                    if isinstance(sym, DataSymbol) and sym.is_constant:
                         continue
                 # Otherwise fall through to the code that adds a reference:
 

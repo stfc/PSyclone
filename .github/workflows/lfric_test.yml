@@ -158,14 +158,16 @@ jobs:
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
-        # Clean previous version and compile again
+        # Clean previous logs and build artifacts, and compile again
+        rm -f output_omp_gpu.txt
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        # Attempt the build twice since signal 11 compiler failures can often be resolved by re-building
+        # Attempt the build twice to workaround any signal 11 compiler failures on the first attempt
+        # Note the second attempt only compiles any leftovers from the first attempt, so we append any logs
         for attempt in 1 2; do
           # '!' Suppress errexit for the build command (as we always want to do the 'tee')
           ! LFRIC_OFFLOAD_DIRECTIVES=omp_uniform ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test \
-            -w working-gh-ompoffload gungho_model |& tee output_omp_gpu.txt
+            -w working-gh-ompoffload gungho_model |& tee -a output_omp_gpu.txt
           # Then we can explictly check what was the status of the first part of the pipeline
           BUILD_STATUS=${PIPESTATUS[0]}
           if [[ ${BUILD_STATUS} -eq 0 ]]; then
