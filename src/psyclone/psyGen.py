@@ -17,7 +17,7 @@ import os
 import sys
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, TYPE_CHECKING, Union
 import warnings
 
 
@@ -35,6 +35,9 @@ from psyclone.psyir.symbols import (
     Symbol, UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.utils import stringify_annotation
+
+if TYPE_CHECKING:
+    from psyclone.domain.common.psylayer import PSyLoop
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -646,6 +649,18 @@ class InvokeSchedule(Routine):
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False) + "\n"
         return result
+
+    def loops(self) -> list[PSyLoop]:
+        '''
+        Overrides the base implementation to return only DSL-level loop
+        nodes.
+
+        :returns: all PSyLoops that are descendants of this schedule.
+
+        '''
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+        return self.walk(PSyLoop)
 
 
 class HaloExchange(Statement):
