@@ -252,6 +252,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
         # TODO #2668: remove options dictionary.
         self.validate(node, options=options, depth=depth, **kwargs)
 
+        # Update the DSL upper bound information.
         loop = node
         if loop.loop_type == "":
             # Loop is over cells
@@ -266,6 +267,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
                 f"Unsupported loop_type '{loop.loop_type}' found in "
                 f"LFRicRedundant ComputationTrans.apply()")
 
+        # Update the initialisation of the upper bound.
         if isinstance(loop.stop_expr, ArrayReference):
             # If it needs a color look-up, it has to be in-place
             loop.stop_expr = loop.upper_bound_psyir()

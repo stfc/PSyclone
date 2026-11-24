@@ -34,8 +34,8 @@ def trans(psyir):
     loops = schedule.walk(LFRicLoop)
 
     config = Config.get()
-    if config.api_conf("lfric").compute_annexed_dofs and \
-       config.distributed_memory:
+    if (config.api_conf("lfric").compute_annexed_dofs and
+            config.distributed_memory):
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops
         otrans.apply(loops[0])
@@ -49,7 +49,7 @@ def trans(psyir):
         # reproducible OpenMP do directive inside it.
         loop = schedule.walk(LFRicLoop)[0]
         otrans.apply(loop)
-        ltrans.apply(loop, {"reprod": True})
+        ltrans.apply(loop, reprod=True)
 
     # take a look at what we've done
     print(schedule.view())

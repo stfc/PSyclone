@@ -204,7 +204,7 @@ class LFRicInvoke(Invoke):
                          self.run_time_checks]:
             entities.invoke_declarations()
 
-        # Initialise all quantities used in this in Invoke
+        # Initialise all quantities used in this Invoke
         cursor = 0
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,

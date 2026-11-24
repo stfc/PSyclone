@@ -37,8 +37,8 @@ def trans(psyir: FileContainer) -> None:
     loops = schedule.walk(LFRicLoop)
 
     # redundant computation to remove grad_p halo exchanges
-    rc_trans.apply(loops[1], {"depth": 2})
-    rc_trans.apply(loops[0], {"depth": 2})
+    rc_trans.apply(loops[1], depth=2)
+    rc_trans.apply(loops[0], depth=2)
 
     # move remaining (potential) halo exchanges to start of the invoke
     halo_exchanges = schedule.walk(LFRicHaloExchange)

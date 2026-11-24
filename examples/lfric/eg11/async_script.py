@@ -39,7 +39,7 @@ def trans(psyir: FileContainer) -> None:
     # transformation still works).
     rc_trans = LFRicRedundantComputationTrans()
     loops = schedule.walk(LFRicLoop)
-    rc_trans.apply(loops[0], {"depth": 1})
+    rc_trans.apply(loops[0], depth=1)
     print(schedule.view())
 
     # This transformation splits the three synchronous halo exchanges
