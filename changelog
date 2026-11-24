@@ -1,3 +1,6 @@
+   26) #3688. Update compilation and NEMO tests to nvfortran 26.11. Fix
+   issue with retaining logs in repeated LFRic builds.
+ 
    25) #3681 for #1577 and #1402. Update style guide and add AGENTS.md
  
    24) #3678 for #3625. Removes deprecated Loop2DTilingTrans in favour of
