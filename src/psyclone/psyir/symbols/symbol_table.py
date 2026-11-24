@@ -21,8 +21,9 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, DataTypeSymbol,
-    ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+    DataSymbol, ContainerSymbol, DataTypeSymbol, ExternalInterface,
+    ImportInterface, IntrinsicInterface,
+    RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -413,6 +414,14 @@ class SymbolTable():
                 symbol_init_args["interface"] = ImportInterface(
                     symbol_init_args["interface"].container_symbol,
                     orig_name
+                )
+            if isinstance(interface, (IntrinsicInterface, ExternalInterface)):
+                # PSyclone doesn't have control of intrinsic or external
+                # interfaced symbols, so they can't be renamed.
+                raise SymbolError(
+                    f"Cannot create symbol '{root_name}' as a symbol with "
+                    f"that name already exists in this scope, and renaming of "
+                    f"intrinsic or external symbols is not allowed."
                 )
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
@@ -2091,6 +2100,18 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot rename symbol '{symbol.name}' because it has a "
                 f"CommonBlock interface.")
+
+        if symbol.is_external:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it has an "
+                f"External interface."
+            )
+
+        if symbol.is_intrinsic:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it has an "
+                f"Intrinsic interface."
+            )
 
         if not isinstance(name, str):
             raise TypeError(

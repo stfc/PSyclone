@@ -20,8 +20,9 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, NoType, RoutineSymbol,
-    ScalarType, UnknownInterface, UnsupportedFortranType)
+    ArgumentInterface, DataSymbol, ExternalInterface, IntrinsicInterface,
+    NoType, RoutineSymbol, ScalarType, UnresolvedType,
+    UnsupportedFortranType)
 
 IN_OUTS = []
 # subroutine no declarations
@@ -766,11 +767,11 @@ end subroutine x"""
     assert len(psyir.walk(CodeBlock)) == 0
     symtab = psyir.children[0].symbol_table
     assert isinstance(symtab.lookup("sum").datatype,
-                      UnsupportedFortranType)
+                      ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert isinstance(symtab.lookup("sum").interface,
-                      UnknownInterface)
-    pytest.xfail("TODO #3670: Intrinsic attribute should propogate the "
-                 "IntrinsicInterface to the containing DataSymbol")
+                      IntrinsicInterface)
 
 
 def test_subroutine_contains_intrinsic_argument(fortran_reader):
@@ -782,13 +783,41 @@ end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(CodeBlock)) == 0
     symtab = psyir.children[0].symbol_table
-    assert isinstance(symtab.lookup("sum").datatype,
-                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert isinstance(symtab.lookup("sum").interface,
                       ArgumentInterface)
-    pytest.xfail("TODO #3670: Intrinsic attribute should propogate the "
-                 "IntrinsicInterface to the containing DataSymbol. Perhaps "
-                 "an IntrinsicArgumentInterface is needed.")
+    assert isinstance(symtab.lookup("sum").interface,
+                      IntrinsicInterface)
+
+
+def test_subroutine_contains_intrinsic_and_type_decl(fortran_reader):
+    '''Test that we get the correct tree when the code declares intrinsic and
+    datatype separately for a declaration.'''
+    code = """subroutine x()
+    real :: cos
+    intrinsic :: sum, cos
+    integer :: sum
+    real :: sin
+    intrinsic :: sin
+
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("cos").datatype, ScalarType)
+    assert (symtab.lookup("cos").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("cos").interface, IntrinsicInterface)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface, IntrinsicInterface)
+    assert isinstance(symtab.lookup("sin").datatype, ScalarType)
+    assert (symtab.lookup("sin").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("sin").interface, IntrinsicInterface)
 
 
 def test_subroutine_contains_external_declaration(fortran_reader):
@@ -815,12 +844,11 @@ end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(CodeBlock)) == 0
     symtab = psyir.children[0].symbol_table
-    assert isinstance(symtab.lookup("sum").datatype,
-                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert isinstance(symtab.lookup("sum").interface,
-                      UnknownInterface)
-    pytest.xfail("TODO #3670: External attribute should propogate the "
-                 "ExternalInterface to the containing DataSymbol")
+                      ExternalInterface)
 
 
 def test_subroutine_contains_external_argument(fortran_reader):
@@ -832,10 +860,38 @@ end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(CodeBlock)) == 0
     symtab = psyir.children[0].symbol_table
-    assert isinstance(symtab.lookup("sum").datatype,
-                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert isinstance(symtab.lookup("sum").interface,
                       ArgumentInterface)
-    pytest.xfail("TODO #3670: External attribute should propogate the "
-                 "ExternalInterface to the containing DataSymbol. Perhaps "
-                 "an ExternalArgumentInterface is needed.")
+    assert isinstance(symtab.lookup("sum").interface,
+                      ExternalInterface)
+
+
+def test_subroutine_contains_external_and_type_decl(fortran_reader):
+    '''Test that we get the correct tree when the code declares intrinsic and
+    datatype separately for a declaration.'''
+    code = """subroutine x()
+    real :: cos
+    external :: sum, cos
+    integer :: sum
+    real :: sin
+    external :: sin
+
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("cos").datatype, ScalarType)
+    assert (symtab.lookup("cos").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("cos").interface, ExternalInterface)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface, ExternalInterface)
+    assert isinstance(symtab.lookup("sin").datatype, ScalarType)
+    assert (symtab.lookup("sin").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("sin").interface, ExternalInterface)

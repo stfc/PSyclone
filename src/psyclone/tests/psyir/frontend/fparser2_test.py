@@ -1221,12 +1221,6 @@ def test_process_not_supported_declarations():
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
-    reader = FortranStringReader("integer, external :: arg1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("arg1").datatype,
-                      UnsupportedFortranType)
-
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])

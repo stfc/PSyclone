@@ -673,6 +673,11 @@ class FortranWriter(LanguageWriter):
             # incompatible, but we let PARAMETER take precedence because
             # a parameter is already behaving like a static value
             result += ", save"
+        elif isinstance(symbol, DataSymbol) and symbol.is_intrinsic:
+            result += ", intrinsic"
+        elif isinstance(symbol, DataSymbol) and symbol.is_external:
+            # FIXME fix RoutineSymbol
+            result += ", external"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:

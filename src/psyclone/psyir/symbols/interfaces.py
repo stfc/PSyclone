@@ -326,3 +326,12 @@ class PreprocessorInterface(SymbolInterface):
     '''
     def __str__(self):
         return "Preprocessor"
+
+
+class ArgumentIntrinsicInterface(ArgumentInterface, IntrinsicInterface):
+    '''Interface to handle the case where we have an Intrinsic
+    argument.'''
+
+
+class ArgumentExternalInterface(ArgumentInterface, ExternalInterface):
+    '''Interface to handle the case where we have an External argument.'''

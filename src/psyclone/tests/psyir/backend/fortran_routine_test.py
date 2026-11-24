@@ -525,12 +525,12 @@ def test_fw_intrinsic_and_external_members(fortran_reader, fortran_writer,
     end subroutine sub"""
     psyir = fortran_reader.psyir_from_source(code)
 
-    correct = """subroutine sub(sum, EXTERNAL_FUNC3)
+    correct = """subroutine sub(sum, external_func3)
   external :: EXTERNAL_FUNC1
-  integer, external :: EXTERNAL_FUNC3
+  integer, external :: external_func3
   integer, intrinsic :: sum
   intrinsic :: sin
-  real, external :: EXTERNAL_FUNC2
+  real, external :: external_func2
   real, intrinsic :: cos
 
 

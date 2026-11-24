@@ -13,7 +13,8 @@ from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.generic_interface_symbol import (
     GenericInterfaceSymbol)
 from psyclone.psyir.symbols.interfaces import (
-     ArgumentInterface, AutomaticInterface, CommonBlockInterface,
+     ArgumentInterface, ArgumentIntrinsicInterface, ArgumentExternalInterface,
+     AutomaticInterface, CommonBlockInterface,
      DefaultModuleInterface, ExternalInterface, IntrinsicInterface,
      ImportInterface, PreprocessorInterface, StaticInterface,
      UnknownInterface, UnresolvedInterface)
