@@ -52,6 +52,7 @@ contains
     use constants_mod, only: eps, i_def, r_def
     use module_with_var_mod, only: module_subroutine, module_var_a, &
                                    module_function, module_const
+    use module_with_var_mod, only: other_module_var
 
     implicit none
 
@@ -73,7 +74,7 @@ contains
     ! Also test handling of intrinsics
     tmp = fld2(1)*fld3(1)*fld4(1) + sqrt(ascalar)
     fld1(1) = eps * nlayers + tmp
-    dummy_module_variable = 1 + dummy_constant + local_func(1) + module_const
+    dummy_module_variable = 1 + dummy_constant + local_func(1) + module_const + other_module_var
     fld1(1) = module_function()
     call module_subroutine()
     call local_subroutine()
