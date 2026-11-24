@@ -567,13 +567,14 @@ class LFRicMeshProperties(LFRicCollection):
                     f" declarations for kernel stub. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
 
-    def initialise(self, cursor: int) -> int:
+    def initialise(self, cursor: Optional[int] = None) -> int:
         '''
-        Creates the PSyIR nodes for the initialisation of properties of
+        Creates/updates the PSyIR nodes for the initialisation of properties of
         the mesh.
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         :raises InternalError: if an unsupported mesh property is encountered.
@@ -581,8 +582,11 @@ class LFRicMeshProperties(LFRicCollection):
         '''
         const = LFRicConstants()
 
+        # Construct map of any existing assignments.
         assigns = self._invoke.schedule.walk(Assignment)
         assign_map = {assign.lhs.symbol: assign for assign in assigns}
+
+        cursor = self._get_cursor(assigns, cursor)
 
         # Since colouring is applied via transformations, we have to check for
         # it now, rather than when this class was first constructed.
@@ -2281,11 +2285,11 @@ class LFRicMeshes():
             datatype=UnresolvedType(),
             interface=ImportInterface(csym))
 
-    def initialise(self, cursor: int) -> int:
+    def initialise(self, cursor: Optional[int]) -> int:
         '''
         Initialise variables related to meshes (including colour maps).
 
-        :param cursor: position where to add the next initialisation
+        :param cursor: position at which to add the next initialisation
             statements.
 
         :returns: Updated cursor value.
@@ -2300,10 +2304,19 @@ class LFRicMeshes():
         root_sched = self._invoke.schedule
         symtab = root_sched.symbol_table
 
-        # Keep a list of quantities that we've already initialised so
-        # that we don't generate duplicate assignments
+        # Keep a map of assignments so that we don't generate duplicates
         assignments = root_sched.walk(Assignment)
         assigned_symbols = set(assign.lhs.symbol for assign in assignments)
+
+        # TODO #3691 - this cursor handling could be removed if we made
+        # LFRicMeshes inherit from LFRicCollection.
+        if cursor is None:
+            # No cursor supplied so find last assignment.
+            if assignments:
+                indices = assignments[-1].path_from(self._invoke.schedule)
+                cursor = indices[0]
+            else:
+                cursor = 0
 
         if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke

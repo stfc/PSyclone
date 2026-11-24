@@ -10,7 +10,7 @@
     related entities within an Invoke or Kernel stub.'''
 
 import abc
-from typing import List
+from typing import List, Optional
 
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
@@ -23,7 +23,7 @@ class LFRicCollection():
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage variable \
+    :param node: the Kernel or Invoke for which to manage variable
                  declarations and initialisation.
     :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
@@ -86,6 +86,19 @@ class LFRicCollection():
         :returns: Updated cursor value.
 
         '''
+
+    def _get_cursor(self, assigns, cursor: Optional[int] = None) -> int:
+        '''
+        :returns: a suitable cursor for adding assignments.
+
+        '''
+        if cursor is not None or not self._invoke:
+            return cursor
+        # No cursor supplied so find last assignment.
+        if assigns:
+            indices = assigns[-1].path_from(self._invoke.schedule)
+            return indices[0]
+        return 0
 
     @abc.abstractmethod
     def invoke_declarations(self) -> None:

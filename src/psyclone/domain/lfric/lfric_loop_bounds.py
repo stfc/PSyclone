@@ -21,7 +21,7 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def initialise(self, _) -> int:
+    def initialise(self, _: None) -> int:
         '''
         Updates the PSyIR so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.

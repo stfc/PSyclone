@@ -565,10 +565,9 @@ class LFRicColourTrans(ColourTrans):
         # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
-            cursor = 0  # TODO - not sure what value to use here.
-            cursor = sched.invoke.meshes.initialise(cursor)
-            cursor = sched.invoke.mesh_properties.initialise(cursor)
-            sched.invoke.loop_bounds.initialise(cursor)
+            sched.invoke.meshes.initialise()
+            sched.invoke.mesh_properties.initialise()
+            sched.invoke.loop_bounds.initialise()
 
     def _create_colours_loop(self, node: Loop) -> Loop:
         '''
