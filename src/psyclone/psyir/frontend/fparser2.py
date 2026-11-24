@@ -2865,13 +2865,20 @@ class Fparser2Reader():
                         sym = parent.symbol_table.lookup(str(name))
                         sym.interface = IntrinsicInterface()
                     except KeyError:
+                        visibility = visibility_map.get(
+                            str(name), None)
+                        # Use a dict for a visibility arg so we don't need
+                        # an if branch.
+                        kwargs = ({} if visibility is None
+                                  else {"visibility": visibility})
                         parent.symbol_table.new_symbol(
                             root_name=str(name),
                             symbol_type=DataSymbol,
                             datatype=UnsupportedFortranType(
                                 f"intrinsic :: {str(name)}"
                             ),
-                            interface=IntrinsicInterface()
+                            interface=IntrinsicInterface(),
+                            **kwargs
                         )
             elif isinstance(node, Fortran2003.External_Stmt):
                 for name in node.items[1].items:
@@ -2879,13 +2886,20 @@ class Fparser2Reader():
                         sym = parent.symbol_table.lookup(str(name))
                         sym.interface = ExternalInterface()
                     except KeyError:
+                        visibility = visibility_map.get(
+                            str(name), None)
+                        # Use a dict for a visibility arg so we don't need
+                        # an if branch.
+                        kwargs = ({} if visibility is None
+                                  else {"visibility": visibility})
                         parent.symbol_table.new_symbol(
                             root_name=str(name),
                             symbol_type=DataSymbol,
                             datatype=UnsupportedFortranType(
                                 f"external :: {str(name)}"
                             ),
-                            interface=ExternalInterface()
+                            interface=ExternalInterface(),
+                            **kwargs
                         )
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,

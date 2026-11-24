@@ -21,7 +21,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, ExternalInterface, IntrinsicInterface,
-    NoType, RoutineSymbol, ScalarType, UnresolvedType,
+    NoType, RoutineSymbol, ScalarType, Symbol, UnresolvedType,
     UnsupportedFortranType)
 
 IN_OUTS = []
@@ -820,6 +820,21 @@ def test_subroutine_contains_intrinsic_and_type_decl(fortran_reader):
     assert isinstance(symtab.lookup("sin").interface, IntrinsicInterface)
 
 
+def test_subroutine_with_intrinsic_and_visibility(fortran_reader):
+    '''Test that we get the correct tree when the code declares intrinsic
+    and a visibility exclusive to that external symbol.'''
+    code = """  module visibility_example
+    implicit none
+    private
+    public :: foo
+    intrinsic foo
+  end module
+  """
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    assert symtab.lookup("foo").visibility == Symbol.Visibility.PUBLIC
+
+
 def test_subroutine_contains_external_declaration(fortran_reader):
     '''Test that we get the correct processed nodes when the code contains
     external symbols.'''
@@ -870,7 +885,7 @@ end subroutine x"""
 
 
 def test_subroutine_contains_external_and_type_decl(fortran_reader):
-    '''Test that we get the correct tree when the code declares intrinsic and
+    '''Test that we get the correct tree when the code declares external and
     datatype separately for a declaration.'''
     code = """subroutine x()
     real :: cos
@@ -895,3 +910,18 @@ def test_subroutine_contains_external_and_type_decl(fortran_reader):
     assert (symtab.lookup("sin").datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
     assert isinstance(symtab.lookup("sin").interface, ExternalInterface)
+
+
+def test_subroutine_with_external_and_visibility(fortran_reader):
+    '''Test that we get the correct tree when the code declares external
+    and a visibility exclusive to that external symbol.'''
+    code = """  module visibility_example
+    implicit none
+    private
+    public :: foo
+    external foo
+  end module
+  """
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    assert symtab.lookup("foo").visibility == Symbol.Visibility.PUBLIC
