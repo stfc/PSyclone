@@ -1,3 +1,6 @@
+   27) #3690 fix for transitive imports in call tree utils (needed for
+   kernel extranction).
+
    26) #3688. Update compilation and NEMO tests to nvfortran 26.11. Fix
    issue with retaining logs in repeated LFRic builds.
  
