@@ -535,6 +535,8 @@ def test_fw_intrinsic_and_external_members(fortran_reader, fortran_writer,
 
 
 end subroutine sub"""
+    print(psyir.children[0].symbol_table.lookup("external_func2"))
     output = fortran_writer(psyir)
+    print(output)
     assert correct in output
     assert Compile(tmpdir).string_compiles(output)

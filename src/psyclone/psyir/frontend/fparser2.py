@@ -2246,9 +2246,17 @@ class Fparser2Reader():
                 # symbol is static (endures for the lifetime of the program)
                 # unless it is a pointer initialisation.
                 sym.interface = StaticInterface()
+            elif (isinstance(this_interface, ExternalInterface) and
+                  isinstance(sym, DataSymbol)):
+                # If we manage to create a DataSymbol but will give it an
+                # ExternalInterface, we need it to be a RoutineSymbol
+                # instead.
+                new_sym = RoutineSymbol(sym_name, sym.datatype,
+                                        visibility=visibility,
+                                        interface=this_interface)
+                symbol_table.swap(sym, new_sym)
             else:
                 sym.interface = this_interface
-
         return sym
 
     def _process_derived_type_decln(

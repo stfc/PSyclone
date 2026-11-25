@@ -1517,8 +1517,9 @@ class SymbolTable():
 
         '''
         for symbol in arg_list:
-            if not isinstance(symbol, DataSymbol):
-                raise TypeError(f"Expected a list of DataSymbols but found an "
+            if not isinstance(symbol, (RoutineSymbol, DataSymbol)):
+                raise TypeError(f"Expected a list of DataSymbols or "
+                                f"RoutineSymbols but found an "
                                 f"object of type '{type(symbol).__name__}'.")
             if not symbol.is_argument:
                 raise ValueError(

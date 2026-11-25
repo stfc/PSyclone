@@ -1884,8 +1884,8 @@ def test_argument_list_errors():
     # objects that are not Symbols
     with pytest.raises(TypeError) as err:
         sym_table._validate_arg_list(["Not a symbol"])
-    assert "Expected a list of DataSymbols but found an object of type" \
-        in str(err.value)
+    assert ("Expected a list of DataSymbols or RoutineSymbols "
+            "but found an object of type" in str(err.value))
 
 
 def test_insert_argument():
