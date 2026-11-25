@@ -625,9 +625,16 @@ class LFRicMeshProperties(LFRicCollection):
             # need do nothing.
             return cursor
 
+        if cursor is not None:
+            def inc_cursor(x) -> None:
+                x += 1
+        else:
+            def inc_cursor(x) -> None:
+                return None
+
         mesh = self.symtab.lookup_with_tag("mesh")
 
-        init_cursor = cursor
+        first_assign = None
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self.symtab.find_or_create_tag(
@@ -638,8 +645,10 @@ class LFRicMeshProperties(LFRicCollection):
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_adjacent_face"])),
                         is_pointer=True)
+                    if not first_assign:
+                        first_assign = assignment
                     self._invoke.schedule.addchild(assignment, cursor)
-                    cursor += 1
+                    inc_cursor(cursor)
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 symbol = self.symtab.find_or_create(
@@ -652,8 +661,10 @@ class LFRicMeshProperties(LFRicCollection):
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_last_edge_cell"])),)
+                    if not first_assign:
+                        first_assign = assignment
                     self._invoke.schedule.addchild(assignment, cursor)
-                    cursor += 1
+                    inc_cursor(cursor)
 
             elif prop == MeshProperty.NCELL_2D:
                 symbol = self.symtab.find_or_create(
@@ -666,15 +677,18 @@ class LFRicMeshProperties(LFRicCollection):
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_ncells_2d"])),)
+                    if not first_assign:
+                        first_assign = assignment
                     self._invoke.schedule.addchild(assignment, cursor)
-                    cursor += 1
+                    inc_cursor(cursor)
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{str(prop)}' when "
                     f"generating initialisation code. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
-        self._invoke.schedule[init_cursor].append_preceding_comment(
-            "Initialise mesh properties")
+
+        if first_assign:
+            first_assign.append_preceding_comment("Initialise mesh properties")
 
         if need_colour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
@@ -685,7 +699,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
         if need_colour_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_cell_all_colours",
@@ -697,7 +711,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
         if need_tilecolour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_tile_per_colour")
@@ -707,7 +721,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_tile_all_colours"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_cell_per_colour_and_tile")
             if lhs not in assign_map:
@@ -716,7 +730,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours_all_tiles"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
         if need_tilecolour_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_tile_per_colour")
@@ -726,7 +740,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_tile_all_colours"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_cell_per_colour_and_tile")
             if lhs not in assign_map:
@@ -735,7 +749,7 @@ class LFRicMeshProperties(LFRicCollection):
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours_all_tiles"])))
                 self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                inc_cursor(cursor)
         return cursor
 
 

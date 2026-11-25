@@ -100,7 +100,9 @@ class LFRicCollection():
         # No cursor supplied so find last assignment.
         if assigns:
             indices = assigns[-1].path_from(self._invoke.schedule)
-            return indices[0]
+            if indices[0] == len(self._invoke.schedule.children) - 1:
+                return None
+            return indices[0] + 1
         return 0
 
     @abc.abstractmethod
