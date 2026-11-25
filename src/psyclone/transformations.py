@@ -383,8 +383,10 @@ class ColourTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into colours"
 
-    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None,
-              tiling: bool = False, **kwargs):
+    def apply(self, node: Loop,
+              options: Optional[Dict[str, Any]] = None,
+              tiling: bool = False,
+              **kwargs):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
@@ -413,19 +415,32 @@ class ColourTrans(LoopTrans):
         colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
-        # Remove the symbols used for the loop bounds.
-        # TODO should check they aren't used in other loops?
         inv_sched = node.ancestor(InvokeSchedule)
-        if inv_sched:
-            assigns = inv_sched.walk(Assignment)
-            assign_map = {assign.lhs.symbol: assign for assign in assigns}
-            for expr in [node.start_expr, node.stop_expr]:
-                if isinstance(expr, Reference) and expr.symbol in assign_map:
-                    assign_map[expr.symbol].detach()
-                    inv_sched.symbol_table.remove(expr.symbol)
 
         # remove original loop
         node.detach()
+
+        # Remove the symbols used for the loop bounds provided there aren't
+        # any other references to them.
+        if inv_sched:
+            assigns_and_refs = inv_sched.walk((Assignment, Reference))
+            assign_map = {assign.lhs.symbol: assign for assign
+                          in assigns_and_refs if isinstance(assign,
+                                                            Assignment)}
+            for expr in [node.start_expr, node.stop_expr]:
+                if isinstance(expr, Reference) and expr.symbol in assign_map:
+                    for ref in assigns_and_refs:
+                        if (isinstance(ref, Reference) and
+                                ref.symbol is expr.symbol and
+                                ref.ancestor(Assignment) is not
+                                assign_map[expr.symbol]):
+                            # We've found a reference to this Symbol that is
+                            # not the initial assignment.
+                            break
+                    else:
+                        # No other accesses so remove the assignment & symbol.
+                        assign_map[expr.symbol].detach()
+                        inv_sched.symbol_table.remove(expr.symbol)
 
     def _create_colours_loop(self, node):
         '''

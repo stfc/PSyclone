@@ -25,8 +25,8 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Loop, Schedule, Literal, Directive, OMPDirective, OMPDoDirective,
-    ACCEnterDataDirective, Reference)
+    ACCEnterDataDirective, Assignment, Directive, Literal, Loop, Schedule,
+    OMPDirective, OMPDoDirective, Reference)
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
@@ -64,6 +64,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
     loop = schedule.walk(LFRicLoop)[0]
+    ubound_sym = loop.stop_expr.symbol
     kernel = loop.loop_body[0]
 
     ctrans.apply(loop)
@@ -86,6 +87,9 @@ def test_colour_trans_create_colours_loop(dist_mem):
     else:
         assert (colour_loop.stop_expr.debug_string() ==
                 "last_edge_cell_all_colours(colour)")
+    # Check the old loop bound symbol is no longer assigned to.
+    assigns = schedule.walk(Assignment)
+    assert not any(assign.lhs.symbol is ubound_sym for assign in assigns)
 
     # Modify one GH_INC to be GH_WRITE. Since there is still a GH_INC this
     # should have no effect - we still need to loop into the halo if DM
@@ -127,6 +131,12 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     ctrans = LFRicColourTrans()
     loop = schedule.walk(LFRicLoop)[0]
 
+    # Add another assignment to the loop upper bound to test that we
+    # don't remove the symbol.
+    assign = Assignment.create(lhs=Reference(loop.stop_expr.symbol),
+                               rhs=Literal("1", ScalarType.integer_type()))
+    schedule.addchild(assign)
+
     # Colour the loop
     ctrans.apply(loop)
 
@@ -139,6 +149,10 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
     assert "integer(kind=i_def) :: ncolour" in gen
     assert "integer(kind=i_def) :: colour" in gen
+
+    # The original loop bound is still required because of the additional
+    # assignment we added.
+    assert ":: loop0_stop" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
