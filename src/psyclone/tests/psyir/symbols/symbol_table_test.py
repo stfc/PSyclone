@@ -285,6 +285,32 @@ def test_new_symbol_fails_on_duplicate_without_renaming():
             in str(err.value))
 
 
+def test_new_symbol_duplicate_intrinsic():
+    ''' Check if a new symbol has the same name as an existing symbol, and
+    that symbol has an IntrinsicInterface it doesn't get renamed.'''
+    sym_table = symbols.SymbolTable()
+    # Declare a symbol
+    sym_table.new_symbol(
+        root_name="a",
+        symbol_type=symbols.DataSymbol,
+        datatype=symbols.ScalarType.real_type(),
+    )
+
+    # Now create another symbol with the same name but an intrinsic interface
+    with pytest.raises(
+        symbols.SymbolError,
+        match="Cannot create symbol 'a' as a symbol with "
+              "that name already exists in this scope, and renaming of "
+              "intrinsic or external symbols is not allowed."
+    ):
+        sym_table.new_symbol(
+            root_name="a",
+            symbol_type=symbols.DataSymbol,
+            datatype=symbols.ScalarType.real_type(),
+            interface=symbols.IntrinsicInterface()
+        )
+
+
 def test_add_1():
     '''Test that the add method inserts new symbols in the symbol table,
     but raises appropriate errors when provided with an invalid symbol
@@ -2952,6 +2978,27 @@ def test_rename_symbol_errors():
         table.rename_symbol(asym, "b")
     assert ("Cannot rename symbol 'a' because it has a CommonBlock interface."
             in str(err.value))
+
+    # Cannot rename an Intrinsic symbol
+    asym = symbols.DataSymbol("sin", symbols.ScalarType.integer_type(),
+                              interface=symbols.IntrinsicInterface())
+    table.add(asym)
+    with pytest.raises(
+        symbols.SymbolError,
+        match="Cannot rename symbol 'sin' because it has an Intrinsic "
+              "interface."
+    ):
+        table.rename_symbol(asym, "cos")
+
+    asym = symbols.DataSymbol("cos", symbols.ScalarType.integer_type(),
+                              interface=symbols.ExternalInterface())
+    table.add(asym)
+    with pytest.raises(
+        symbols.SymbolError,
+        match="Cannot rename symbol 'cos' because it has an External "
+              "interface."
+    ):
+        table.rename_symbol(asym, "cosh")
 
 
 def test_rename_codeblock_error(fortran_reader):

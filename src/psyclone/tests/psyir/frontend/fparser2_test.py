@@ -666,6 +666,23 @@ def test_process_declarations_errors():
             "declaration:\n INTEGER, INTENT(IN), INTENT(OUT) :: l1"
             in str(error.value))
 
+    reader = FortranStringReader("integer, intrinsic, save :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(
+        GenerationError,
+        match="INTRINSIC is not compatible with EXTERNAL, SAVE or "
+        "PARAMETER but found:\n INTEGER, INTRINSIC, SAVE :: l1"
+    ) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+
+    reader = FortranStringReader("integer, external, save :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(
+        GenerationError,
+        match="EXTERNAL is not compatible with SAVE or "
+        "PARAMETER but found:\n INTEGER, EXTERNAL, SAVE :: l1"
+    ) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):

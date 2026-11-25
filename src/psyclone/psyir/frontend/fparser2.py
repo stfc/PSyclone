@@ -2001,12 +2001,8 @@ class Fparser2Reader():
                         allocatable = True
                     elif normalized_string == "intrinsic":
                         has_intrinsic_attr = True
-                        if interface is not None:
-                            multiple_interfaces = True
                     elif normalized_string == "external":
                         has_external_attr = True
-                        if interface is not None:
-                            multiple_interfaces = True
                     else:
                         raise NotImplementedError(
                             f"Could not process {decl.items}. Unrecognised "
@@ -2054,6 +2050,11 @@ class Fparser2Reader():
                                        has_external_attr):
                 raise GenerationError(
                     f"INTRINSIC is not compatible with EXTERNAL, SAVE or "
+                    f"PARAMETER but found:\n {decl}"
+                )
+            if has_external_attr and (has_save_attr or has_constant_value):
+                raise GenerationError(
+                    f"EXTERNAL is not compatible with SAVE or "
                     f"PARAMETER but found:\n {decl}"
                 )
 
@@ -2192,10 +2193,7 @@ class Fparser2Reader():
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
                     # This was a generic symbol. We now know what it is.
-                    sym_type = DataSymbol
-                    if isinstance(interface, ExternalInterface):
-                        sym_type = RoutineSymbol
-                    sym.specialise(sym_type, datatype=datatype,
+                    sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
                                    interface=this_interface,
                                    is_constant=has_constant_value,
