@@ -84,8 +84,11 @@ class LFRicLoopBounds(LFRicCollection):
                 bnd_psyir = loop.upper_bound_psyir()
                 if (isinstance(bnd_psyir, Reference) and
                         bnd_psyir.symbol.is_scalar):
+                    # Upper bound is a scalar expression so use it in place.
                     loop.stop_expr = bnd_psyir
                 else:
+                    # Otherwise create a new symbol and assign it the result
+                    # of the expression.
                     root_name = f"loop{idx}_stop"
                     ubound = self.symtab.new_symbol(
                         root_name, symbol_type=DataSymbol,
@@ -100,6 +103,7 @@ class LFRicLoopBounds(LFRicCollection):
                         first = False
 
                     cursor += 1
+                    # The upper bound is then a reference to the new Symbol.
                     loop.stop_expr = Reference(ubound)
             else:
                 # If it needs a colour look-up, it has to be in-place
