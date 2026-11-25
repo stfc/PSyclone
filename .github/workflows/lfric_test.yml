@@ -48,6 +48,8 @@ env:
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
   NUM_PARALLEL: 16
+  SPACK_SETUP: /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+  LFRIC_DIR: /archive/psyclone-tests/latest-run/lfric_apps
 
 jobs:
   run_if_on_mirror:
@@ -89,7 +91,7 @@ jobs:
         # pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
-        cd /archive/psyclone-tests/latest-run
+        cd ${LFRIC_DIR}/..
         rm -rf lfric_apps
         git clone https://github.com/stfc/lfric_apps
         cd lfric_apps
@@ -112,7 +114,7 @@ jobs:
       id: lfric_dist_mem
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -120,7 +122,6 @@ jobs:
         # their metadata
         # export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
@@ -147,12 +148,11 @@ jobs:
       id: lfric_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
@@ -199,12 +199,11 @@ jobs:
       id: lfric_acc_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
@@ -235,12 +234,11 @@ jobs:
       id: lfric_all_trans
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
@@ -264,12 +262,11 @@ jobs:
       id: lfric_colour_tiling
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
@@ -293,11 +290,10 @@ jobs:
       id: lfric_atm
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
 
         # Build the 'cpu' platform, that includes psyclone-transmutation
@@ -322,11 +318,10 @@ jobs:
       id: lfric_atm_nvfortran
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
 
         # Currently we just compile the 'cpu' with the nvidia compiler, this won't
