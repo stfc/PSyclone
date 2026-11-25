@@ -29,7 +29,7 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import (BinaryOperation, UnaryOperation,
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
@@ -3548,6 +3548,22 @@ def test_lfriccollection_err1():
     assert ("LFRicCollection takes only an LFRicInvoke or an LFRicKern but"
             in str(err.value))
 
+
+def test_lfriccollection_get_cursor():
+    '''
+    Test the _get_cursor() method of LFRicCollection.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0)
+    colln = LFRicProxies(invoke)
+    # Empty list of Assignments.
+    result = colln._get_cursor([])
+    assert result == 0
+    # Position of last assignment in provided list.
+    assigns = invoke.schedule.walk(Assignment)
+    assert colln._get_cursor(assigns) == assigns[-1].position
+    # Just returns cursor value if one supplied.
+    assert colln._get_cursor(assigns, 50) == 50
 
 # tests for class kerncallarglist position methods
 

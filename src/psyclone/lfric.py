@@ -2285,7 +2285,7 @@ class LFRicMeshes():
             datatype=UnresolvedType(),
             interface=ImportInterface(csym))
 
-    def initialise(self, cursor: Optional[int] = None) -> int:
+    def initialise(self, cursor: Optional[int] = None) -> Optional[int]:
         '''
         Initialise variables related to meshes (including colour maps).
 
@@ -2312,11 +2312,10 @@ class LFRicMeshes():
         # LFRicMeshes inherit from LFRicCollection.
         if cursor is None:
             # No cursor supplied so find last assignment.
+            cursor = 0
             if assignments:
                 indices = assignments[-1].path_from(self._invoke.schedule)
                 cursor = indices[0]
-            else:
-                cursor = 0
 
         if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
