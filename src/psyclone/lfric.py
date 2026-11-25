@@ -2285,7 +2285,7 @@ class LFRicMeshes():
             datatype=UnresolvedType(),
             interface=ImportInterface(csym))
 
-    def initialise(self, cursor: Optional[int]) -> int:
+    def initialise(self, cursor: Optional[int] = None) -> int:
         '''
         Initialise variables related to meshes (including colour maps).
 
