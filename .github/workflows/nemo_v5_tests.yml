@@ -499,7 +499,6 @@ jobs:
         # Run with round robin allocations of GPUs to MPI ranks
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.orca1.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
