@@ -684,6 +684,7 @@ def test_process_declarations_errors():
     ) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
 
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
