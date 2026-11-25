@@ -2192,7 +2192,10 @@ class Fparser2Reader():
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
                     # This was a generic symbol. We now know what it is.
-                    sym.specialise(DataSymbol, datatype=datatype,
+                    sym_type = DataSymbol
+                    if isinstance(interface, ExternalInterface):
+                        sym_type = RoutineSymbol
+                    sym.specialise(sym_type, datatype=datatype,
                                    visibility=visibility,
                                    interface=this_interface,
                                    is_constant=has_constant_value,
@@ -2884,6 +2887,14 @@ class Fparser2Reader():
                 for name in node.items[1].items:
                     try:
                         sym = parent.symbol_table.lookup(str(name))
+                        if not isinstance(sym, RoutineSymbol):
+                            new_sym = RoutineSymbol(
+                                name=str(name),
+                                datatype=sym.datatype,
+                                interface=ExternalInterface(),
+                                visibility=sym.visibility
+                            )
+                            parent.symbol_table.swap(sym, new_sym)
                         sym.interface = ExternalInterface()
                     except KeyError:
                         visibility = visibility_map.get(
@@ -2894,7 +2905,7 @@ class Fparser2Reader():
                                   else {"visibility": visibility})
                         parent.symbol_table.new_symbol(
                             root_name=str(name),
-                            symbol_type=DataSymbol,
+                            symbol_type=RoutineSymbol,
                             datatype=UnsupportedFortranType(
                                 f"external :: {str(name)}"
                             ),

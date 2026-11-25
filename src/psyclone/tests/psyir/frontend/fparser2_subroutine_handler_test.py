@@ -844,8 +844,10 @@ end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(CodeBlock)) == 0
     symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("ampi_init_nt"), RoutineSymbol)
     assert isinstance(symtab.lookup("ampi_init_nt").datatype,
                       UnsupportedFortranType)
+    assert isinstance(symtab.lookup("mpi_init"), RoutineSymbol)
     assert isinstance(symtab.lookup("mpi_init").datatype,
                       UnsupportedFortranType)
 
