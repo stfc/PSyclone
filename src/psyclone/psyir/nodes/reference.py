@@ -342,7 +342,7 @@ class Reference(DataNode):
         # Now check all possible next accesses
         for ref in self.next_accesses():
             # Not all accesses are references as some other nodes (e.g.
-            # Loop) represent an access to a symbol
+            # Call, CodeBlock) represent an access to a symbol
             # TODO #3124: explore making all symbol accesses References
             if (not isinstance(ref, Reference) or
                     ref.escapes_scope(scope, visited_nodes)):

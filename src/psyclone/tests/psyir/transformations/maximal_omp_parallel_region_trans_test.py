@@ -244,10 +244,33 @@ def test_maximal_ompparallel_region_trans_node_allowed_valid_assignment(
     assert maxpartrans._node_allowed(assignment, [loop])
 
 
+def test_maximal_ompparallel_region_trans_node_allowed_loop_next(
+    fortran_reader
+):
+    '''
+    Test that if we have an assignment followed by a write to the
+    lhs in a loop varaible we get the expected result.
+    '''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+    integer :: a, i
+
+    i = a
+    do i = 1, 100
+
+    end do
+    end subroutine
+    """)
+    assignment = psyir.children[0].children[0]
+    loop = psyir.children[0].children[1]
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    assert maxpartrans._node_allowed(assignment, [assignment, loop])
+
+
 def test_maximal_ompparallel_region_trans_node_allowed_incrementing_assign(
     fortran_reader, fortran_writer
 ):
-    '''Tests that the _node_allowed doesn't allowed assignments that both
+    '''Tests that the _node_allowed doesn't allow assignments that both
     read and write from the same variable into the parallel region.'''
 
     maxpartrans = MaximalOMPParallelRegionTrans()
