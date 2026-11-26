@@ -83,8 +83,10 @@ def test_add_mesh_symbols():
         assert "mesh_type" in sym.datatype.type_text
 
 
-def test_lfric_meshes_colourmap_init(dist_mem):
+@pytest.mark.parametrize("tiling", [True, False])
+def test_lfric_meshes_colourmap_init(dist_mem, tiling):
     '''
+    Test colourmap_init() for a normal kernel, with and without tiling.
     '''
     _, invoke = get_invoke("1_single_invoke.f90", dist_mem=dist_mem, idx=0,
                            api=TEST_API)
@@ -99,23 +101,39 @@ def test_lfric_meshes_colourmap_init(dist_mem):
     loop = invoke.schedule.walk(LFRicLoop)[0]
     ctrans = LFRicColourTrans()
     # Call apply of the super class as that doesn't call colourmap_init()
-    ColourTrans.apply(ctrans, loop)
+    ColourTrans.apply(ctrans, loop, tiling=tiling)
     new_symbols = table.get_symbols()
-    assert set(new_symbols) - set(all_symbols) == {'colour'}
+    if tiling:
+        assert set(new_symbols) - set(all_symbols) == {'colour', 'tile'}
+    else:
+        assert set(new_symbols) - set(all_symbols) == {'colour'}
     invoke.meshes.colourmap_init()
     new_symbols = table.get_symbols()
     if dist_mem:
-        expected_diff = {'colour', 'cmap', 'ncolour',
-                         'last_halo_cell_all_colours'}
+        if tiling:
+            expected_diff = {
+                'colour', 'tmap', 'last_halo_tile_per_colour',
+                'tile', 'ntilecolours', 'last_halo_cell_per_colour_and_tile'}
+        else:
+            expected_diff = {'colour', 'cmap', 'ncolour',
+                             'last_halo_cell_all_colours'}
     else:
-        expected_diff = {'colour', 'mesh', 'mesh_mod', 'mesh_type',
-                         'cmap', 'ncolour', 'last_edge_cell_all_colours'}
+        if tiling:
+            expected_diff = {
+                'colour', 'mesh', 'mesh_mod', 'mesh_type', 'tile', 'tmap',
+                'last_edge_cell_per_colour_and_tile',
+                'last_edge_tile_per_colour', 'ntilecolours'}
+        else:
+            expected_diff = {'colour', 'mesh', 'mesh_mod', 'mesh_type',
+                             'cmap', 'ncolour', 'last_edge_cell_all_colours'}
 
     assert set(new_symbols) - set(all_symbols) == expected_diff
 
 
-def test_lfric_meshes_intergrid_colourmap_init(dist_mem):
+@pytest.mark.parametrize("tiling", [True, False])
+def test_lfric_meshes_intergrid_colourmap_init(dist_mem, tiling):
     '''
+    Test colourmap_init for an inter-grid kernel, with and without tiling.
     '''
     _, invoke = get_invoke("22.2_intergrid_3levels.f90",
                            dist_mem=dist_mem, idx=0, api=TEST_API)
@@ -130,16 +148,31 @@ def test_lfric_meshes_intergrid_colourmap_init(dist_mem):
     loop = invoke.schedule.walk(LFRicLoop)[0]
     ctrans = LFRicColourTrans()
     # Call apply of the super class as that doesn't call colourmap_init()
-    ColourTrans.apply(ctrans, loop)
+    ColourTrans.apply(ctrans, loop, tiling=tiling)
     new_symbols = table.get_symbols()
-    assert set(new_symbols) - set(all_symbols) == {'colour'}
+    if tiling:
+        assert set(new_symbols) - set(all_symbols) == {'colour', 'tile'}
+    else:
+        assert set(new_symbols) - set(all_symbols) == {'colour'}
     invoke.meshes.colourmap_init()
     new_symbols = table.get_symbols()
     if dist_mem:
-        assert set(new_symbols) - set(all_symbols) == {
-            'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
-            'last_halo_cell_all_colours_cmap_fld_c'}
+        if tiling:
+            expected = {'colour', 'ntilecolour_cmap_fld_c', 'tile',
+                        'tmap_cmap_fld_c',
+                        'last_halo_tile_per_colour_cmap_fld_c',
+                        'last_halo_cell_per_colour_and_tile_cmap_fld_c'}
+        else:
+            expected = {'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
+                        'last_halo_cell_all_colours_cmap_fld_c'}
     else:
-        assert set(new_symbols) - set(all_symbols) == {
-            'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
-            'last_edge_cell_all_colours_cmap_fld_c'}
+        if tiling:
+            expected = {'colour', 'ntilecolour_cmap_fld_c',
+                        'tmap_cmap_fld_c',
+                        'last_edge_tile_per_colour_cmap_fld_c',
+                        'last_edge_cell_per_colour_and_tile_cmap_fld_c',
+                        'tile'}
+        else:
+            expected = {'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
+                        'last_edge_cell_all_colours_cmap_fld_c'}
+    assert set(new_symbols) - set(all_symbols) == expected
