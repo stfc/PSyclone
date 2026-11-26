@@ -1,3 +1,5 @@
+   28) #3692 update integration tests to use HDF5 2.3 and tidy yaml files.
+
    27) #3690 fix for transitive imports in call tree utils (needed for
    kernel extranction).
 
