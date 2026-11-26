@@ -9,7 +9,7 @@
 
 import os
 
-from psyclone.lfric import LFRicMeshes
+from psyclone.domain.lfric import LFRicMeshes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
