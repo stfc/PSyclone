@@ -10,14 +10,12 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-from typing import TYPE_CHECKING, Tuple
+from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-
-if TYPE_CHECKING:
-    from psyclone.psyir.symbols.datatypes import DataType
+from psyclone.psyir.symbols.datatypes import DataType
 
 
 class Operation(DataNode, metaclass=ABCMeta):
