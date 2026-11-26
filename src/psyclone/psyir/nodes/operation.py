@@ -335,7 +335,7 @@ class BinaryOperation(Operation):
                 f"supported") from err
 
     @property
-    def datatype(self) -> "DataType":
+    def datatype(self) -> DataType:
         '''
         Determines the datatype of this operation. If it cannot be determined
         from the available type information then an instance of
