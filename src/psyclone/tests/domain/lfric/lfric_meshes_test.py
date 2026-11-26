@@ -84,9 +84,10 @@ def test_add_mesh_symbols():
 
 
 @pytest.mark.parametrize("tiling", [True, False])
-def test_lfric_meshes_colourmap_init(dist_mem, tiling):
+def test_lfric_meshes_colourmap_init(dist_mem, tiling, fortran_writer):
     '''
-    Test colourmap_init() for a normal kernel, with and without tiling.
+    Test colourmap_init() and initialise() for a normal kernel, with and
+    without tiling.
     '''
     _, invoke = get_invoke("1_single_invoke.f90", dist_mem=dist_mem, idx=0,
                            api=TEST_API)
@@ -129,11 +130,38 @@ def test_lfric_meshes_colourmap_init(dist_mem, tiling):
 
     assert set(new_symbols) - set(all_symbols) == expected_diff
 
+    invoke.meshes.initialise(0)
+    output = fortran_writer(invoke.schedule)
+    assert """\
+  ! Create a mesh object
+  mesh => f1_proxy%vspace%get_mesh()""" in output
+
+    if tiling:
+        if dist_mem:
+            assert "max_halo_depth_mesh = mesh%get_halo_depth()" in output
+        else:
+            assert """\
+  ! Get the tiled colourmap
+  ntilecolours = mesh%get_ntilecolours()
+  tmap => mesh%get_coloured_tiling_map()""" in output
+    else:
+        assert """\
+  ! Get the colourmap
+  ncolour = mesh%get_ncolours()
+  cmap => mesh%get_colour_map()""" in output
+
+    # If there are no meshes, `initialise` does nothing so the cursor value
+    # remains unchanged.
+    invoke.meshes._mesh_tag_names = []
+    assert invoke.meshes.initialise(10) == 10
+
 
 @pytest.mark.parametrize("tiling", [True, False])
-def test_lfric_meshes_intergrid_colourmap_init(dist_mem, tiling):
+def test_lfric_meshes_intergrid_colourmap_init(dist_mem, tiling,
+                                               fortran_writer):
     '''
-    Test colourmap_init for an inter-grid kernel, with and without tiling.
+    Test colourmap_init and initialise for an inter-grid kernel, with
+    and without tiling.
     '''
     _, invoke = get_invoke("22.2_intergrid_3levels.f90",
                            dist_mem=dist_mem, idx=0, api=TEST_API)
@@ -176,3 +204,81 @@ def test_lfric_meshes_intergrid_colourmap_init(dist_mem, tiling):
             expected = {'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
                         'last_edge_cell_all_colours_cmap_fld_c'}
     assert set(new_symbols) - set(all_symbols) == expected
+
+    invoke.meshes.initialise(0)
+    output = fortran_writer(invoke.schedule)
+
+    assert """\
+  ! Look-up mesh objects and loop limits for inter-grid kernels
+  mesh_fld_m => fld_m_proxy%vspace%get_mesh()""" in output
+
+    if dist_mem:
+        assert """\
+  max_halo_depth_mesh_fld_m = mesh_fld_m%get_halo_depth()
+  mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()
+  max_halo_depth_mesh_cmap_fld_c = mesh_cmap_fld_c%get_halo_depth()
+  mmap_fld_m_cmap_fld_c => mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)
+  cell_map_cmap_fld_c => mmap_fld_m_cmap_fld_c%get_whole_cell_map()
+  ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)""" in output
+    else:
+        assert """\
+  mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()
+  mmap_fld_m_cmap_fld_c => mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)
+  cell_map_cmap_fld_c => mmap_fld_m_cmap_fld_c%get_whole_cell_map()
+  ncell_fld_m = fld_m_proxy%vspace%get_ncell()""" in output
+
+    assert """\
+  ncpc_fld_m_cmap_fld_c_x = mmap_fld_m_cmap_fld_c%\
+get_ntarget_cells_per_source_x()
+  ncpc_fld_m_cmap_fld_c_y = mmap_fld_m_cmap_fld_c%\
+get_ntarget_cells_per_source_y()""" in output
+
+    if tiling:
+        assert """\
+  ntilecolour_cmap_fld_c = mesh_cmap_fld_c%get_ntilecolours()
+  tmap_cmap_fld_c => mesh_cmap_fld_c%get_coloured_tiling_map()
+""" in output
+        if dist_mem:
+            assert """\
+  last_halo_tile_per_colour_cmap_fld_c = mesh_cmap_fld_c%\
+get_last_halo_tile_all_colours()
+  last_halo_cell_per_colour_and_tile_cmap_fld_c = mesh_cmap_fld_c%\
+get_last_halo_cell_all_colours_all_tiles()
+  mesh_fld_f => fld_f_proxy%vspace%get_mesh()
+  max_halo_depth_mesh_fld_f = mesh_fld_f%get_halo_depth()
+""" in output
+        else:
+            assert ("""\
+  last_edge_tile_per_colour_cmap_fld_c = mesh_cmap_fld_c%\
+get_last_edge_tile_all_colours()
+  last_edge_cell_per_colour_and_tile_cmap_fld_c = mesh_cmap_fld_c%\
+get_last_edge_cell_all_colours_all_tiles()
+  mesh_fld_f => fld_f_proxy%vspace%get_mesh()
+  mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)
+  cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()
+  ncell_fld_f = fld_f_proxy%vspace%get_ncell()
+  ncpc_fld_f_fld_m_x = mmap_fld_f_fld_m%get_ntarget_cells_per_source_x()
+  ncpc_fld_f_fld_m_y = mmap_fld_f_fld_m%get_ntarget_cells_per_source_y()
+""" in output)
+    else:
+        # Not tiling
+        if dist_mem:
+            assert """\
+  max_halo_depth_mesh_fld_m = mesh_fld_m%get_halo_depth()
+  mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()
+  max_halo_depth_mesh_cmap_fld_c = mesh_cmap_fld_c%get_halo_depth()
+  mmap_fld_m_cmap_fld_c => mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)
+  cell_map_cmap_fld_c => mmap_fld_m_cmap_fld_c%get_whole_cell_map()
+""" in output
+
+        else:
+            assert """\
+  last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%\
+get_last_edge_cell_all_colours()
+  mesh_fld_f => fld_f_proxy%vspace%get_mesh()
+  mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)
+  cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()
+  ncell_fld_f = fld_f_proxy%vspace%get_ncell()
+  ncpc_fld_f_fld_m_x = mmap_fld_f_fld_m%get_ntarget_cells_per_source_x()
+  ncpc_fld_f_fld_m_y = mmap_fld_f_fld_m%get_ntarget_cells_per_source_y()
+""" in output
