@@ -539,17 +539,3 @@ def test_loop_type(fortran_reader):
     # Test an incomplete loop
     incomplete_loop = Loop()
     assert incomplete_loop.loop_type is None
-
-
-def test_loops_enters_scope():
-    ''' Check that enters_scope always returns False for loops. This is
-    a method meant for References, but the loop variable is currently not
-    in a child Reference.
-
-    #TODO #3124: Alternatively move the variable to a child Reference.
-
-    '''
-    loop = Loop()
-    # Always returns false, regardless of the scope, as the loop variable
-    # by definition gets the first value assigned here from the loop bounds.
-    assert not loop.enters_scope(None)

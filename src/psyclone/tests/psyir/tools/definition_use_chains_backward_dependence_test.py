@@ -273,20 +273,23 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[a_sig]
-    # We should have 4? reaches
-    # First  b = A + 2
-    # Second a = A + i
-    # Third (?) is A = a + i
+    # We should have 4 reaches
+    # First a = A + i
+    # At this point it looks backwards in the same loop body before
+    # considering more accesses outside of the loop.
+    # Second is b = A + 2
+    # Third is A = a + i
+    # Finally it checks the statements outside control flow before the loop.
     # Last is A = 1
     assert len(reaches) == 4
     assert (
-        reaches[0] is routine.walk(Assignment)[2].rhs.children[0]
+        reaches[0] is routine.walk(Assignment)[1].rhs.children[0]
     )
     assert (
-        reaches[1] is routine.walk(Assignment)[1].lhs
+        reaches[1] is routine.walk(Assignment)[2].rhs.children[0]
     )
     assert (
-        reaches[2] is routine.walk(Assignment)[1].rhs.children[0]
+        reaches[2] is routine.walk(Assignment)[1].lhs
     )
     assert reaches[3] is routine.walk(Assignment)[0].lhs
 
@@ -295,6 +298,7 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     subroutine x()
     integer :: a, b, c, d, e, f, i
 
+    i = 2
     do i = 1, 100
        a = a + i
        b = a + 2
@@ -305,14 +309,16 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Start the chain from I = 1231.
-    ref = routine.walk(Assignment)[2].lhs
+    ref = routine.walk(Assignment)[3].lhs
     i_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[i_sig]
-    # We should have 1 reaches
-    # It should be the loop
-    assert len(reaches) == 1
-    assert reaches[0] is routine.walk(Loop)[0]
+    # We should have 2 reaches
+    # It should be the the i in the loop and then the loop variable, which
+    # kills the chain as loop variables are guaranteed writes.
+    assert len(reaches) == 2
+    assert reaches[0] is routine.walk(Assignment)[1].rhs.children[1]
+    assert reaches[1] is routine.walk(Loop)[0].variable_reference
 
 
 def test_definition_use_chain_find_backward_accesses_while_loop_example(
@@ -730,8 +736,8 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     # TODO #2760 The backwards accesses should not continue past a = a + i
     # when searching backwards in the loop, or to a = 1
     assert len(reaches) == 3
-    assert reaches[0] is routine.walk(Call)[0].children[1]
-    assert reaches[1] is routine.walk(Assignment)[1].lhs
+    assert reaches[0] is routine.walk(Assignment)[1].lhs
+    assert reaches[1] is routine.walk(Call)[0].children[1]
     assert reaches[2] is routine.walk(Assignment)[0].lhs
 
 
@@ -1207,3 +1213,59 @@ def test_backward_accesses_unsupportedtype_pure_call_argument(fortran_reader):
     assert len(reaches[a_sig]) == 1
     assert reaches[a_sig][0] is routine.walk(Call)[1].arguments[0]
     assert len(reaches[i_sig]) == 0
+
+
+def test_backward_access_loop_var(fortran_reader):
+    ''' Test that the DUCs find a loop variable when searching
+    for backward_accesses.'''
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine test
+        integer :: a, i
+
+        i = a
+        do i = 1, 100
+
+        end do
+        i = 1
+        end subroutine
+        """)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[1].lhs
+    l_sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    reaches = chains.find_backward_accesses()[l_sig]
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Loop)[0].variable_reference
+
+
+def test_backward_access_loop_in_ifblock(fortran_reader):
+    ''' Test that the DUCS find previous accesses inside the asme loop
+    when a loop is contained within an ifblock.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+    integer :: a, i, b
+
+    a = 0
+    if (a > 3) then
+        b = 1
+        do i = 1, 2
+           b = a
+           a = 1
+        enddo
+    end if
+
+    end subroutine test""")
+    assigns = psyir.walk(Assignment)
+    ifblock = psyir.walk(IfBlock)[0]
+    rhs = assigns[2].rhs
+    a_sig = rhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([rhs])
+    reaches = chains.find_backward_accesses()[a_sig]
+
+    # The results are A = 1, A > 3 and A = 0. There is no self result
+    # as any backwards access in the loop will hit the guaranteed write of
+    # A = 1.
+    assert len(reaches) == 3
+    assert reaches[0] is assigns[3].lhs
+    assert reaches[1] is ifblock.condition.children[0]
+    assert reaches[2] is assigns[0].lhs
