@@ -9,10 +9,11 @@
 
 import pytest
 
-from psyclone.domain.lfric import LFRicMeshes, LFRicKern
+from psyclone.domain.lfric import LFRicMeshes, LFRicKern, LFRicLoop
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
 from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import ColourTrans, LFRicColourTrans
 
 TEST_API = "lfric"
 
@@ -80,3 +81,65 @@ def test_add_mesh_symbols():
         assert isinstance(sym, DataSymbol)
         assert isinstance(sym.datatype, UnsupportedFortranType)
         assert "mesh_type" in sym.datatype.type_text
+
+
+def test_lfric_meshes_colourmap_init(dist_mem):
+    '''
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", dist_mem=dist_mem, idx=0,
+                           api=TEST_API)
+    meshes = LFRicMeshes(invoke, invoke._psy_unique_vars)
+    table = invoke.schedule.symbol_table
+    all_symbols = table.get_symbols()
+    # Without colouring, this should be a no-op.
+    meshes.colourmap_init()
+    new_symbols = table.get_symbols()
+    assert new_symbols == all_symbols
+
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    ctrans = LFRicColourTrans()
+    # Call apply of the super class as that doesn't call colourmap_init()
+    ColourTrans.apply(ctrans, loop)
+    new_symbols = table.get_symbols()
+    assert set(new_symbols) - set(all_symbols) == {'colour'}
+    invoke.meshes.colourmap_init()
+    new_symbols = table.get_symbols()
+    if dist_mem:
+        expected_diff = {'colour', 'cmap', 'ncolour',
+                         'last_halo_cell_all_colours'}
+    else:
+        expected_diff = {'colour', 'mesh', 'mesh_mod', 'mesh_type',
+                         'cmap', 'ncolour', 'last_edge_cell_all_colours'}
+
+    assert set(new_symbols) - set(all_symbols) == expected_diff
+
+
+def test_lfric_meshes_intergrid_colourmap_init(dist_mem):
+    '''
+    '''
+    _, invoke = get_invoke("22.2_intergrid_3levels.f90",
+                           dist_mem=dist_mem, idx=0, api=TEST_API)
+    meshes = LFRicMeshes(invoke, invoke._psy_unique_vars)
+    table = invoke.schedule.symbol_table
+    all_symbols = table.get_symbols()
+    # Without colouring, this should be a no-op.
+    meshes.colourmap_init()
+    new_symbols = table.get_symbols()
+    assert new_symbols == all_symbols
+
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    ctrans = LFRicColourTrans()
+    # Call apply of the super class as that doesn't call colourmap_init()
+    ColourTrans.apply(ctrans, loop)
+    new_symbols = table.get_symbols()
+    assert set(new_symbols) - set(all_symbols) == {'colour'}
+    invoke.meshes.colourmap_init()
+    new_symbols = table.get_symbols()
+    if dist_mem:
+        assert set(new_symbols) - set(all_symbols) == {
+            'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
+            'last_halo_cell_all_colours_cmap_fld_c'}
+    else:
+        assert set(new_symbols) - set(all_symbols) == {
+            'colour', 'ncolour_cmap_fld_c', 'cmap_cmap_fld_c',
+            'last_edge_cell_all_colours_cmap_fld_c'}

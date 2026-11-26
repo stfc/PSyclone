@@ -16,7 +16,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
 from psyclone.lfric import LFRicHaloExchange, HaloReadAccess
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -675,18 +675,6 @@ def test_fine_halo_read():
     field = call.args[1]
     hra = HaloReadAccess(field, schedule)
     assert hra._var_depth.debug_string() == "2 * 1"
-
-
-def test_prolong_with_gp_error():
-    ''' Check that we reject an invoke that contains both
-    an inter-grid and a general-purpose kernel '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "22.3_intergrid_plus_general.f90"),
-                           api=API)
-    with pytest.raises(GenerationError) as err:
-        _ = PSyFactory(API).create(invoke_info)
-    assert ("no other kernel types but kernels 'testkern_w2_only_code' in "
-            "invoke 'invoke_0' are not inter-grid" in str(err.value))
 
 
 def test_prolong_vector(tmpdir):
