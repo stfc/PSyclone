@@ -9,13 +9,16 @@
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
+from __future__ import annotations
 import abc
-from typing import List
+from typing import List, TYPE_CHECKING, Union
 
-from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
-from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
+    from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 
 class LFRicCollection():
@@ -23,16 +26,19 @@ class LFRicCollection():
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage variable \
+    :param node: the Kernel or Invoke for which to manage variable
                  declarations and initialisation.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
-                :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises InternalError: if the supplied node is not an LFRicInvoke or an \
+    :raises InternalError: if the supplied node is not an LFRicInvoke or an
                            LFRicKern.
 
     '''
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicInvoke, LFRicKern]):
+        # Avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
+        from psyclone.domain.lfric.lfric_kern import LFRicKern
+
         if isinstance(node, LFRicInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
