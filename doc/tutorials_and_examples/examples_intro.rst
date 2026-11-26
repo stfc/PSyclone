@@ -112,7 +112,7 @@ Compiler                     Latest tested version   Non-exhaustive list of prev
 GNU Fortran                  16.2                    9.3, 13.3, 14.3, 15.2, 16.1
 Intel Fortran (ifort)        21                      17
 Intel LLVM Fortran (ifx)     2026.2.0                2025.3.1, 2026.1.0
-NVIDIA Fortran               26.9                    23.5, 25.7, 26.1, 26.3, 26.5
+NVIDIA Fortran               26.11                   23.5, 25.7, 26.1, 26.3, 26.5, 26.9
 ==========================   =====================   ====================================
 
 .. _examples_dependencies:
