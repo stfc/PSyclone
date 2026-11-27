@@ -1,68 +1,82 @@
-   87) #3678 for #3625. Removes deprecated Loop2DTilingTrans in favour of
-   the more general LoopTilingTrans. 
+   29) #3662 towards #3486. Loop variables are guaranteed writes for the DUC.
 
-   86) #3674 for #3673. Fixes the PSyclone script incorrectly modifying the
+   28) #3692 update integration tests to use HDF5 2.3 and tidy yaml files.
+
+   27) #3690 fix for transitive imports in call tree utils (needed for
+   kernel extranction).
+
+   26) #3688. Update compilation and NEMO tests to nvfortran 26.11. Fix
+   issue with retaining logs in repeated LFRic builds.
+ 
+   25) #3681 for #1577 and #1402. Update style guide and add AGENTS.md
+ 
+   24) #3678 for #3625. Removes deprecated Loop2DTilingTrans in favour of
+   the more general LoopTilingTrans.
+
+   23) #3674 for #3673. Fixes the PSyclone script incorrectly modifying the
    sys.path when no script was provided.
 
-   85) #3620. Harden the validation of IncreaseRankLoopArrayTrans.
+   22) #3620. Harden the validation of IncreaseRankLoopArrayTrans.
 
-   84) #3669. Update the version of LFRic in the integration tests.
- 
-   83) #3344 for #2202. Updates the generation of Fortran output to respect
+   21) #3669. Update the version of LFRic in the integration tests.
+
+   20) #3344 for #2202. Updates the generation of Fortran output to respect
    dependencies in variable declarations.
 
-   82) #3668 for #3666. Updates the frontend to correctly process code that
+   19) #3668 for #3666. Updates the frontend to correctly process code that
    has a Bind(c) clause on subroutines or functions.
 
-   81) #3663 for #868. Use unique tags to prevent LFRic name conflicts.
+   18) #3663 for #868. Use unique tags to prevent LFRic name conflicts.
 
-   80) #3657. Reverts Python version for the readthedocs build as 3.15 is
+   17) #3657. Reverts Python version for the readthedocs build as 3.15 is
    not yet supported.
 
-   79) PR #3510 towards #868. Implement support for custom function spaces
+   16) PR #3510 towards #868. Implement support for custom function spaces
    with user-defined multi-data fields and number of layers.
 
-   78) PR #3656. Bump ITs to use oneAPI 2026.2.
- 
-   77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
- 
-   76) PR #3627 for #3626. Ensure that elemental routines are also marked
+   15) PR #3656. Bump ITs to use oneAPI 2026.2.
+
+   14) PR #3652 for #3117. Improve and consolidate contributing guidelines.
+
+   13) PR #3627 for #3626. Ensure that elemental routines are also marked
    as pure and forbid HoistLocalArraysTrans on pure routines.
- 
-   75) PR #3595 for #3315. Extends LFRicLoopFuseTrans to attempt to resolve
+
+   12) PR #3595 for #3315. Extends LFRicLoopFuseTrans to attempt to resolve
    'any-space' function spaces and conditionally fuse if that fails.
- 
-   74) PR #3511. Add --keep-comments in some NEMO integration tests.
 
-   73) PR #3633 for #2927. Ensures the profiling wrapper libs are
+   11) PR #3511. Add --keep-comments in some NEMO integration tests.
+
+   10) PR #3633 for #2927. Ensures the profiling wrapper libs are
    thread safe (to permit them to be called from *within* threaded regions).
- 
-   72) PR #3638. Add python 3.15 in the CI.
 
-   71) PR #3610 for #3454. ModuleInline supports routines with calls in the
+   9) PR #3638. Add python 3.15 in the CI.
+
+   8) PR #3610 for #3454. ModuleInline supports routines with calls in the
    callee file by recursively copying those in the caller module.
 
-   70) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
+   7) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
    global reductions.
- 
-   69) PR #3612 for #2668. Adds keyword argument support to all remaining
+
+   6) PR #3612 for #2668. Adds keyword argument support to all remaining
    Transformations ready for option dict removal.
 
-   68) PR #3643 for #3637 and #3644. Fixes line-length limiter issues when
+   5) PR #3643 for #3637 and #3644. Fixes line-length limiter issues when
    line breaks occur in an in-line comment.
- 
-   67) PR #3641. Improve NEMOv4 GPU performance by tweaking the transformation
-   script (updating omitted files, using OMP for reduction in stpctl).
- 
-   66) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
-   kernel metadata. Allows kernels previously transformed by PSyclone
-   to still be parsed as DSL kernels.   
 
-   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   4) PR #3641. Improve NEMOv4 GPU performance by tweaking the transformation
+   script (updating omitted files, using OMP for reduction in stpctl).
+
+   3) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
+   kernel metadata. Allows kernels previously transformed by PSyclone
+   to still be parsed as DSL kernels.
+
+   2) PR #3611 towards #3601. Enable routines with automatic arrays to be
    inlined by making the arrays allocatable.
- 
-   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+
+   1) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
    transformation scripts/source for GPU performance.
+
+Release 3.4.0 (from rc2 tagged 5th October 2026)
 
    63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
    when the ancestor loops of a directive are iteration-independent.
@@ -74,34 +88,34 @@
  
    60) PR #3616 for #3509. Fixes failing test on master (colour codes
    in PSyIR node output).
- 
+
    59) PR #3604 towards #2668. Moves more Transformations over to using
    keyword arguments instead of 'options'.
- 
+
    58) PR #3572 for #1948. Add stencil support for LFRic domain kernels.
 
    57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
    to perform both colouring and OpenMP to loops in the LFRic domain.
 
    56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
-   LFRic-specific transformations. 
+   LFRic-specific transformations.
 
    55) PR #3603 for #1770. Make lfric/eg20 compile.
 
    54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
    a deferred InlineTrans on Kernels after lower the PSy layer.
- 
+
    53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
    create a Call rather than an IntrinsicCall when an imported Symbol
    shadows an Intrinsic.
- 
+
    52) PR #3574 for #3568. Removes references to fparser from the DUC
    implementation (by extending the query functionality on CodeBlock).
- 
+
    51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
 
    50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
-   metatransformations. 
+   metatransformations.
 
    49) Move 'colored' utility from psyclone.psyir.nodes.node to
    psyclone.utils.
@@ -122,19 +136,19 @@
 
    43) PR #3566 towards #1995. More tidying of copyright/license
    headers to use SPDX form.
- 
+
    42) PR #3468 for #3461. Cleans up the use of sys.path so that
    different transformation scripts with the same name can be imported.
- 
+
    41) PR #3573. Improves Developer Guide description of coding style
    and fixes a few incorrect type-hints.
- 
+
    40) PR #3499 towards #2905. Moves lfric symbol creation into the
    LFRicInvoke constructor.
 
    39) PR #3492. Improves the Dependence-Use-Chain handling of references
    to unsupported types (since we can't guarantee the absence of aliasing).
- 
+
    38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
    literals.
 
@@ -143,7 +157,7 @@
 
    36) PR #3562 for #3559. Ensure all imports are resolved when there are
    multiple USE statements targeting the same module.
- 
+
    35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
 
    34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
@@ -157,14 +171,14 @@
 
    30) PR #3550 for #3544. Fixes issues with UnresolvedInterface propogation,
    and adds support for the recursive keyword.
-   
+
    29) PR #3551 for #3549. Fix issues with comments before labelled statements.
 
    28) PR #3543 for #3392. Stores commonblock names inside their interfaces
    and adds them into the output.
 
    27) PR #3542 towards #3516. Improve handling of declaration comments.
-   
+
    26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
 
    25) PR #3481 towards #3463. Adds support for adding standalone Assignment
@@ -197,19 +211,19 @@
 
    15) PR #3247 for #831 and towards #3124. Adds child References to
    CodeBlocks for each Symbol accessed inside.
- 
+
    14) PR #3452 for #3409. LFRic reproducible reduction store partial results
    in a threadprivate scalar instead of a padded array.
 
    13) PR #3490 for #3488. Fixes an issue with WHERE statements preceeded
    by comments.
- 
+
    12) PR #3497 for #3457. Ensures reproducible order of declarations.
 
    11) PR #3345 for #3330. Adds the OMPCPURoutineTrans meta-transformation.
- 
+
    10) PR #3495 for #3207. Updates the LFRic integration tests.
- 
+
    9) PR #3473 for #3124. Adds the loop variable as a Reference child of
    Loop nodes.
 
@@ -219,16 +233,16 @@
    7) PR #3491 for #2533. Adds better support for procedure pointers in
    the PSyIR Fortran frontend/backend (plus other improvements for
    unsupported declarations).
- 
+
    6) PR #3496 for #3493. Adds a new GHA workflow to check for remaining
    references to issues that a PR claims to close.
- 
+
    5) PR #3464 towards #3463. Reverse the construction order of maximal
    regions and use the full-region as starting candidate.
 
    4) PR #3465 for #2757. Adds the --script-kwargs command line
    option to pass arguments to transformation scripts.
- 
+
    3) PR #3480 for #3478. Updates OMPParallelLoopTrans to correctly
    use the kwargs approach.
 
@@ -237,7 +251,7 @@
 
    1) PR #3472 for #3471. Let the transformations get_options method
    account for sub-transformation options.
-  
+
 Release 3.3.1 7th July 2026
 
    5) PR #3431. Adds the force_private option to the OMPParallelTrans.

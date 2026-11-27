@@ -43,10 +43,13 @@ on:
 
 env:
   GNU_TOOLCHAIN: gnu14_openmpi
-  NVHPC_TOOLCHAIN: nvhpc26_9_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_11_openmpi
   INTEL_TOOLCHAIN: intel26_2_openmpi
   PYTHON_VERSION: "3.15"
   NUM_PARALLEL: 16
+  SPACK_SETUP: /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+  NEMO_MO_DIR: /archive/psyclone-tests/latest-run/UKMO-NEMOv5
+  NEMO_INPUTS: /archive/psyclone-tests/nemo-inputs
 
 jobs:
   run_if_on_mirror:
@@ -88,9 +91,8 @@ jobs:
         pip install .
     - name: Reset working directory
       run: |
-        rm -rf /archive/psyclone-tests/latest-run/UKMO-NEMOv5
-        cp -r /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5 \
-              /archive/psyclone-tests/latest-run/UKMO-NEMOv5
+        rm -rf ${NEMO_MO_DIR}
+        cp -r ${NEMO_INPUTS}/UKMO-NEMOv5 ${NEMO_MO_DIR}
 
     # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 gfortran passthrough
@@ -98,17 +100,16 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_PASSTHROUGH_GCC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-fdefault-real-8 -O2 -mno-fma -fno-tree-vectorize -fcray-pointer -ffree-line-length-none -g"
 
         # Clean up and compile
@@ -117,29 +118,28 @@ jobs:
             add_key "key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.gfortran.small.10steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       # Only bother doing passthrough if this is a re-run of a previous test.
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_PASSTHROUGH_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g"
         
         # Clean up and compile
@@ -148,14 +148,14 @@ jobs:
           -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
         tail run.stat
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
-               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+               <(ncdump ${NEMO_INPUTS}/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
@@ -165,17 +165,16 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_PASSTHROUGH_ONEAPI
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
 
         # Clean up and compile
@@ -184,29 +183,28 @@ jobs:
           add_key "key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 6 ./nemo
         tail run.stat
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.oneapi.small.10steps run.stat
 
     - name: NEMO 5.0 gfortran OpenMP for CPUs (BENCH)
       id: bench_gfortran_omp_cpu
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${GNU_TOOLCHAIN}
         nvidia-smi
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_THREADING_GCC
         export REPRODUCIBLE=1
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_threading"
@@ -218,10 +216,10 @@ jobs:
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} add_key "key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -229,24 +227,23 @@ jobs:
       id: bench_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Make sure the profiling wrapper is compiled with the same compiler
         export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
-        cd $PROFILING_DIR
+        cd ${PROFILING_DIR}
         make clean
         F90=$MPIF90 make
                 
         # First do a debug-build: set the FCM environment variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
         export ENABLE_PROFILING=1
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
@@ -260,20 +257,20 @@ jobs:
         ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
 
         # Run reproducible test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
-               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+               <(ncdump ${NEMO_INPUTS}/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
 
         # Now do a fast-build (without reproducible or profiling options, which have a
         # big impact for BENCH due to some inner-loop REAL intrinsics)
-        cd $NEMO_DIR
+        cd ${NEMO_MO_DIR}
         unset REPRODUCIBLE
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
@@ -283,8 +280,8 @@ jobs:
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run non-reproducible test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
@@ -296,18 +293,17 @@ jobs:
       id: orca1_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
@@ -318,13 +314,13 @@ jobs:
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1/* .
+        cd cfgs/${TEST_DIR}/EXP00
+        ln -sf ${NEMO_INPUTS}/UKMO-eORCA1/* .
         # Make sure mpi has been built with cuda support
         ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
         # Run with round robin allocations of GPUs to MPI ranks
         OMP_NUM_THREADS=4 mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -332,18 +328,17 @@ jobs:
       id: orca2_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
@@ -355,15 +350,15 @@ jobs:
           add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
+        cd cfgs/${TEST_DIR}/EXP00
+        ln -sf ${NEMO_INPUTS}/UKMO-eORCA2/* .
         # Uses both, threading and offloading
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         for file in ORCA2_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
-               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
+               <(ncdump ${NEMO_INPUTS}/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -373,24 +368,23 @@ jobs:
       id: bench_nvfortran_omp_offload_async
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Make sure the profiling wrapper is compiled with the same compiler
         export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
-        cd $PROFILING_DIR
+        cd ${PROFILING_DIR}
         make clean
         F90=$MPIF90 make
                 
         # First do a debug-build: set the environment variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
         export ENABLE_PROFILING=1
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
@@ -403,20 +397,20 @@ jobs:
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run reproducible test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
-               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+               <(ncdump ${NEMO_INPUTS}/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
 
         # Now do a fast-build (without reproducible or profiling options, which have a
         # big impact for BENCH due to some inner-loop REAL intrinsics)
-        cd $NEMO_DIR
+        cd ${NEMO_MO_DIR}
         unset REPRODUCIBLE
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
@@ -426,8 +420,8 @@ jobs:
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} \
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
         # Run non-reproducible test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cd tests/${TEST_DIR}/EXP00
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -436,18 +430,17 @@ jobs:
       id: orca2_nvfortran_omp_offload_async
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
@@ -460,15 +453,15 @@ jobs:
           add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
+        cd cfgs/${TEST_DIR}/EXP00
+        ln -sf ${NEMO_INPUTS}/UKMO-eORCA2/* .
         # Uses both, threading and offloading
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         for file in ORCA2_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
-               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
+               <(ncdump ${NEMO_INPUTS}/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -478,18 +471,17 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        source ${SPACK_SETUP}
         spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
-        cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        cd ${NEMO_MO_DIR}
+        cp ${PSYCLONE_NEMO_DIR}/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export PARALLEL_DIRECTIVES="omp_offloading"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
@@ -501,14 +493,13 @@ jobs:
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1/* .
+        cd cfgs/${TEST_DIR}/EXP00
+        ln -sf ${NEMO_INPUTS}/UKMO-eORCA1/* .
         # Make sure mpi has been built with cuda support
         ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
         # Run with round robin allocations of GPUs to MPI ranks
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
+        diff ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.orca1.nvhpc.10steps run.stat
 
     - name: NEMO 5.0 nvidia OpenACC Kernels for GPUs (BENCH - managed memory)
       id: bench_nvfortran_acc_kernels
