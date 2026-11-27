@@ -8,7 +8,7 @@
 program restrict_prolong
 
   ! Description: invoke containing restrictions/prolongations where
-  ! fields swap roles (what was 'fine' becomes 'coarse'). Once of the fields is
+  ! fields swap roles (what was 'fine' becomes 'coarse'). One of the fields is
   ! also named so as to provoke a name clash with the standard name that
   ! PSyclone would generate for a colour map.
   use field_mod,                only: field_type
@@ -20,9 +20,13 @@ program restrict_prolong
   type(field_type) :: fld_f, fld_m, cmap_fld_c
 
   call invoke(                                             &
+              !                         W1       W2
               prolong_test_kernel_type(fld_m, cmap_fld_c), & ! coarse -> medium
+              !                         W1       W2
               prolong_test_kernel_type(fld_f, fld_m),      & ! medium -> fine
+              !                         AS1      AS2
               restrict_test_kernel_type(fld_m, fld_f),     & ! fine -> medium
+              !                         AS1      AS2
               restrict_test_kernel_type(cmap_fld_c, fld_m) ) ! medium -> coarse
 
 end program restrict_prolong

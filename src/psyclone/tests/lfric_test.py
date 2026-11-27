@@ -767,7 +767,7 @@ def test_bc_kernel_anyspace1_only():
     kernels = schedule.walk(LFRicKern)
     assert kernels[0].base_name == "enforce_bc"
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
-    for fspace in kernels[0].arguments._unique_fss:
+    for fspace in kernels[0].arguments.unique_fss:
         fspace._orig_name = "W2"
     with pytest.raises(GenerationError) as err:
         _ = LFRicBoundaryConditions(invoke)

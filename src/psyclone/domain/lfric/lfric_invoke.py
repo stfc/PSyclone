@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
@@ -23,6 +25,7 @@ from psyclone.psyir.symbols import (
 if TYPE_CHECKING:
     from psyclone.domain.common.psylayer import GlobalReduction
     from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class LFRicInvoke(Invoke):
@@ -51,6 +54,8 @@ class LFRicInvoke(Invoke):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
         super().__init__(alg_invocation, idx, LFRicInvokeSchedule, invokes)
+
+        self._resolve_function_spaces()
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
@@ -203,6 +208,54 @@ class LFRicInvoke(Invoke):
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             entities.invoke_declarations()
+
+    def _resolve_function_spaces(self) -> None:
+        '''
+        Examines the function spaces of all kernel arguments in this invoke
+        and attempts to resolve those which the kernel metadata says are
+        any space.
+
+        :raises GenerationError: if an argument is shared by more than one
+            kernel and declared to be on incompatible function spaces in their
+            respective metadata.
+
+        '''
+        const = LFRicConstants()
+        kerns = self.schedule.walk(LFRicKern)
+        # Find all arguments whose space we don't know (any space)
+        all_args: dict[str, list["LFRicKernelArgument"]] = {}
+        for kern in kerns:
+            for arg in kern.arguments.args:
+                if not arg.function_space:
+                    # Not all arguments are on a function space.
+                    continue
+                if arg.name in all_args:
+                    all_args[arg.name].append(arg)
+                else:
+                    all_args[arg.name] = [arg]
+
+        for arg_name in all_args:
+            if any(arg.function_space.orig_name in const.VALID_ANY_SPACE_NAMES
+                   for arg in all_args[arg_name]):
+                # Find any specific function spaces
+                fspaces = [arg.function_space for arg in all_args[arg_name]
+                           if arg.function_space.orig_name not
+                           in const.VALID_ANY_SPACE_NAMES]
+                if not fspaces:
+                    # Every occurrence is specified as any-space so we can't
+                    # resolve the space.
+                    continue
+                # These *should* all be the same
+                unique = set(fspace.orig_name for fspace in fspaces)
+                if len(unique) != 1:
+                    raise GenerationError(
+                        f"Argument '{arg_name}' is listed as being on more "
+                        f"than one space: {sorted(list(unique))}")
+
+                for arg in all_args[arg_name]:
+                    if (arg.function_space.orig_name in
+                            const.VALID_ANY_SPACE_NAMES):
+                        arg._function_spaces[0] = fspaces[0]
 
     def arg_for_funcspace(self, fspace):
         '''

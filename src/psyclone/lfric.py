@@ -5355,22 +5355,6 @@ class LFRicKernelArguments(Arguments):
                     )
                     arg.stencil.direction_arg.varname = symbol.name
 
-        # Generate a static list of unique function-space names used
-        # by the set of arguments: store the mangled names as these
-        # are what we use at the level of an Invoke
-        self._unique_fs_names = []
-        # List of corresponding unique function-space objects
-        self._unique_fss = []
-        for arg in self._args:
-            for fspace in arg.function_spaces:
-                # We check that function_space is not None because scalar
-                # args don't have one and fields only have one (only
-                # operators have two).
-                if (fspace and
-                        fspace.tag_name not in self._unique_fs_names):
-                    self._unique_fs_names.append(fspace.tag_name)
-                    self._unique_fss.append(fspace)
-
     def get_arg_on_space_name(self, func_space_name):
         '''
         Returns the first argument (field or operator) found that is on
@@ -5442,17 +5426,23 @@ class LFRicKernelArguments(Arguments):
         return False
 
     @property
-    def unique_fss(self):
-        ''' Returns a unique list of function space objects used by the
-        arguments of this kernel '''
-        return self._unique_fss
-
-    @property
-    def unique_fs_names(self):
-        ''' Return the list of unique function space names used by the
-        arguments of this kernel. The names are unmangled (i.e. as
-        specified in the kernel metadata) '''
-        return self._unique_fs_names
+    def unique_fss(self) -> list[FunctionSpace]:
+        ''':returns: the unique list of function space objects used by the
+                     arguments of this kernel '''
+        # Generate a list of unique function-space names used
+        # by the set of arguments
+        unique_fs_names = []
+        # List of corresponding unique function-space objects
+        unique_fss = []
+        for arg in self._args:
+            for fspace in arg.function_spaces:
+                # We check that function_space is not None because scalar
+                # args don't have one and fields only have one (only
+                # operators have two).
+                if fspace and fspace.tag_name not in unique_fs_names:
+                    unique_fs_names.append(fspace.tag_name)
+                    unique_fss.append(fspace)
+        return unique_fss
 
     @property
     def first_field_or_operator(self):

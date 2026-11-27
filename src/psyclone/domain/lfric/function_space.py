@@ -356,13 +356,11 @@ class FunctionSpace():
                   contains a field that exists on this space or None.
 
         '''
-        if self.tag_name in arguments.unique_fs_names:
-            for arg in arguments.args:
-                # First, test that argument is a field as some argument
-                # objects won't have function spaces, e.g. scalars
-                if arg.is_field and \
-                   arg.function_space.tag_name == self.tag_name:
-                    return arg
+        for arg in arguments.args:
+            # First, test that argument is a field as some argument
+            # objects won't have function spaces, e.g. scalars
+            if arg.is_field and arg.function_space.tag_name == self.tag_name:
+                return arg
         return None
 
     def cma_on_space(self, arguments: "LFRicKernelArguments") -> Optional[
@@ -377,14 +375,13 @@ class FunctionSpace():
                   contains a field that exists on this space or None.
 
         '''
-        if self.tag_name in arguments.unique_fs_names:
-            for arg in arguments.args:
-                # First, test that arg is a CMA op as some argument objects
-                # won't have function spaces, e.g. scalars
-                if arg.argument_type == "gh_columnwise_operator" and \
-                   self.orig_name in [arg.function_space_to.orig_name,
-                                      arg.function_space_from.orig_name]:
-                    return arg
+        for arg in arguments.args:
+            # First, test that arg is a CMA op as some argument objects
+            # won't have function spaces, e.g. scalars
+            if arg.argument_type == "gh_columnwise_operator" and \
+               self.orig_name in [arg.function_space_to.orig_name,
+                                  arg.function_space_from.orig_name]:
+                return arg
         return None
 
     @property
