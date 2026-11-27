@@ -66,16 +66,15 @@ class LFRicRunTimeChecks(LFRicCollection):
         field's function space is consistent with the appropriate
         kernel metadata function spaces.
 
-        :param int cursor: position where to add the next initialisation
-            statements.
+        :param cursor: position to add the next initialisation statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
-        # When issue #30 is addressed (with issue #79 helping further)
-        # we may know some or all field function spaces statically. If
-        # so, we should remove these from the fields to check at run
-        # time (as they will have already been checked at code
+        # When issue #79 is addressed, we may be able to statically
+        # determine some or all field function spaces by examining the
+        # Algorithm layer. If so, we should remove these from the fields to
+        # check at run time (as they will have already been checked at code
         # generation time).
 
         const = LFRicConstants()
@@ -190,11 +189,10 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         '''
         symtab = self._invoke.schedule.symbol_table
-        # When issue #30 is addressed (with issue #79 helping further)
-        # we may know some or all field function spaces statically. If
-        # so, we should remove these from the fields to check at run
-        # time (as they will have already been checked at code
-        # generation time).
+        # When issue #79 is addressed we may know some or all field function
+        # spaces statically (by looking at the Algorithm layer). If so, we
+        # should remove these from the fields to check at run time (as they
+        # will have already been checked at code generation time).
 
         # Create a list of modified fields
         modified_fields = []
