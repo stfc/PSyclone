@@ -15,6 +15,8 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
+from psyclone.domain.lfric.metadata_to_arguments_rules import (
+    MetadataToArgumentsRules)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
 from psyclone.psyGen import Invoke
@@ -225,6 +227,13 @@ class LFRicInvoke(Invoke):
         # Find all arguments whose space we don't know (any space)
         all_args: dict[str, list["LFRicKernelArgument"]] = {}
         for kern in kerns:
+            if MetadataToArgumentsRules.bc_kern_regex.match(kern.name):
+                # TODO #487 - remove this once we have proper support
+                # for boundary-condition kernels.
+                # We do not want to update function spaces on the special
+                # boundary-condition kernel because there are checks that
+                # it has an argument on any_space.
+                continue
             for arg in kern.arguments.args:
                 if not arg.function_space:
                     # Not all arguments are on a function space.
