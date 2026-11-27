@@ -33,9 +33,9 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, ACCLoopDirective)
+    Literal, ACCLoopDirective, Statement)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, ACCLoopTrans, ACCUpdateTrans,
+    ACCKernelsTrans, ACCUpdateTrans,
     TransformationError, ProfileTrans, ACCLoopTrans)
 from psyclone.transformations import ACCEnterDataTrans, ACCRoutineTrans
 
@@ -74,7 +74,23 @@ PROFILE_NONACC = False
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT
+FILES_TO_SKIP = NOT_PERFORMANT + [
+    # ICE with 26.11
+    "bdyini.f90",
+    # Unknown Variable reference: 781
+    "icedyn_adv_umx.f90",
+    # flowgraph: node is zero, Invalid key for hash: 1581
+    # (Much SoAoS)
+    "diadct.f90",
+    # Lots of string handling
+    "mathelp.f90",
+    # Runtime crash in pt2pt_dp:884
+    "lbclnk.f90",
+    # Launch failed (L1174)
+    "histcom.f90",
+    # Same error for 722 but simple arrays here. Inner loop bounds
+    # depend on outer loop index.
+    "trcdmp.f90"]
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
@@ -87,6 +103,10 @@ ACC_IGNORE = [
     "copy_obfbdata",
     "merge_obfbdata",
     "turb_ncar",  # Transforming hurts performance
+    # Launch failed - derived types again?
+    "histb_all",
+    "histh_all",
+    # IO
     "iom_open",
     "iom_get_123d",
     "iom_nf90_rp0123d",
