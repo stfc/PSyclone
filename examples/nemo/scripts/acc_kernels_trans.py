@@ -27,6 +27,8 @@ the process of attempting to create the largest possible Kernel region.
 
 """
 
+import os
+
 from utils import (add_profiling, inline_calls,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
@@ -67,7 +69,7 @@ PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = False
+PROFILE_NONACC = os.environ.get('ENABLE_PROFILING', False)
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -203,11 +205,9 @@ def valid_acc_kernel(node):
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
             # single-statement IF blocks containing a Loop in KERNELS regions
-            if (
-                "was_where" in enode.annotations
-                or "was_single_stmt" in enode.annotations
-                and enode.walk(Loop)
-            ):
+            if ("was_where" in enode.annotations
+                    or "was_single_stmt" in enode.annotations
+                    and enode.walk(Loop)):
                 continue
 
             arrays = enode.condition.walk(ArrayReference)
@@ -224,9 +224,13 @@ def valid_acc_kernel(node):
             # arrays of rank 2 or greater are dynamically allocated, whereas 1D
             # arrays are often static in NEMO. Hence, we disallow IFs where the
             # logical expression involves the latter.
-            if any(len(array.children) == 1 for array in arrays):
+            #if any(len(array.children) == 1 for array in arrays):
+            if not all(array.symbol.datatype.is_allocatable() or
+                       array.symbol.datatype.is_automatic() for
+                       array in arrays):
                 log_msg(routine_name,
-                        "IF references 1D arrays that may be static", enode)
+                        "IF references arrays that may not be "
+                        "allocatable/automatic", enode)
                 return False
 
         elif isinstance(enode, Loop):
