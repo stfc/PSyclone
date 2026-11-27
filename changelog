@@ -1,3 +1,6 @@
+   30) PR #3695 for #3667. Bug fix for SymbolicMath corrupting structure
+   references.
+ 
    29) #3662 towards #3486. Loop variables are guaranteed writes for the DUC.
 
    28) #3692 update integration tests to use HDF5 2.3 and tidy yaml files.
