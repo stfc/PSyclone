@@ -65,6 +65,8 @@ def test_sympy_reader_constructor():
                                          (".TRUE. .and. .true.", ".true."),
                                          (".TRUE. .AND. .FALSE.",
                                           ".false."),
+                                         ("d%member(LBOUND(d%member))",
+                                          "d%member(LBOUND(d%member))"),
                                          ("b(i) == 3 .and. c(i,i) == 5",
                                           "b(i) == 3 .AND. c(i,i) == 5"),
                                          ])
