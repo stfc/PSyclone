@@ -49,6 +49,20 @@ class StaticInterface(SymbolInterface):
         return "Static"
 
 
+class IntrinsicInterface(SymbolInterface):
+    '''The symbol is an intrinsic routine symbol.'''
+
+    def __str__(self):
+        return "Intrinsic"
+
+
+class ExternalInterface(SymbolInterface):
+    '''The symbol is declared as coming from an external location.'''
+
+    def __str__(self):
+        return "External"
+
+
 class DefaultModuleInterface(SymbolInterface):
     ''' The symbol contains data declared in a module scope without additional
     attributes.
@@ -312,3 +326,12 @@ class PreprocessorInterface(SymbolInterface):
     '''
     def __str__(self):
         return "Preprocessor"
+
+
+class ArgumentIntrinsicInterface(ArgumentInterface, IntrinsicInterface):
+    '''Interface to handle the case where we have an Intrinsic
+    argument.'''
+
+
+class ArgumentExternalInterface(ArgumentInterface, ExternalInterface):
+    '''Interface to handle the case where we have an External argument.'''

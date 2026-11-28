@@ -16,7 +16,8 @@ from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
-    CommonBlockInterface, DefaultModuleInterface, StaticInterface)
+    CommonBlockInterface, DefaultModuleInterface, StaticInterface,
+    IntrinsicInterface, ExternalInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 if TYPE_CHECKING:
     from psyclone.psyir.nodes import Node
@@ -376,6 +377,20 @@ class Symbol(CommentableMixin):
 
         '''
         return isinstance(self._interface, UnresolvedInterface)
+
+    @property
+    def is_external(self) -> bool:
+        '''
+        :returns: whether the Symbol has an ExternalInterface.
+        '''
+        return isinstance(self._interface, ExternalInterface)
+
+    @property
+    def is_intrinsic(self) -> bool:
+        '''
+        :returns: whether the Symbol has an IntrinsicInterface.
+        '''
+        return isinstance(self._interface, IntrinsicInterface)
 
     @property
     def is_unknown_interface(self):

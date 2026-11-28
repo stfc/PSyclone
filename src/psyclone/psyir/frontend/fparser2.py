@@ -39,11 +39,12 @@ from psyclone.psyir.nodes import (
 
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
+    ArgumentInterface, ArgumentIntrinsicInterface, ArgumentExternalInterface,
+    ArrayType, AutomaticInterface, ScalarType,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    NoType, RoutineSymbol, StaticInterface,
-    StructureType, Symbol, SymbolError, UnknownInterface,
+    DefaultModuleInterface, ExternalInterface, GenericInterfaceSymbol,
+    IntrinsicInterface, ImportInterface, NoType, RoutineSymbol,
+    StaticInterface, StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
 
@@ -1979,6 +1980,10 @@ class Fparser2Reader():
         decln_access_spec = None
         # 6) Whether this declaration has the SAVE attribute.
         has_save_attr = False
+        # 7) Whether this declaration has the INTRINSIC attribute.
+        has_intrinsic_attr = False
+        # 8) Whether this declaration has the EXTERNAL attribute.
+        has_external_attr = False
 
         if attr_specs:
             for attr in attr_specs.items:
@@ -1994,6 +1999,10 @@ class Fparser2Reader():
                         has_constant_value = True
                     elif normalized_string == "allocatable":
                         allocatable = True
+                    elif normalized_string == "intrinsic":
+                        has_intrinsic_attr = True
+                    elif normalized_string == "external":
+                        has_external_attr = True
                     else:
                         raise NotImplementedError(
                             f"Could not process {decl.items}. Unrecognised "
@@ -2037,6 +2046,17 @@ class Fparser2Reader():
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
                     f"found:\n {decl}")
+            if has_intrinsic_attr and (has_save_attr or has_constant_value or
+                                       has_external_attr):
+                raise GenerationError(
+                    f"INTRINSIC is not compatible with EXTERNAL, SAVE or "
+                    f"PARAMETER but found:\n {decl}"
+                )
+            if has_external_attr and (has_save_attr or has_constant_value):
+                raise GenerationError(
+                    f"EXTERNAL is not compatible with SAVE or "
+                    f"PARAMETER but found:\n {decl}"
+                )
 
             # Now we've checked for save and parameter existing
             # together, we can allow parameter without save and set it
@@ -2044,6 +2064,15 @@ class Fparser2Reader():
             if has_constant_value and interface is None:
                 # We have a parameter so should set its interface to static.
                 interface = StaticInterface()
+
+            if has_intrinsic_attr and interface is None:
+                # We have an intrinsic so set its interface to Intrinsic.
+                interface = IntrinsicInterface()
+
+            if has_external_attr and interface is None:
+                # We haev an external function, so set its interface to
+                # External.
+                interface = ExternalInterface()
 
             if allocatable and has_constant_value:
                 raise GenerationError(
@@ -2170,21 +2199,31 @@ class Fparser2Reader():
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
-                    if not sym.is_unresolved:
+                    if sym.is_intrinsic:
+                        sym.datatype = datatype
+                        sym.visibility = visibility
+                        this_interface = sym.interface
+                    elif sym.is_external:
+                        sym.datatype = datatype
+                        sym.visibility = visibility
+                        this_interface = sym.interface
+                    elif not sym.is_unresolved:
                         raise SymbolError(
                             f"Symbol '{sym_name}' already present in "
                             f"SymbolTable with a defined interface "
                             f"({sym.interface}).")
-                    # We already had a DataSymbol but we need to update all of
-                    # its properties now we've found a declaration.
-                    tmp_sym = DataSymbol(
-                        sym_name,
-                        datatype=datatype,
-                        visibility=visibility,
-                        interface=this_interface,
-                        is_constant=has_constant_value,
-                        initial_value=init_expr)
-                    sym.copy_properties(tmp_sym)
+                    else:
+                        # We already had a DataSymbol but we need to update
+                        # all of its properties now we've found a
+                        # declaration.
+                        tmp_sym = DataSymbol(
+                            sym_name,
+                            datatype=datatype,
+                            visibility=visibility,
+                            interface=this_interface,
+                            is_constant=has_constant_value,
+                            initial_value=init_expr)
+                        sym.copy_properties(tmp_sym)
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -2207,9 +2246,17 @@ class Fparser2Reader():
                 # symbol is static (endures for the lifetime of the program)
                 # unless it is a pointer initialisation.
                 sym.interface = StaticInterface()
+            elif (isinstance(this_interface, ExternalInterface) and
+                  isinstance(sym, DataSymbol)):
+                # If we manage to create a DataSymbol but will give it an
+                # ExternalInterface, we need it to be a RoutineSymbol
+                # instead.
+                new_sym = RoutineSymbol(sym_name, sym.datatype,
+                                        visibility=visibility,
+                                        interface=this_interface)
+                symbol_table.swap(sym, new_sym)
             else:
                 sym.interface = this_interface
-
         return sym
 
     def _process_derived_type_decln(
@@ -2460,7 +2507,7 @@ class Fparser2Reader():
             visibilities.
 
         :returns: a 2-tuple containing a PSyIR datatype, or datatype symbol,
-            containing partial datatype information for the declaration
+            )containing partial datatype information for the declaration
             statement and the PSyIR for any initialisation expression.
             When it is not possible to extract partial datatype information
             then (None, None) is returned.
@@ -2815,11 +2862,62 @@ class Fparser2Reader():
                                               preceding_comments)
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
-                                   Fortran2003.Procedure_Declaration_Stmt)):
+                                   Fortran2003.Procedure_Declaration_Stmt
+                                   )):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
 
+            elif isinstance(node, Fortran2003.Intrinsic_Stmt):
+                for name in node.items[1].items:
+                    try:
+                        sym = parent.symbol_table.lookup(str(name))
+                        sym.interface = IntrinsicInterface()
+                    except KeyError:
+                        visibility = visibility_map.get(
+                            str(name), None)
+                        # Use a dict for a visibility arg so we don't need
+                        # an if branch.
+                        kwargs = ({} if visibility is None
+                                  else {"visibility": visibility})
+                        parent.symbol_table.new_symbol(
+                            root_name=str(name),
+                            symbol_type=DataSymbol,
+                            datatype=UnsupportedFortranType(
+                                f"intrinsic :: {str(name)}"
+                            ),
+                            interface=IntrinsicInterface(),
+                            **kwargs
+                        )
+            elif isinstance(node, Fortran2003.External_Stmt):
+                for name in node.items[1].items:
+                    try:
+                        sym = parent.symbol_table.lookup(str(name))
+                        if not isinstance(sym, RoutineSymbol):
+                            new_sym = RoutineSymbol(
+                                name=str(name),
+                                datatype=sym.datatype,
+                                interface=ExternalInterface(),
+                                visibility=sym.visibility
+                            )
+                            parent.symbol_table.swap(sym, new_sym)
+                        sym.interface = ExternalInterface()
+                    except KeyError:
+                        visibility = visibility_map.get(
+                            str(name), None)
+                        # Use a dict for a visibility arg so we don't need
+                        # an if branch.
+                        kwargs = ({} if visibility is None
+                                  else {"visibility": visibility})
+                        parent.symbol_table.new_symbol(
+                            root_name=str(name),
+                            symbol_type=RoutineSymbol,
+                            datatype=UnsupportedFortranType(
+                                f"external :: {str(name)}"
+                            ),
+                            interface=ExternalInterface(),
+                            **kwargs
+                        )
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
                                    Fortran2003.Data_Stmt,
@@ -2887,7 +2985,13 @@ class Fparser2Reader():
                     # only (and is declared as such in the caller) causes
                     # gfortran to complain. We therefore specify that the
                     # access is unknown at this stage.
-                    symbol.interface = ArgumentInterface(
+                    arg_interface = ArgumentInterface
+                    if isinstance(symbol.interface, IntrinsicInterface):
+                        arg_interface = ArgumentIntrinsicInterface
+                    if isinstance(symbol.interface,
+                                  ExternalInterface):
+                        arg_interface = ArgumentExternalInterface
+                    symbol.interface = arg_interface(
                         ArgumentInterface.Access.UNKNOWN)
                 arg_symbols.append(symbol)
             # Now that we've updated the Symbols themselves, set the

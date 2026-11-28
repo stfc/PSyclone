@@ -20,7 +20,8 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
-    DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
+    ArgumentInterface, DataSymbol, ExternalInterface, IntrinsicInterface,
+    NoType, RoutineSymbol, ScalarType, Symbol, UnresolvedType,
     UnsupportedFortranType)
 
 IN_OUTS = []
@@ -739,3 +740,190 @@ END MODULE test_mod"""
     if "subsub" in psyir.children[0].symbol_table:
         pytest.xfail("TODO #2205: When support for Routines inside Routines"
                      " is added, the symbol will not be propagated")
+
+
+def test_subroutine_contains_intrinsic_decalaration(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    intrinsic symbols.'''
+    code = """subroutine x
+    intrinsic :: sin, cos
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sin").datatype,
+                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("cos").datatype,
+                      UnsupportedFortranType)
+
+
+def test_subroutine_contains_intrinsic_attribute(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    intrinsic attributes.'''
+    code = """subroutine x
+    integer, intrinsic :: sum
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sum").datatype,
+                      ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface,
+                      IntrinsicInterface)
+
+
+def test_subroutine_contains_intrinsic_argument(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    intrinsic attributes on an argument.'''
+    code = """subroutine x(sum)
+    integer, intrinsic :: sum
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface,
+                      ArgumentInterface)
+    assert isinstance(symtab.lookup("sum").interface,
+                      IntrinsicInterface)
+
+
+def test_subroutine_contains_intrinsic_and_type_decl(fortran_reader):
+    '''Test that we get the correct tree when the code declares intrinsic and
+    datatype separately for a declaration.'''
+    code = """subroutine x()
+    real :: cos
+    intrinsic :: sum, cos
+    integer :: sum
+    real :: sin
+    intrinsic :: sin
+
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("cos").datatype, ScalarType)
+    assert (symtab.lookup("cos").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("cos").interface, IntrinsicInterface)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface, IntrinsicInterface)
+    assert isinstance(symtab.lookup("sin").datatype, ScalarType)
+    assert (symtab.lookup("sin").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("sin").interface, IntrinsicInterface)
+
+
+def test_subroutine_with_intrinsic_and_visibility(fortran_reader):
+    '''Test that we get the correct tree when the code declares intrinsic
+    and a visibility exclusive to that external symbol.'''
+    code = """  module visibility_example
+    implicit none
+    private
+    public :: foo
+    intrinsic foo
+  end module
+  """
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    assert symtab.lookup("foo").visibility == Symbol.Visibility.PUBLIC
+
+
+def test_subroutine_contains_external_declaration(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    external symbols.'''
+    code = """subroutine y
+    external :: AMPI_INIT_NT, MPI_INIT
+end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("ampi_init_nt"), RoutineSymbol)
+    assert isinstance(symtab.lookup("ampi_init_nt").datatype,
+                      UnsupportedFortranType)
+    assert isinstance(symtab.lookup("mpi_init"), RoutineSymbol)
+    assert isinstance(symtab.lookup("mpi_init").datatype,
+                      UnsupportedFortranType)
+
+
+def test_subroutine_contains_external_attribute(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    external attributes.'''
+    code = """subroutine x
+    integer, external :: sum
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface,
+                      ExternalInterface)
+
+
+def test_subroutine_contains_external_argument(fortran_reader):
+    '''Test that we get the correct processed nodes when the code contains
+    external attributes on an argument.'''
+    code = """subroutine x(sum)
+    integer, external :: sum
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface,
+                      ArgumentInterface)
+    assert isinstance(symtab.lookup("sum").interface,
+                      ExternalInterface)
+
+
+def test_subroutine_contains_external_and_type_decl(fortran_reader):
+    '''Test that we get the correct tree when the code declares external and
+    datatype separately for a declaration.'''
+    code = """subroutine x()
+    real :: cos
+    external :: sum, cos
+    integer :: sum
+    real :: sin
+    external :: sin
+
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(CodeBlock)) == 0
+    symtab = psyir.children[0].symbol_table
+    assert isinstance(symtab.lookup("cos").datatype, ScalarType)
+    assert (symtab.lookup("cos").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("cos").interface, ExternalInterface)
+    assert isinstance(symtab.lookup("sum").datatype, ScalarType)
+    assert (symtab.lookup("sum").datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert isinstance(symtab.lookup("sum").interface, ExternalInterface)
+    assert isinstance(symtab.lookup("sin").datatype, ScalarType)
+    assert (symtab.lookup("sin").datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert isinstance(symtab.lookup("sin").interface, ExternalInterface)
+
+
+def test_subroutine_with_external_and_visibility(fortran_reader):
+    '''Test that we get the correct tree when the code declares external
+    and a visibility exclusive to that external symbol.'''
+    code = """  module visibility_example
+    implicit none
+    private
+    public :: foo
+    external foo
+  end module
+  """
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    assert symtab.lookup("foo").visibility == Symbol.Visibility.PUBLIC

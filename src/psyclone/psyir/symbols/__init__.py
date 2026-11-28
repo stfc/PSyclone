@@ -13,9 +13,11 @@ from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.generic_interface_symbol import (
     GenericInterfaceSymbol)
 from psyclone.psyir.symbols.interfaces import (
-     ArgumentInterface, AutomaticInterface, CommonBlockInterface,
-     DefaultModuleInterface, ImportInterface, PreprocessorInterface,
-     StaticInterface, UnknownInterface, UnresolvedInterface)
+     ArgumentInterface, ArgumentIntrinsicInterface, ArgumentExternalInterface,
+     AutomaticInterface, CommonBlockInterface,
+     DefaultModuleInterface, ExternalInterface, IntrinsicInterface,
+     ImportInterface, PreprocessorInterface, StaticInterface,
+     UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
@@ -35,7 +37,9 @@ __all__ = ['ArgumentInterface',
            'DataType',
            'DataTypeSymbol',
            'DefaultModuleInterface',
+           'ExternalInterface',
            'GenericInterfaceSymbol',
+           'IntrinsicInterface',
            'ImportInterface',
            'IntrinsicSymbol',
            'NoType',
