@@ -9,7 +9,6 @@
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
-from typing import Union
 import re
 
 from fparser.common.readfortran import Comment, FortranStringReader
@@ -19,7 +18,7 @@ from psyclone.errors import InternalError
 
 
 def find_break_point(line: str, max_index: int,
-                     key_list: list[Union[str, re.Pattern]]) -> int:
+                     key_list: list[str | re.Pattern]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 

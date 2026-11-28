@@ -7,7 +7,7 @@
 """This module contains the DefinitionUseChain class"""
 
 import sys
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 from psyclone.core import Signature
 from psyclone.errors import InternalError
@@ -52,10 +52,10 @@ class DefinitionUseChain:
 
     def __init__(
         self,
-        references: Union[list[Reference], Reference],
+        references: list[Reference] | Reference,
         control_flow_region: Iterable[Node] = (),
-        start_point: Optional[int] = None,
-        stop_point: Optional[int] = None,
+        start_point: int | None = None,
+        stop_point: int | None = None,
     ):
         if isinstance(references, Reference):
             references = [references]

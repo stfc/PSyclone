@@ -9,7 +9,6 @@
     dependency analysis.'''
 
 from enum import IntEnum
-from typing import Optional
 import sympy
 
 from psyclone.configuration import Config
@@ -810,7 +809,7 @@ class DependencyTools():
             self,
             loop: Loop,
             test_all_variables: bool = False,
-            signatures_to_ignore: Optional[list[Signature]] = None
+            signatures_to_ignore: list[Signature] | None = None
     ) -> bool:
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if

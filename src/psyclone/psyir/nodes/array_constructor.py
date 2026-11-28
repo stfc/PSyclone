@@ -8,7 +8,7 @@
 ''' This module contains the ArrayConstructor node implementation.'''
 
 from __future__ import annotations
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from psyclone.psyir.symbols import (
     UnresolvedType, DataType, ScalarType, ArrayType, DataTypeSymbol)
 from psyclone.psyir.nodes.datanode import DataNode
@@ -56,7 +56,7 @@ class ArrayConstructor(DataNode):
         return isinstance(child, DataNode)
 
     @property
-    def datatype(self) -> Union[DataType, DataTypeSymbol]:
+    def datatype(self) -> DataType | DataTypeSymbol:
         '''
         :returns: the type of this array constructor.
         '''

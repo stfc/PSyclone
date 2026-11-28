@@ -10,7 +10,7 @@
 '''
 
 import keyword
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
@@ -190,9 +190,9 @@ class SymPyWriter(FortranWriter):
     def _create_sympy_array_function(
             self,
             name: str,
-            sig: Optional[Signature] = None,
-            num_dims: Optional[list[int]] = None,
-            is_call: Optional[bool] = False) -> sympy.Function:
+            sig: Signature | None = None,
+            num_dims: list[int] | None = None,
+            is_call: bool | None = False) -> sympy.Function:
         '''Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
@@ -279,8 +279,8 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: Iterable[Node],
-                         identical_variables: Optional[dict[str, str]] = None,
-                         all_variables_positive: Optional[bool] = None):
+                         identical_variables: dict[str, str] | None = None,
+                         all_variables_positive: bool | None = None):
         '''This function creates a dictionary mapping each access in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -450,8 +450,8 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def type_map(self) -> dict[str, Union[sympy.core.symbol.Symbol,
-                                          sympy.core.function.Function]]:
+    def type_map(self) -> dict[str, sympy.core.symbol.Symbol |
+                               sympy.core.function.Function]:
         ''':returns: the mapping of names to SymPy symbols or functions.
 
         '''
@@ -460,10 +460,9 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def _to_str(
         self,
-        list_of_expressions: Union[Node, Iterable[Node]],
-        identical_variables: Optional[dict[str, str]] = None,
-        all_variables_positive: Optional[bool] = False) -> Union[str,
-                                                                 list[str]]:
+        list_of_expressions: Node | Iterable[Node],
+        identical_variables: dict[str, str] | None = None,
+            all_variables_positive: bool | None = False) -> str | list[str]:
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
@@ -508,11 +507,10 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def __call__(
         self,
-        list_of_expressions: Union[Node, list[Node]],
-        identical_variables: Optional[dict[str, str]] = None,
-        all_variables_positive: Optional[bool] = False) \
-            -> Union[sympy.core.basic.Basic,
-                     list[sympy.core.basic.Basic]]:
+        list_of_expressions: Node | list[Node],
+        identical_variables: dict[str, str] | None = None,
+        all_variables_positive: bool | None = False) \
+            -> sympy.core.basic.Basic | list[sympy.core.basic.Basic]:
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -604,9 +602,8 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def arrayofstructuresreference_node(
         self,
-        node: Union[ArrayOfStructuresReference,
-                    ArrayReference,
-                    StructureReference]) -> str:
+        node: ArrayOfStructuresReference | ArrayReference |
+            StructureReference) -> str:
         '''
         This handles ArrayOfStructureReferences (and also simple
         StructureReferences).
@@ -833,7 +830,7 @@ class SymPyWriter(FortranWriter):
     # ------------------------------------------------------------------------
     def gen_indices(self,
                     indices: Iterable[Node],
-                    var_name: Optional[str] = None):
+                    var_name: str | None = None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note

@@ -8,8 +8,6 @@
 ''' This module contains the implementation functions that computes the
 promotion of precisions or datatypes for Fortran operations.'''
 
-from typing import Union
-
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols.datatypes import (
@@ -18,8 +16,8 @@ from psyclone.psyir.symbols.datatypes import (
 
 
 def compute_precision(
-        precisions: list[Union[int, ScalarType.Precision, Reference]]
-) -> Union[int, ScalarType.Precision, Reference]:
+        precisions: list[int | ScalarType.Precision | Reference]
+) -> int | ScalarType.Precision | Reference:
     '''
     Compares the input precisions to determine the precision of the result
     of a numerical operation involving them.

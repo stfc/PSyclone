@@ -8,7 +8,7 @@
 ''' This module contains the Routine node implementation.'''
 
 from __future__ import annotations
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -51,8 +51,8 @@ class Routine(Schedule, CommentableMixin):
     _text_name = "Routine"
 
     def __init__(self, symbol: RoutineSymbol,
-                 is_program: Optional[bool] = False,
-                 is_recursive: Optional[bool] = None,
+                 is_program: bool | None = False,
+                 is_recursive: bool | None = None,
                  **kwargs):
         if not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine argument 'symbol' must be present and "
@@ -102,12 +102,12 @@ class Routine(Schedule, CommentableMixin):
     @classmethod
     def create(cls,
                name: str,
-               symbol_table: Optional[SymbolTable] = None,
-               children: Optional[list[Node]] = None,
+               symbol_table: SymbolTable | None = None,
+               children: list[Node] | None = None,
                is_program: bool = False,
-               return_symbol_name: Optional[str] = None,
-               parent: Optional[Node] = None,
-               is_recursive: Optional[bool] = None) -> Routine:
+               return_symbol_name: str | None = None,
+               parent: Node | None = None,
+               is_recursive: bool | None = None) -> Routine:
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -179,7 +179,7 @@ class Routine(Schedule, CommentableMixin):
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     def check_outer_scope_accesses(self,
-                                   call: Union["CodedKern", "Call"],
+                                   call: "CodedKern" | "Call",
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
                                    ignore_non_data_accesses: bool = False):
@@ -493,7 +493,7 @@ class Routine(Schedule, CommentableMixin):
         return self._is_program
 
     @property
-    def is_recursive(self) -> Optional[bool]:
+    def is_recursive(self) -> bool | None:
         '''
         :returns: whether this Routine is recursive, or None if this is
             unknown.
@@ -501,7 +501,7 @@ class Routine(Schedule, CommentableMixin):
         return self._is_recursive
 
     @is_recursive.setter
-    def is_recursive(self, value: Optional[bool]):
+    def is_recursive(self, value: bool | None):
         '''
         :param value: whether this Routine is recursive, or None if this is
             unknown.
@@ -515,7 +515,7 @@ class Routine(Schedule, CommentableMixin):
         self._is_recursive = value
 
     @property
-    def bind_c(self) -> Optional[str]:
+    def bind_c(self) -> str | None:
         '''
         :returns: None if this Routine has no C binding, otherwise its binding
             label: the expression given to NAME= in a Fortran
@@ -525,7 +525,7 @@ class Routine(Schedule, CommentableMixin):
         return self._bind_c
 
     @bind_c.setter
-    def bind_c(self, value: Optional[str]):
+    def bind_c(self, value: str | None):
         '''
         :param value: None if this Routine has no C binding, otherwise its
             binding label (an empty string if it has none).

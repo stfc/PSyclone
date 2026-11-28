@@ -9,7 +9,7 @@
 
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
@@ -31,7 +31,7 @@ class AccessInfo():
     '''
     def __init__(
         self, access_type: AccessType,
-        node: Union['Node', Symbol]
+        node: 'Node' | Symbol
     ) -> None:
 
         self._access_type = access_type
@@ -107,7 +107,7 @@ class AccessInfo():
         return self._access_type not in AccessType.non_data_accesses()
 
     @property
-    def node(self) -> Union[Node, Symbol]:
+    def node(self) -> Node | Symbol:
         ''':returns: the PSyIR node at which this access happens.
         '''
         return self._node
@@ -288,7 +288,7 @@ class AccessSequence(list):
         for access_info in access_seq:
             self.add_access(access_info.access_type, access_info.node)
 
-    def has_indices(self, index_variable: Optional[str] = None) -> bool:
+    def has_indices(self, index_variable: str | None = None) -> bool:
         ''' Checks whether this variable accesses has any index. If the
         optional `index_variable` is provided, only indices involving the given
         variable are considered.

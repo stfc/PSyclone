@@ -9,8 +9,6 @@
 
 import re
 
-from typing import Union
-
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.symbol import Symbol
@@ -184,7 +182,7 @@ class Literal(DataNode):
         super().replace_symbols_using(table_or_symbol)
 
     @property
-    def value_as_python(self) -> Union[str, bool, int, float]:
+    def value_as_python(self) -> str | bool | int | float:
         '''
         .. warning::
             value_as_python doesn't attempt to preserve the precision

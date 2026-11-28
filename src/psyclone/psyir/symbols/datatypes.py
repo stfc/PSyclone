@@ -14,7 +14,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -75,7 +75,7 @@ class DataType(metaclass=abc.ABCMeta):
         return set()
 
     @property
-    def is_allocatable(self) -> Optional[bool]:
+    def is_allocatable(self) -> bool | None:
         '''
         :returns: whether this DataType is allocatable. In the base class
             set this to be always False.'''
@@ -90,7 +90,7 @@ class UnresolvedType(DataType):
         return "UnresolvedType"
 
     @property
-    def is_allocatable(self) -> Optional[bool]:
+    def is_allocatable(self) -> bool | None:
         '''
         :returns: whether this DataType is allocatable. In case of an
             UnresolvedType we don't know.'''
@@ -325,7 +325,7 @@ class UnsupportedFortranType(UnsupportedType):
         return symbols
 
     @property
-    def is_allocatable(self) -> Optional[bool]:
+    def is_allocatable(self) -> bool | None:
         '''If we have enough information in the partial_datatype,
         determines whether this data type is allocatable or not.
         If it is unknown, it will return None. Note that atm PSyclone
@@ -410,9 +410,9 @@ class ScalarType(DataType):
     def __init__(
             self,
             intrinsic: ScalarType.Intrinsic,
-            precision: Union[int, ScalarType.Precision, "DataNode"],
-            length: Optional[
-                Union[int, ScalarType.CharLengthParam, "DataNode"]] = None
+            precision: int | ScalarType.Precision | "DataNode",
+            length: int | ScalarType.CharLengthParam | "DataNode" | None =
+            None
     ):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
@@ -467,7 +467,7 @@ class ScalarType(DataType):
         return self._length
 
     @length.setter
-    def length(self, value: Union[int, "DataNode", None]):
+    def length(self, value: int | "DataNode" | None):
         '''
         Setter for the length of a character string. If the new value
         is supplied as an int then this is converted into a Literal.
@@ -592,7 +592,7 @@ class ScalarType(DataType):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: SymbolTable | Symbol) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -817,8 +817,8 @@ class ArrayType(DataType):
             from psyclone.psyir.nodes import Assignment, DataNode
 
             def _dangling_parent(
-                    node: Union[DataNode, ArrayType.Extent]
-            ) -> Union[DataNode, ArrayType.Extent]:
+                    node: DataNode | ArrayType.Extent
+            ) -> DataNode | ArrayType.Extent:
                 ''' Helper routine that copies and adds a dangling parent
                 Assignment to a given node, this implicitly guarantees that the
                 node is not attached anywhere else (and is unexpectedly
@@ -869,7 +869,7 @@ class ArrayType(DataType):
 
     def __init__(
         self,
-        elemental_type: Union[DataType, DataTypeSymbol],
+        elemental_type: DataType | DataTypeSymbol,
         shape
     ):
 
@@ -928,16 +928,16 @@ class ArrayType(DataType):
         self._elemental_type = elemental_type
 
     @property
-    def elemental_type(self) -> Union[DataType, DataTypeSymbol]:
+    def elemental_type(self) -> DataType | DataTypeSymbol:
         '''
         :returns: the datatype of each element in the array.
         '''
         return self._elemental_type
 
     @property
-    def intrinsic(self) -> Union[
-        DataType, DataTypeSymbol, ScalarType.Intrinsic
-    ]:
+    def intrinsic(
+        self
+    ) -> DataType | DataTypeSymbol | ScalarType.Intrinsic:
         '''
         :returns: the intrinsic type of each element in the array.
         '''
@@ -947,7 +947,7 @@ class ArrayType(DataType):
         return self._elemental_type.intrinsic
 
     @property
-    def precision(self) -> Union[None, ScalarType.Precision, int, DataSymbol]:
+    def precision(self) -> None | ScalarType.Precision | int | DataSymbol:
         '''
         :returns: the precision of each element in the array.
         '''
@@ -1294,9 +1294,9 @@ class StructureType(DataType):
             redirection value if it is a procedure.
         '''
         name: str
-        datatype: Union[DataType, DataTypeSymbol]
+        datatype: DataType | DataTypeSymbol
         visibility: Symbol.Visibility
-        initial_value: Optional[DataNode] = None
+        initial_value: DataNode | None = None
         _preceding_comment: str = ""
         _inline_comment: str = ""
 
@@ -1391,9 +1391,8 @@ class StructureType(DataType):
     @staticmethod
     def create(
         components: list[StructureType.ComponentType],
-        procedure_components: Optional[
-            list[StructureType.ComponentType]] = None,
-        extends: Optional[DataTypeSymbol] = None
+        procedure_components: list[StructureType.ComponentType] | None = None,
+        extends: DataTypeSymbol | None = None
     ) -> 'StructureType':
         '''
         Creates a StructureType from the supplied lists of components.
@@ -1431,7 +1430,7 @@ class StructureType(DataType):
         return self._procedure_components
 
     @property
-    def extends(self) -> Optional[Symbol]:
+    def extends(self) -> Symbol | None:
         '''
         :returns: the type extended by this type, or None.
         '''
@@ -1548,7 +1547,7 @@ class StructureType(DataType):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[SymbolTable, Symbol]
+        table_or_symbol: SymbolTable | Symbol
     ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the

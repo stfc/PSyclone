@@ -7,8 +7,6 @@
 
 '''Contains the OMPMinimiseSyncTrans.'''
 
-from typing import Union
-
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Directive,
@@ -186,7 +184,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                 barrier.detach()
 
     def _find_dependencies(self, directives: list[Directive]) \
-            -> list[Union[Node, bool]]:
+            -> list[Node | bool]:
         '''
         Finds the next dependencies for each of the directives provided.
 

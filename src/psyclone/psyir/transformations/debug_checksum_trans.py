@@ -7,8 +7,6 @@
 
 '''This module contains the DebugChecksumTrans class.'''
 
-from typing import Union, List
-
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
@@ -80,7 +78,7 @@ PSYCLONE_INTERNAL_line_ + 1
 
     '''
 
-    def apply(self, node: Union[Node, List[Node]],
+    def apply(self, node: Node | list[Node],
               **kwargs) -> None:
         '''
         Applies the checksum transformation to the provided node(s).

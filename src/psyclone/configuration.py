@@ -20,7 +20,6 @@ import logging
 import os
 import re
 import sys
-from typing import Optional, Union
 
 import psyclone
 from psyclone.errors import PSycloneError, InternalError
@@ -205,8 +204,8 @@ class Config:
 
     # -------------------------------------------------------------------------
     def load(self,
-             config_file: Optional[str] = None,
-             overwrite: Optional[str] = None) -> None:
+             config_file: str | None = None,
+             overwrite: str | None = None) -> None:
         '''Loads a configuration file. The optional 'overwrite' parameter
         is a space-separated string of key=value pairs which will overwrite
         values in the config files (e.g.
@@ -391,7 +390,7 @@ class Config:
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 
-    def api_conf(self, api: str = "") -> Union[LFRicConfig, GOceanConfig]:
+    def api_conf(self, api: str = "") -> LFRicConfig | GOceanConfig:
         '''
         Getter for the object holding API-specific configuration options.
 

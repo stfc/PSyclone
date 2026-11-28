@@ -9,7 +9,7 @@
 transformation.
 '''
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode, Node
@@ -28,7 +28,7 @@ class LFRicExtractTrans(ExtractTrans):
         super().__init__(ExtractNode)
 
     def validate(self, node_list: list[Node],
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         ''' Perform LFRic API specific validation checks before applying
         the transformation.
@@ -58,8 +58,8 @@ class LFRicExtractTrans(ExtractTrans):
                     f"over colours is not allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
               create_driver: bool = False, **kwargs: Any) -> None:
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a

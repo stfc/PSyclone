@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Union
 
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import DataType, UnresolvedType
@@ -131,7 +130,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
             self._routines.append(self.RoutineInfo(item[0], item[1]))
 
     @property
-    def is_pure(self) -> Union[bool, None]:
+    def is_pure(self) -> bool | None:
         '''
         :returns: whether the routine represented by this Symbol has no side
             effects (guarantees that the routine always returns the same
@@ -152,7 +151,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
 
     @property
-    def is_elemental(self) -> Union[bool, None]:
+    def is_elemental(self) -> bool | None:
         '''
         :returns: whether the routine represented by this Symbol is elemental
             (acts element-by-element on supplied array arguments) or None if
@@ -221,7 +220,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         return copy
 
     @property
-    def datatype(self) -> Union[DataType, DataTypeSymbol]:
+    def datatype(self) -> DataType | DataTypeSymbol:
         '''
         :returns: the datatype of this symbol if it can be determined.
         '''

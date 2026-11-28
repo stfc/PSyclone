@@ -8,7 +8,7 @@
 """Module providing a transformation that replace PsyIR Node representing a
 static, constant value with a Literal Node when possible. """
 
-from typing import Union, Any, Optional, Dict, List
+from typing import Any
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
@@ -108,13 +108,13 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol
         # from symbol_table (based on symbol name as a string).
-        self._param_table: Dict[str, Literal] = {}
+        self._param_table: dict[str, Literal] = {}
 
     def _update_param_table(
         self,
-        param_table: Dict[str, Literal],
+        param_table: dict[str, Literal],
         symbol_table: SymbolTable,
-    ) -> Dict[str, Literal]:
+    ) -> dict[str, Literal]:
         """This methods takes a param_table as entry, updates this dictionary
         and then returns the same dictionary updated.
 
@@ -172,9 +172,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     def _replace_bounds(
         self,
-        current_shape: List[Union[Literal, Reference]],
-        param_table: Dict[str, Literal],
-    ) -> List[Union[Literal, Reference]]:
+        current_shape: list[Literal | Reference],
+        param_table: dict[str, Literal],
+    ) -> list[Literal | Reference]:
         """From the param_table and the current_shape of an array,
         this method create a new_shape with the reference replaced by literal
         when they are found in the param_table.
@@ -207,7 +207,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         return new_shape
 
     # ------------------------------------------------------------------------
-    def apply(self, node: Routine, options: Optional[Dict[str, Any]] = None,
+    def apply(self, node: Routine, options: dict[str, Any] | None = None,
               **kwargs):
         """Applies the transformation to a Routine node:
         * First update a dictionary (param_table) with the Literal of constant
@@ -251,7 +251,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
             sym: DataSymbol
             if sym.is_array:
                 if not isinstance(sym.datatype, UnsupportedFortranType):
-                    new_shape: List[Union[Literal, Reference]] = (
+                    new_shape: list[Literal | Reference] = (
                         self._replace_bounds(sym.shape, self._param_table)
                     )
                     sym.datatype = ArrayType(sym.datatype.elemental_type,

@@ -9,7 +9,7 @@
 nodes.'''
 
 import abc
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Set
 
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
@@ -92,10 +92,9 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         return isinstance(child, Clause)
 
     @property
-    def signatures(self) -> Union[
-                                Tuple[Set[Signature]],
-                                Tuple[Set[Signature], Set[Signature]]
-                            ]:
+    def signatures(
+        self
+    ) -> tuple[Set[Signature]] | tuple[Set[Signature], Set[Signature]]:
         '''
         Returns a 1-tuple or a 2-tuple of sets depending on the working API.
         If a 1-tuple, the set includes both input and output signatures
@@ -218,9 +217,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
     '''
     def __init__(
                 self,
-                children: List[Node] = None,
+                children: list[Node] = None,
                 parent: Node = None,
-                async_queue: Union[bool, int, DataNode] = False
+                async_queue: bool | int | DataNode = False
             ):
         super().__init__(children=children, parent=parent)
 
@@ -310,7 +309,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     def __init__(
                 self,
-                async_queue: Union[bool, int, DataNode] = False,
+                async_queue: bool | int | DataNode = False,
                 default_present: bool = True,
                 **kwargs
             ):
@@ -385,7 +384,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
         self._default_present = value
 
     @property
-    def fields(self) -> List[str]:
+    def fields(self) -> list[str]:
         '''
         Returns a list of the names of field objects required by the Kernel
         call(s) that are children of this directive.
@@ -426,7 +425,7 @@ class ACCLoopDirective(ACCRegionDirective):
                 sequential: bool = False,
                 gang: bool = False,
                 vector: bool = False,
-                **kwargs: Dict
+                **kwargs: dict
             ):
         self.collapse = collapse
         self._independent = independent
@@ -470,7 +469,7 @@ class ACCLoopDirective(ACCRegionDirective):
             )
 
     @property
-    def collapse(self) -> Union[int, None]:
+    def collapse(self) -> int | None:
         '''
         :returns: the number of nested loops to collapse into a single \
                   iteration space for this node.
@@ -479,7 +478,7 @@ class ACCLoopDirective(ACCRegionDirective):
         return self._collapse
 
     @collapse.setter
-    def collapse(self, value: Optional[int]):
+    def collapse(self, value: int | None):
         '''
         :param value: optional number of nested loop to collapse into a \
             single iteration space to parallelise. Defaults to None.
@@ -637,10 +636,10 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
 
     def __init__(
                 self,
-                children: List[Node] = None,
+                children: list[Node] = None,
                 parent: Node = None,
                 default_present: bool = True,
-                async_queue: Union[bool, int, DataNode] = False
+                async_queue: bool | int | DataNode = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
@@ -819,10 +818,10 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 self,
                 signatures: Signature,
                 direction: str,
-                children: List[Node] = None,
+                children: list[Node] = None,
                 parent: Node = None,
-                if_present: Optional[bool] = True,
-                async_queue: Union[bool, int, DataNode] = False
+                if_present: bool | None = True,
+                async_queue: bool | int | DataNode = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
@@ -965,7 +964,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
     :param wait_queue: Which ACC async stream to wait. None to wait all.
 
     '''
-    def __init__(self, wait_queue: Union[Reference, int, None] = None):
+    def __init__(self, wait_queue: Reference | int | None = None):
         # call parent
         super().__init__()
         self.wait_queue = wait_queue
@@ -982,7 +981,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         return is_eq
 
     @property
-    def wait_queue(self) -> Union[int, Reference, None]:
+    def wait_queue(self) -> int | Reference | None:
         '''
         :returns: The queue to wait on.
 
@@ -990,7 +989,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         return self._wait_queue
 
     @wait_queue.setter
-    def wait_queue(self, wait_queue: Union[int, Reference, None]):
+    def wait_queue(self, wait_queue: int | Reference | None):
         '''
         Setter to assign a specific wait queue to wait for.
 

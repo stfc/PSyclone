@@ -8,7 +8,6 @@
 
 
 import abc
-from typing import List, Union
 
 from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.psyir.nodes import (
@@ -34,9 +33,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # the user asked asynchronicity to be added to a transformation that
         # doesn't support it.
 
-    def _find_next_dependency(self, nodes: Union[Loop, List[Node]],
-                              directive: Directive) -> Union[List[Statement],
-                                                             bool]:
+    def _find_next_dependency(self, nodes: Loop | list[Node],
+                              directive: Directive
+                              ) -> list[Statement] | bool:
         '''
         Finds the statement with the closest following dependency of any symbol
         in the supplied nodes. It can be multiple locations due to branching,

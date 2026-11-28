@@ -10,7 +10,6 @@ metadata associated with a generic LFRic argument. Supports the
 creation, modification and Fortran output of such an argument.
 
 '''
-from typing import Optional, Union
 from fparser.two import Fortran2003
 from fparser.two import utils as fp_utils
 
@@ -39,9 +38,9 @@ class CommonArgMetadata(CommonMetadata):
                 f"'{type(value).__name__}'.")
 
     @staticmethod
-    def check_nargs(fparser2_tree: Union[Fortran2003.Part_Ref,
-                                         Fortran2003.Structure_Constructor],
-                    nargs: Union[int, tuple[int, int]]) -> None:
+    def check_nargs(fparser2_tree: Fortran2003.Part_Ref |
+                    Fortran2003.Structure_Constructor,
+                    nargs: int | tuple[int, int]) -> None:
         '''Checks that the metadata has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
 
@@ -126,7 +125,7 @@ class CommonArgMetadata(CommonMetadata):
     @staticmethod
     def get_named_arg(fparser2_tree: fp_utils.Base,
                       name: str
-                      ) -> Optional[str]:
+                      ) -> str | None:
         '''
         Searches the supplied metadata for 'name=value' expressions and
         returns the value corresponding to the supplied name if found.

@@ -8,8 +8,6 @@
 ''' This module contains the implementation of the OpenMP Critical
 transformation.'''
 
-from typing import Union, List
-
 from psyclone.psyir.nodes import (Node, OMPDirective,
                                   OMPCriticalDirective, Schedule)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -30,7 +28,7 @@ class OMPCriticalTrans(RegionTrans):
     excluded_node_types = (OMPDirective,)
 
     def apply(self,
-              nodes: Union[Node, Schedule, List[Node]],
+              nodes: Node | Schedule | list[Node],
               **kwargs) -> None:
         '''
         Surrounds the provided nodes in a OMPCriticalDirective.

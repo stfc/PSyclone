@@ -7,8 +7,6 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from typing import Union, Optional
-
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
@@ -250,7 +248,7 @@ class Loop(Statement):
         return self._children[0]
 
     @property
-    def variable(self) -> Optional[DataSymbol]:
+    def variable(self) -> DataSymbol | None:
         '''
         :returns: the control variable for this loop.
         '''
@@ -384,7 +382,7 @@ class Loop(Statement):
 
     def replace_symbols_using(
         self,
-        table_or_symbol: Union[SymbolTable, Symbol]
+        table_or_symbol: SymbolTable | Symbol
     ):
         '''
         Replace the Symbol referred to by this object's `variable` with those

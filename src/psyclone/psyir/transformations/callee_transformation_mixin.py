@@ -10,8 +10,6 @@ This module provides the CalleeTransformationMixin class.
 
 """
 
-from typing import Union
-
 from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.container import Container
@@ -30,7 +28,7 @@ class CalleeTransformationMixin:
     """
     def _check_callee_implementation_is_local(
             self,
-            node: Union[Call, CodedKern]) -> None:
+            node: Call | CodedKern) -> None:
         """
         Check that the target of the supplied Kernel or Call node has been
         module inlined.

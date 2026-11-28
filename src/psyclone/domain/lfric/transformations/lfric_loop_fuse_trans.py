@@ -8,7 +8,7 @@
 '''This module provides the LFRic-specific loop fusion transformation.
 '''
 
-from typing import Iterable, Union
+from typing import Iterable
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicLoop, FunctionSpace
@@ -71,7 +71,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
     def _resolve_function_spaces(
         self, nodes: Iterable[LFRicLoop]
-    ) -> tuple[Union[FunctionSpace, None], Union[FunctionSpace, None]]:
+    ) -> tuple[FunctionSpace | None, FunctionSpace | None]:
         '''
         Attempts to determine the actual function spaces for any fields that
         are on ANY_SPACE.

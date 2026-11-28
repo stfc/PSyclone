@@ -9,7 +9,7 @@
 
 import codecs
 import logging
-from typing import TYPE_CHECKING, Iterable, Union, Callable
+from typing import TYPE_CHECKING, Iterable, Callable
 
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
@@ -165,7 +165,7 @@ class FortranTreeSitterReader():
         '''
         return self.process_nodes(parse_tree)[0]
 
-    def process_nodes(self, tsnodes: Union["TSNode", Iterable["TSNode"]]):
+    def process_nodes(self, tsnodes: "TSNode" | Iterable["TSNode"]):
         '''
         Create the PSyIR that represents the supplied treesitter nodes.
 

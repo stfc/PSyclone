@@ -9,7 +9,6 @@
 This module provides the implementation of OMPTaskloopTrans
 
 '''
-from typing import Union
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
 
@@ -216,7 +215,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None, nogroup: Union[bool, None] = None,
+    def apply(self, node, options=None, nogroup: bool | None = None,
               **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation

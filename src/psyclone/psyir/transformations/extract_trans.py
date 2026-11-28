@@ -9,7 +9,7 @@
 of an Invoke into a stand-alone application."
 '''
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange
@@ -56,7 +56,7 @@ class ExtractTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     def validate(self, node_list: list[Node],
-                 options: Optional[dict[str, Any]] = None,
+                 options: dict[str, Any] | None = None,
                  **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
@@ -111,8 +111,8 @@ class ExtractTrans(PSyDataTrans):
         # transformations.
         super().validate(node_list, options, **kwargs)
 
-    def apply(self, nodes: Union[Node, list[Node]],
-              options: Optional[dict[str, Any]] = None,
+    def apply(self, nodes: Node | list[Node],
+              options: dict[str, Any] | None = None,
               **kwargs: Any) -> None:
         '''Apply this extraction transformation.
 

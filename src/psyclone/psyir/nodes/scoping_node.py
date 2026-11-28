@@ -7,8 +7,6 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
-from typing import Union
-
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
@@ -164,7 +162,7 @@ class ScopingNode(Node):
 
     def replace_symbols_using(
             self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+            table_or_symbol: SymbolTable | Symbol) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
         those in the supplied table (or just the supplied Symbol instance) if

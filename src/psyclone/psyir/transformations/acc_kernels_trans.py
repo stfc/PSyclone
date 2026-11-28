@@ -7,7 +7,7 @@
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
-from typing import Any, Dict, Union
+from typing import Any
 import warnings
 
 from psyclone import psyGen
@@ -75,11 +75,11 @@ class ACCKernelsTrans(RegionTrans):
 
     def apply(
                 self,
-                node: Union[Node, list[Node]],
-                options: Dict[str, Any] = {},
+                node: Node | list[Node],
+                options: dict[str, Any] = {},
                 default_present: bool = False,
                 disable_loop_check: bool = False,
-                async_queue: Union[bool, Reference, int] = False,
+                async_queue: bool | Reference | int = False,
                 allow_strings: bool = False,
                 verbose: bool = False,
                 **kwargs
@@ -140,7 +140,7 @@ class ACCKernelsTrans(RegionTrans):
     @staticmethod
     def check_async_queue(
                 nodes: list[Node],
-                async_queue: Union[bool, int, Reference]
+                async_queue: bool | int | Reference
             ):
         '''
         Common function to check that all parent data directives have
@@ -198,8 +198,8 @@ class ACCKernelsTrans(RegionTrans):
 
     def validate(
                 self,
-                nodes: Union[Node, list[Node]],
-                options: Dict[str, Any] = {},
+                nodes: Node | list[Node],
+                options: dict[str, Any] = {},
                 **kwargs
             ) -> None:
         # pylint: disable=signature-differs

@@ -8,7 +8,7 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
@@ -32,7 +32,7 @@ class LFRicCellIterators(LFRicCollection):
 
     '''
     def __init__(self,
-                 kern_or_invoke: Union[LFRicKern, LFRicInvoke]):
+                 kern_or_invoke: LFRicKern | LFRicInvoke):
         super().__init__(kern_or_invoke)
 
         # Dictionary to hold the names of the various nlayers/ndata variables
