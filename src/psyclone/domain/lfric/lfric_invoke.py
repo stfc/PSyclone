@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
+from psyclone.domain.lfric.lfric_meshes import LFRicMeshes
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
 from psyclone.psyGen import Invoke
@@ -63,7 +64,7 @@ class LFRicInvoke(Invoke):
                                     LFRicLMAOperators,
                                     LFRicReferenceElement,
                                     LFRicCMAOperators, LFRicBasisFunctions,
-                                    LFRicMeshes, LFRicBoundaryConditions,
+                                    LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators,
