@@ -237,6 +237,8 @@ def trans(psyir):
                 increase_array_ranks=not NEMOV4,
                 hoist_expressions=True,
                 hoist_argument_expressions=True,
+                reproducible=bool(REPRODUCIBLE),
+                nemov4=bool(NEMOV4),
         )
 
         # Perform module-inlining of called routines.
@@ -272,6 +274,7 @@ def trans(psyir):
                     enable_reductions=not REPRODUCIBLE,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
+                    nemov4=bool(NEMOV4),
             )
         elif psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
             # These have issues offloading, but we can still do threading
@@ -282,6 +285,7 @@ def trans(psyir):
                     collapse=False,
                     enable_reductions=not REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
+                    nemov4=bool(NEMOV4),
             )
 
     # Iterate again and add profiling hooks when needed
