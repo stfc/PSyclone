@@ -22,7 +22,8 @@ from psyclone.psyir.nodes import (
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective,
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule,
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,
-    Reference, OMPDeclareTargetDirective, OMPNowaitClause,
+    Reference, OMPDeclareTargetDirective, OMPDeclareTargetVariable,
+    OMPNowaitClause,
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
@@ -135,7 +136,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
             "\n" in caplog.text)
 
 
-def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -1480,6 +1481,26 @@ def test_omp_declare_target_directive_constructor_and_strings():
     target = OMPDeclareTargetDirective()
     assert target.begin_string() == "omp declare target"
     assert str(target) == "OMPDeclareTargetDirective[]"
+
+
+def test_omp_declare_target_variable_constructor_and_strings():
+    '''Test the OMPDeclareTargetVariable constructor and output string.'''
+    symbol = DataSymbol("var", ScalarType.integer_single_type())
+    target = OMPDeclareTargetVariable()
+    with pytest.raises(ValueError,
+                       match="OMPDeclareTargetVariable must have a symbol"):
+        target.begin_string()
+    assert str(target) == "OMPDeclareTargetVariable[NONE]"
+
+    symbol.directive = target
+    assert target.parent_symbol is symbol
+    assert target.begin_string() == "omp declare target(var)"
+    assert str(target) == "OMPDeclareTargetVariable[var]"
+
+    with pytest.raises(TypeError) as err:
+        target.parent_symbol = "var"
+    assert ("The OMPDeclareTargetVariable parent_symbol setter expects a "
+            "PSyIR DataSymbol but found 'str'." in str(err.value))
 
 
 def test_omp_declare_target_directive_validate_global_constraints():
