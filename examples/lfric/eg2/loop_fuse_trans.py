@@ -10,6 +10,7 @@
 '''
 
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric import LFRicLoop
 
 
 def trans(psyir):
@@ -33,6 +34,6 @@ def trans(psyir):
     # the same extent and may safely be fused. (This is not actually true
     # for this particular example but we do this for the purposes of
     # illustration.)
-    lftrans.apply(schedule[0:2], same_space=True)
-    lftrans.apply(schedule[0:2], same_space=True)
-    lftrans.apply(schedule[0:2], same_space=True)
+    for _ in range(3):
+        loops = schedule.walk(LFRicLoop)
+        lftrans.apply(loops[:2], same_space=True)

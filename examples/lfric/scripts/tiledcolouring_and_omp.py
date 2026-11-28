@@ -8,8 +8,8 @@
 ''' File containing a PSyclone transformation script for the LFRic
 API to apply tiled-colouring and OpenMP threading.'''
 
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import Loop, Routine, FileContainer
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
+from psyclone.psyir.nodes import Routine, FileContainer
 from psyclone.transformations import LFRicColourTrans, \
     LFRicOMPParallelLoopTrans
 
@@ -32,7 +32,8 @@ def trans(psyir: FileContainer):
         # Colour all of the loops over cells (with the tiling option)
         # unless they are on discontinuous spaces
         for child in subroutine.children:
-            if (isinstance(child, Loop)
+            if (isinstance(child, LFRicLoop)
+                    and child.loop_type != "colours"
                     and child.field_space.orig_name
                     not in const.VALID_DISCONTINUOUS_NAMES
                     and child.iteration_space.endswith("cell_column")):
@@ -40,7 +41,7 @@ def trans(psyir: FileContainer):
 
         # Then apply OpenMP to each of the colour loop
         for child in subroutine.children:
-            if isinstance(child, Loop):
+            if isinstance(child, LFRicLoop):
                 if child.loop_type == "colours":
                     otrans.apply(child.loop_body[0])
                 else:

@@ -11,6 +11,7 @@ import re
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
@@ -153,13 +154,13 @@ def test_loop_swap_validate():
 
 def test_loop_swap_validate_loop_type():
     '''
-    Test loop swapping transform when supplied loops are not Loops.
+    Test loop swapping transform when supplied loop is not a loop nest..
     '''
     swap = LoopSwapTrans()
     _, invoke = get_invoke("1.0.1_single_named_invoke.f90",
                            "lfric", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
-        swap.apply(invoke.schedule.children[4])
+        swap.apply(invoke.schedule.walk(LFRicLoop)[0])
 
     assert re.search("Error in LoopSwap transformation. Supplied node .* "
                      "must be the outer loop of a loop nest but the first "

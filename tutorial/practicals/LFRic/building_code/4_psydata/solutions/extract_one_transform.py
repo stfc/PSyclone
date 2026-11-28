@@ -10,6 +10,7 @@ function via the -s option. It adds kernel extraction code to
 the 'invoke_propagate_perturbation' invoke.
 '''
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
@@ -27,7 +28,9 @@ def trans(psyir):
     subroutine = [x for x in psyir.children[0].children if x.name == name][0]
 
     # Enclose everything in a extract region
-    extract.apply(subroutine, {"region_name": ("time_evolution", "propagate"),
-                               "create_driver": True})
+    idx = subroutine.walk(LFRicLoop)[0].position
+    extract.apply(subroutine.children[idx:],
+                  {"region_name": ("time_evolution", "propagate"),
+                   "create_driver": True})
 
     print(subroutine.view())

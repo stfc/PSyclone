@@ -309,10 +309,7 @@ def test_kerncallarglist_args_error(dist_mem):
     psy, _ = get_invoke("1.0.1_single_named_invoke.f90", api=TEST_API,
                         dist_mem=dist_mem, idx=0)
     schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        loop = schedule.children[4]
-    else:
-        loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
 
     # nlayers_positions method

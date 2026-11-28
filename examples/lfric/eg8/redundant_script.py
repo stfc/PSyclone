@@ -15,6 +15,8 @@ the kernels to allow redundant computation'''
 
 from psyclone.domain.lfric.transformations import (
     LFRicRedundantComputationTrans)
+from psyclone.domain.lfric import LFRicLoop
+from psyclone.lfric import LFRicHaloExchange
 from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import MoveTrans
 
@@ -32,10 +34,12 @@ def trans(psyir: FileContainer) -> None:
 
     # Get first invoke subroutine
     schedule = psyir.children[0].children[0]
+    loops = schedule.walk(LFRicLoop)
 
     # redundant computation to remove grad_p halo exchanges
-    rc_trans.apply(schedule.children[5], {"depth": 2})
-    rc_trans.apply(schedule.children[0], {"depth": 2})
+    rc_trans.apply(loops[1], depth=2)
+    rc_trans.apply(loops[0], depth=2)
 
     # move remaining (potential) halo exchanges to start of the invoke
-    m_trans.apply(schedule.children[0], schedule.children[4])
+    halo_exchanges = schedule.walk(LFRicHaloExchange)
+    m_trans.apply(halo_exchanges[-1], loops[0])

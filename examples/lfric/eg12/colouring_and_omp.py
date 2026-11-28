@@ -11,8 +11,8 @@ API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the "psyclone" script. '''
 from psyclone.transformations import LFRicColourTrans, \
     LFRicOMPParallelLoopTrans
-from psyclone.psyGen import Loop, InvokeSchedule
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.psyGen import InvokeSchedule
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 
 
 def trans(psyir):
@@ -34,14 +34,14 @@ def trans(psyir):
         # Colour all of the loops over cells unless they are on
         # discontinuous spaces
         for child in subroutine.children:
-            if isinstance(child, Loop) \
+            if isinstance(child, LFRicLoop) and child.loop_type != "colours" \
                and child.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space.endswith("cell_column"):
                 ctrans.apply(child)
         # Then apply OpenMP to each of the colour loops
         for child in subroutine.children:
-            if isinstance(child, Loop):
+            if isinstance(child, LFRicLoop):
                 if child.loop_type == "colours":
                     otrans.apply(child.loop_body[0])
                 else:

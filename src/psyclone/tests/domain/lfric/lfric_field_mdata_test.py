@@ -15,12 +15,13 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicFields, LFRicKernMetadata)
+                                   LFRicFields, LFRicKern, LFRicKernMetadata)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import get_invoke
 
 
 # Constants
@@ -612,40 +613,20 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
     # 1a) Check w3, wtheta and w2v in turn
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    if annexed:
-        # no halo exchanges produced for the w3 example (reads from
-        # continuous spaces)
-        idchld_list = [0, 0, 0]
-    else:
-        # 3 halo exchanges produced for the w3 example (reads from
-        # continuous spaces)
-        idchld_list = [3, 0, 0]
-    idarg_list = [4, 0, 0]
     const = LFRicConstants()
-    fs_dict = dict(zip(const.DISCONTINUOUS_FUNCTION_SPACES[0:3],
-                       zip(idchld_list, idarg_list)))
-    for fspace, (idchld, idarg) in fs_dict.items():
+    for fspace in const.DISCONTINUOUS_FUNCTION_SPACES[0:3]:
         filename = "1_single_invoke_" + fspace + ".f90"
-        _, info = parse(os.path.join(BASE_PATH, filename),
-                        api=TEST_API)
-        psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        kernel = schedule.children[idchld].loop_body[0]
-        field = kernel.arguments.args[idarg]
+        _, invoke = get_invoke(filename, api=TEST_API, dist_mem=True, idx=0)
+        kernel = invoke.schedule.walk(LFRicKern)[0]
+        argidx = 4 if fspace == "w3" else 0
+        field = kernel.arguments.args[argidx]
         assert field.space == fspace
         assert field.discontinuous
 
     # 1b) w2broken, w2vtrace and wchi return true
-    _, info = parse(
-        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 12
-    else:
-        index = 13
-    kernel = schedule.children[index].loop_body[0]
+    _, invoke = get_invoke("1.5.1_single_invoke_write_multi_fs.f90",
+                           api=TEST_API, dist_mem=True, idx=0)
+    kernel = invoke.schedule.walk(LFRicKern)[0]
     # Test w2broken
     field = kernel.arguments.args[7]
     assert field.space == 'w2broken'
@@ -660,61 +641,35 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
     assert not field.discontinuous
 
     # 1c) any_discontinuous_space returns true
-    _, info = parse(
-        os.path.join(BASE_PATH,
-                     "1_single_invoke_any_discontinuous_space.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 0
-    else:
-        index = 2
-    kernel = schedule.children[index].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke_any_discontinuous_space.f90",
+                           api=TEST_API, dist_mem=True, idx=0)
+    kernel = invoke.schedule.walk(LFRicKern)[0]
     field = kernel.arguments.args[0]
     assert field.space == 'any_discontinuous_space_1'
     assert field.discontinuous
 
     # 2) any_space field returns false
-    _, info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 4
-    else:
-        index = 5
-    kernel = schedule.children[index].loop_body[0]
+    _, invoke = get_invoke("11_any_space.f90", api=TEST_API, dist_mem=True,
+                           idx=0)
+    schedule = invoke.schedule
+    kernel = schedule.walk(LFRicKern)[0]
     field = kernel.arguments.args[0]
     assert field.space == 'any_space_1'
     assert not field.discontinuous
 
     # 3) Continuous field returns false
     # 3a) Test w1
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 3
-    else:
-        index = 4
-    kernel = schedule.children[index].loop_body[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, dist_mem=True,
+                           idx=0)
+    schedule = invoke.schedule
+    kernel = schedule.walk(LFRicKern)[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
     assert not field.discontinuous
     # 3b) Test w2trace and w2htrace
-    _, info = parse(
-        os.path.join(BASE_PATH,
-                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 6
-    else:
-        index = 8
-    kernel = schedule.children[index].loop_body[0]
+    _, invoke = get_invoke("1.5.4_single_invoke_write_anyspace_w2trace.f90",
+                           api=TEST_API, dist_mem=True, idx=0)
+    kernel = invoke.schedule.walk(LFRicKern)[0]
     # Test w2trace
     field = kernel.arguments.args[3]
     assert field.space == 'w2trace'

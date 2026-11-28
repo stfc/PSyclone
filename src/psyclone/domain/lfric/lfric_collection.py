@@ -10,12 +10,14 @@
     related entities within an Invoke or Kernel stub.'''
 
 import abc
-from typing import List
+from typing import List, Optional, Union
 
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.symbols import SymbolTable
 
 
 class LFRicCollection():
@@ -23,16 +25,14 @@ class LFRicCollection():
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage variable \
+    :param node: the Kernel or Invoke for which to manage variable
                  declarations and initialisation.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
-                :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises InternalError: if the supplied node is not an LFRicInvoke or an \
+    :raises InternalError: if the supplied node is not an LFRicInvoke or an
                            LFRicKern.
 
     '''
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicInvoke, LFRicKern]):
         if isinstance(node, LFRicInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
@@ -53,10 +53,9 @@ class LFRicCollection():
             self._dofs_only = False
 
     @property
-    def symtab(self):
+    def symtab(self) -> SymbolTable:
         '''
         :returns: associated symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         if self._invoke:
             return self._invoke.schedule.symbol_table
@@ -83,9 +82,28 @@ class LFRicCollection():
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         '''
+
+    def _get_cursor(self,
+                    assigns: list[Assignment],
+                    cursor: Optional[int] = None) -> Optional[int]:
+        '''
+        :returns: a suitable cursor (position in the InvokeSchedule) for
+                  adding assignments.
+
+        '''
+        if cursor is not None or not self._invoke:
+            return cursor
+        # No cursor supplied so find last assignment.
+        if assigns:
+            indices = assigns[-1].path_from(self._invoke.schedule)
+            if indices[0] == len(self._invoke.schedule.children) - 1:
+                return None
+            return indices[0] + 1
+        return 0
 
     @abc.abstractmethod
     def invoke_declarations(self) -> None:
@@ -105,7 +123,7 @@ class LFRicCollection():
                 f"{type(self).__name__} instantiated for an invoke (not a "
                 f"kernel).")
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Add necessary Kernel Stub declarations for this Collection.
 

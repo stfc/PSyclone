@@ -14,6 +14,7 @@ created NetCDF files, execute the invokes and then compare the results.
 '''
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.domain.lfric import LFRicLoop
 
 
 def trans(psyir):
@@ -27,14 +28,19 @@ def trans(psyir):
     extract = LFRicExtractTrans()
 
     for subroutine in psyir.children[0].children:
+        # Select only the computational loops. The generated proxy setup
+        # assignments contain method calls that are outside the extractable
+        # region for driver generation.
+        loops = [child for child in subroutine.children
+                 if isinstance(child, LFRicLoop)]
         # Show that it works on a builtin:
         if subroutine.name == "invoke_initialise_fields":
-            extract.apply(subroutine.children,
+            extract.apply(loops,
                           {"create_driver": True,
                            "region_name": ("main", "init")})
 
         # Enclose everything in a extract region
         if subroutine.name == "invoke_testkern_w0":
-            extract.apply(subroutine.children,
+            extract.apply(loops,
                           {"create_driver": True,
                            "region_name": ("main", "update")})

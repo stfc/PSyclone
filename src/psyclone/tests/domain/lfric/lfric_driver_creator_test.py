@@ -9,7 +9,7 @@
 
 import pytest
 
-from psyclone.domain.lfric import LFRicDriverCreator
+from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.visitor import VisitorError
@@ -131,7 +131,7 @@ def test_lfric_driver_import_precision():
                              dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     _ = psy.gen
@@ -169,7 +169,7 @@ def test_lfric_driver_field_arrays():
 
     extract = LFRicExtractTrans()
 
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "array")})
     # The extraction provides each array individual fields.
@@ -209,7 +209,7 @@ def test_lfric_driver_operator():
 
     extract = LFRicExtractTrans()
 
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("operator", "test")})
     out = psy.gen
@@ -259,7 +259,7 @@ def test_lfric_driver_extract_some_kernels_only():
                              dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[2],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[2],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
@@ -267,9 +267,8 @@ def test_lfric_driver_extract_some_kernels_only():
     # We only extract the third loop, which uses the index '2' for
     # loop boundaries. So none of the previous loop indices should
     # be in the extract code:
-    assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
-    assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
-    assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
+    assert "PreDeclareVariable(\"loop0_stop\", loop0_stop)" not in code
+    assert "PreDeclareVariable(\"loop1_stop\", loop1_stop)" not in code
     assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
 
     filename = "driver-field-test.F90"
@@ -280,7 +279,6 @@ def test_lfric_driver_extract_some_kernels_only():
     # kernels added, and that it uses index 2 for loop boundaries.
     assert "loop0_start" not in driver
     assert "loop1_start" not in driver
-    assert "ReadVariable('loop2_start', loop2_start)" in driver
     assert "ReadVariable('loop2_stop', loop2_stop)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
@@ -303,7 +301,7 @@ def test_lfric_driver_field_array_write():
                              dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
@@ -355,7 +353,7 @@ def test_lfric_driver_field_array_inc():
                              dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
@@ -405,7 +403,7 @@ def test_lfric_driver_external_symbols_name_clash():
                              "symbols.f90", API, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
     code = psy.gen
@@ -450,7 +448,7 @@ def test_lfric_driver_external_symbols_error():
                              "symbols_error.f90", API, dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
@@ -480,7 +478,7 @@ def test_lfric_driver_rename_externals():
 
     extract = LFRicExtractTrans()
 
-    extract.apply(invoke.schedule.children[0],
+    extract.apply(invoke.schedule.walk(LFRicLoop)[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     _ = psy.gen

@@ -9,12 +9,15 @@
 class. '''
 
 import os
+import pytest
 
-from psyclone.domain.lfric import LFRicLoopBounds
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicLoopBounds
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols
-
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -49,8 +52,6 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     lbounds.initialise(0)
 
     # Check that new symbols exist
-    start_sym = table.lookup("loop0_start")
-    assert start_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     stop_sym = table.lookup("loop0_stop")
     assert stop_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
 
@@ -62,5 +63,37 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     # added to the PSyIR tree.
     lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
-    assert table.lookup("loop0_start") is start_sym
     assert table.lookup("loop0_stop") is stop_sym
+
+    # If there are no kernels then we should get an error.
+    invoke.schedule = LFRicInvokeSchedule(symbols.RoutineSymbol("test"))
+    lbounds = LFRicLoopBounds(invoke)
+    with pytest.raises(InternalError,
+                       match="Cannot initialise loop bounds until Kernels"):
+        lbounds.initialise(0)
+
+
+def test_lower_bound_expression(tmp_path):
+    '''
+    Test a case where the loop lower bound is not simply unity. Use a
+    kernel that operates only in the halo region.
+
+    '''
+    psy, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                             TEST_API, dist_mem=True, idx=0)
+    code = str(psy.gen).lower()
+
+    assert ("    loop0_start = mesh%get_last_edge_cell() + 1\n"
+            "    loop0_stop = mesh%get_last_halo_cell(hdepth)\n"
+            "    do cell = loop0_start, loop0_stop, 1" in code)
+
+    # Check that a repeated call to loop initialisation does not change
+    # anything.
+    invoke.loop_bounds.initialise(0)
+    new_code = str(psy.gen).lower()
+
+    assert ("    loop0_start = mesh%get_last_edge_cell() + 1\n"
+            "    loop0_stop = mesh%get_last_halo_cell(hdepth)\n"
+            "    do cell = loop0_start, loop0_stop, 1" in new_code)
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)

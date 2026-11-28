@@ -13,8 +13,10 @@ import re
 import pytest
 import graphviz
 
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
+from psyclone.lfric import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.psyir.backend.debug_writer import DebugWriter
@@ -304,15 +306,15 @@ def test_node_position():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule.detach()
-    child = schedule.children[6]
+    child = schedule.walk(LFRicLoop)[0]
     # Assert that position of a Schedule (no parent Node) is 0
     assert schedule.position == 0
     assert schedule.abs_position == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
-    assert child.position == 6
-    assert child.abs_position == 7
+    assert child.position == 62
+    assert child.abs_position == 335
 
     # Insert two more levels of nodes in top of the root
     previous_root = child.root
@@ -322,13 +324,13 @@ def test_node_position():
     container1.addchild(container2)
     # The relative position should still be the same but the absolute position
     # should increase by 2.
-    assert child.position == 6
-    assert child.abs_position == 9
+    assert child.position == 62
+    assert child.abs_position == 337
 
     # Check that the _find_position returns the correct distance between itself
     # and the provided ancestor.
     _, position = child._find_position(child.ancestor(Routine), 0)
-    assert position == 7
+    assert position == 335
 
     # If no starting position is provided it starts with START_POSITION=0
     _, same_position = child._find_position(child.ancestor(Routine))
@@ -368,8 +370,8 @@ def test_node_root():
     invoke = psy.invokes.invoke_list[0]
     ru_schedule = invoke.schedule
     # Select a loop and the kernel inside
-    ru_loop = ru_schedule.children[1]
-    ru_kern = ru_loop.children[0]
+    ru_loop = ru_schedule.walk(LFRicLoop)[1]
+    ru_kern = ru_loop.loop_body[0]
     # Assert that the absolute root is a Container
     assert isinstance(ru_kern.root, Container)
 
@@ -397,9 +399,10 @@ def test_node_args():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
+    loops = schedule.walk(LFRicLoop)
+    loop1 = loops[0]
     kern1 = loop1.loop_body[0]
-    loop2 = schedule.children[1]
+    loop2 = loops[1]
     kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
     all_args = kern1.arguments.args[:]
@@ -417,11 +420,10 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply((schedule.children[0], schedule.children[1]))
-    loop = schedule.children[0]
-    kern1 = loop.loop_body[0]
-    kern2 = loop.loop_body[1]
-    loop_args = loop.args
+    ftrans.apply((loop1, loop2))
+    kern1 = loop1.loop_body[0]
+    kern2 = loop1.loop_body[1]
+    loop_args = loop1.args
     kern_args = kern1.arguments.args
     kern_args.extend(kern2.arguments.args)
     for idx, arg in enumerate(kern_args):
@@ -438,7 +440,8 @@ def test_node_forward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    read4 = schedule.children[4]
+    loops = schedule.walk(LFRicLoop)
+    read4 = loops[4]
     # 1: returns none if none found
     # a) check many reads
     assert not read4.forward_dependence()
@@ -447,38 +450,34 @@ def test_node_forward_dependence():
     # 2: returns first dependent kernel arg when there are many
     # dependencies
     # a) check first read returned
-    writer = schedule.children[3]
-    next_read = schedule.children[4]
+    writer = loops[3]
+    next_read = loops[4]
     assert writer.forward_dependence() == next_read
     # a) check writer returned
-    first_loop = schedule.children[0]
+    first_loop = loops[0]
     assert first_loop.forward_dependence() == writer
     # 3: haloexchange dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.5_multikernel_invokes.f90", api="lfric",
+                           dist_mem=True, idx=0)
     schedule = invoke.schedule
-    prev_loop = schedule.children[7]
-    halo_field = schedule.children[8]
-    next_loop = schedule.children[9]
+    loops = schedule.walk(LFRicLoop)
+    prev_loop = loops[1]
+    halo_field = schedule.children[prev_loop.position + 1]
+    next_loop = loops[2]
     # a) previous loop depends on halo exchange
     assert prev_loop.forward_dependence() == halo_field
     # b) halo exchange depends on following loop
     assert halo_field.forward_dependence() == next_loop
 
     # 4: globalsum dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90", api="lfric",
+                           dist_mem=True, idx=0)
     schedule = invoke.schedule
-    prev_loop = schedule.children[0]
-    sum_loop = schedule.children[1]
-    global_sum_loop = schedule.children[2]
-    next_loop = schedule.children[3]
+    loops = schedule.walk(LFRicLoop)
+    prev_loop = loops[0]
+    sum_loop = loops[1]
+    global_sum_loop = schedule.children[sum_loop.position + 1]
+    next_loop = loops[2]
     # a) prev loop depends on sum loop
     assert prev_loop.forward_dependence() == sum_loop
     # b) sum loop depends on global sum loop
@@ -491,32 +490,28 @@ def test_node_backward_dependence():
     '''Test that the Node class backward_dependence method returns the
     closest dependent Node before the current Node in the schedule or
     None if none are found.'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.1_multi_aX_plus_Y_builtin.f90", api="lfric",
+                           dist_mem=True, idx=0)
     schedule = invoke.schedule
+    loops = schedule.walk(LFRicLoop)
     # 1: loop no backwards dependence
-    loop3 = schedule.children[2]
+    loop3 = loops[2]
     assert not loop3.backward_dependence()
     # 2: loop to loop backward dependence
     # a) many steps
-    last_loop_node = schedule.children[6]
-    prev_dep_loop_node = schedule.children[3]
+    last_loop_node = loops[6]
+    prev_dep_loop_node = loops[3]
     assert last_loop_node.backward_dependence() == prev_dep_loop_node
     # b) previous
     assert prev_dep_loop_node.backward_dependence() == loop3
     # 3: haloexchange dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.5_multikernel_invokes.f90", api="lfric",
+                           dist_mem=True, idx=0)
     schedule = invoke.schedule
-    loop2 = schedule.children[7]
-    halo_exchange = schedule.children[8]
-    loop3 = schedule.children[9]
+    loops = schedule.walk(LFRicLoop)
+    loop2 = loops[1]
+    halo_exchange = schedule.children[loop2.position + 1]
+    loop3 = loops[2]
     # a) following loop node depends on halo exchange node
     result = loop3.backward_dependence()
     assert result == halo_exchange
@@ -524,16 +519,14 @@ def test_node_backward_dependence():
     result = halo_exchange.backward_dependence()
     assert result == loop2
     # 4: globalsum dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90", api="lfric",
+                           idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
-    global_sum = schedule.children[2]
-    loop3 = schedule.children[3]
+    loops = schedule.walk(LFRicLoop)
+    loop1 = loops[0]
+    loop2 = loops[1]
+    global_sum = schedule.children[loop2.position + 1]
+    loop3 = loops[2]
     # a) loop3 depends on global sum
     assert loop3.backward_dependence() == global_sum
     # b) global sum depends on loop2
@@ -590,29 +583,27 @@ def test_node_is_valid_location():
         anode.is_valid_location(next_node, position="before")
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.1_multi_aX_plus_Y_builtin.f90", api="lfric",
+                           dist_mem=True, idx=0)
     schedule = invoke.schedule
+    loops = schedule.walk(LFRicLoop)
     # 6: valid no prev dep
-    anode = schedule.children[2]
-    assert anode.is_valid_location(schedule.children[0])
+    anode = loops[2]
+    assert anode.is_valid_location(loops[0])
     # 7: valid prev dep (after)
-    anode = schedule.children[6]
-    assert anode.is_valid_location(schedule.children[3], position="after")
+    anode = loops[6]
+    assert anode.is_valid_location(loops[3], position="after")
     # 8: invalid prev dep (before)
-    assert not anode.is_valid_location(schedule.children[3], position="before")
+    assert not anode.is_valid_location(loops[3], position="before")
     # 9: valid no following dep
-    anode = schedule.children[4]
-    assert anode.is_valid_location(schedule.children[6], position="after")
+    anode = loops[4]
+    assert anode.is_valid_location(loops[6], position="after")
     # 10: valid following dep (before)
-    anode = schedule.children[0]
-    assert anode.is_valid_location(schedule.children[3], position="before")
+    anode = loops[0]
+    assert anode.is_valid_location(loops[3], position="before")
     # 11: invalid following dep (after)
-    anode = schedule.children[0]
-    assert not anode.is_valid_location(schedule.children[3], position="after")
+    anode = loops[0]
+    assert not anode.is_valid_location(loops[3], position="after")
 
 
 def test_node_forward_dependence_selects_closest():
@@ -748,11 +739,8 @@ def test_node_ancestor_shared_with(fortran_reader):
 def test_dag_names():
     ''' Test that the dag_name method returns the correct value for the
     node class and its specialisations. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", dist_mem=True,
+                           idx=0)
     schedule = invoke.schedule
 
     # Classes without the dag_name specialised should show the name of the
@@ -764,27 +752,25 @@ def test_dag_names():
     assert aref.children[0].dag_name == "Literal_1"
     # Some classes have their own specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
-    assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
-    assert schedule.children[4].dag_name == "loop_5"
-    schedule.children[4].loop_type = "cells_in_colour"
-    assert schedule.children[4].dag_name == "loop_[cells_in_colour]_5"
-    schedule.children[4].loop_type = ""
-    assert (schedule.children[4].loop_body[0].dag_name ==
-            "kernel_testkern_code_11")
+    assert (schedule.walk(LFRicHaloExchange)[0].dag_name ==
+            "checkHaloExchange(f1)_20")
+    loop1 = schedule.walk(LFRicLoop)[0]
+    assert loop1.dag_name == "loop_118"
+    loop1.loop_type = "cells_in_colour"
+    assert loop1.dag_name == "loop_[cells_in_colour]_118"
+    loop1.loop_type = ""
+    assert (loop1.loop_body[0].dag_name == "kernel_testkern_code_124")
 
     # If there is no ancestor routine, the index is the absolute position
     idx = aref.children[0].detach()
     assert idx.dag_name == "Literal_0"
 
     # BuiltIn also has specialised dag_names
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90", idx=0,
+                           api="lfric", dist_mem=True)
     schedule = invoke.schedule
-    builtin = schedule.children[1].loop_body[0]
-    assert builtin.dag_name == "builtin_sum_x_14"
+    builtin = schedule.walk(LFRicLoop)[1].loop_body[0]
+    assert builtin.dag_name == "builtin_sum_x_52"
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
@@ -868,32 +854,10 @@ def test_node_dag_wrong_file_format(monkeypatch):
 # Use a regex to allow for whitespace differences between graphviz
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
-    r"digraph {\n"
-    r"\s*routine_invoke_0_0_start\n"
-    r"\s*routine_invoke_0_0_end\n"
-    r"\s*loop_1_start\n"
-    r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_8_start \[color=green\]\n"
-    r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
-    r"\s*Schedule_6_start\n"
-    r"\s*Schedule_6_end\n"
-    r"\s*Schedule_6_end -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> Schedule_6_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_7\n"
-    r"\s*kernel_testkern_qr_code_7 -> Schedule_6_end \[color=blue\]\n"
-    r"\s*Schedule_6_start -> kernel_testkern_qr_code_7 \[color=blue\]\n"
-    r"\s*loop_8_start\n"
-    r"\s*loop_8_end\n"
-    r"\s*loop_8_end -> routine_invoke_0_0_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_8_start \[color=red\]\n"
-    r"\s*Schedule_13_start\n"
-    r"\s*Schedule_13_end\n"
-    r"\s*Schedule_13_end -> loop_8_end \[color=blue\]\n"
-    r"\s*loop_8_start -> Schedule_13_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_14\n"
-    r"\s*kernel_testkern_qr_code_14 -> Schedule_13_end \[color=blue\]\n"
-    r"\s*Schedule_13_start -> kernel_testkern_qr_code_14 \[color=blue\]\n"
-    r"}")
+    r"^digraph\s*\{\s*routine_invoke_0_0_start"
+    r"\s*routine_invoke_0_0_end\s*Assignment_1_start.*"
+    r"Schedule_230_start -> kernel_testkern_qr_code_231 \[color=blue\]\n\}",
+    re.DOTALL)
 # pylint: enable=anomalous-backslash-in-string
 
 
@@ -919,10 +883,10 @@ def test_node_dag(tmpdir, have_graphviz):
     result = my_file.read()
     for name in ["<title>routine_invoke_0_0_start</title>",
                  "<title>routine_invoke_0_0_end</title>",
-                 "<title>loop_1_start</title>",
-                 "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_7</title>",
-                 "<title>kernel_testkern_qr_code_14</title>",
+                 "<title>loop_218_start</title>",
+                 "<title>loop_218_end</title>",
+                 "<title>kernel_testkern_qr_code_224</title>",
+                 "<title>kernel_testkern_qr_code_231</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),

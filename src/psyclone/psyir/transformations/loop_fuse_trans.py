@@ -191,15 +191,12 @@ class LoopFuseTrans(LoopTrans):
                          node2.step_expr.reference_accesses().all_signatures}
             for name in del_names:
                 if name not in remaining_names:
-                    try:
-                        rsym = node1.scope.symbol_table.lookup(name)
-                        if rsym.is_automatic:
-                            symtab = rsym.find_symbol_table(node1)
-                            # TODO #898: Implement symbol removal
-                            # pylint: disable=protected-access
-                            symtab._symbols.pop(rsym.name)
-                    except KeyError:
-                        pass
+                    rsym = node1.scope.symbol_table.lookup(name)
+                    if rsym.is_automatic:
+                        symtab = rsym.find_symbol_table(node1)
+                        # TODO #898: Implement symbol removal
+                        # pylint: disable=protected-access
+                        symtab._symbols.pop(rsym.name)
 
 
 # For automatic documentation generation

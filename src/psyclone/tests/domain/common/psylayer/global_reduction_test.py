@@ -12,6 +12,7 @@ import pytest
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_invoke
@@ -67,7 +68,7 @@ def test_globalsum_nodm_error():
     _, invoke = get_invoke("1.9_single_invoke_2_real_scalars.f90",
                            api="lfric", dist_mem=False, idx=0)
     schedule = invoke.schedule
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
@@ -84,7 +85,7 @@ def test_globalreduction_unsupported_argument():
     _, invoke = get_invoke("1.6.1_single_invoke_1_int_scalar.f90",
                            api="lfric", dist_mem=True, idx=0)
     schedule = invoke.schedule
-    loop = schedule.children[4]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(InternalError) as err:
@@ -99,7 +100,7 @@ def test_globalreduction_arg():
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", idx=0, dist_mem=True)
     schedule = invoke.schedule
-    glob_sum = schedule.children[2]
+    glob_sum = schedule.walk(GlobalReduction)[0]
     glob_sum_arg = glob_sum.scalar
     assert glob_sum_arg.access == AccessType.READWRITE
     assert glob_sum_arg.call == glob_sum
@@ -111,7 +112,7 @@ def test_globalreduction_args():
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", dist_mem=True, idx=0)
     schedule = invoke.schedule
-    global_sum = schedule.children[2]
+    global_sum = schedule.walk(GlobalReduction)[0]
     assert len(global_sum.args) == 1
     assert global_sum.args[0] == global_sum.scalar
 
@@ -122,7 +123,7 @@ def test_globalreduction_reference_accesses():
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", dist_mem=True, idx=0)
     schedule = invoke.schedule
-    global_sum = schedule.children[2]
+    global_sum = schedule.walk(GlobalReduction)[0]
     vam = global_sum.reference_accesses()
     if len(vam.all_data_accesses) != 1:
         pytest.xfail(reason="Issue #3346: the scalar to be updated by a "

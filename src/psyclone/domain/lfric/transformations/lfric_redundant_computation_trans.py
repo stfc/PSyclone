@@ -10,8 +10,10 @@
 from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
-from psyclone.psyir.nodes import DataNode, Directive
+from psyclone.domain.lfric import (
+    LFRicInvokeSchedule, LFRicConstants)
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, DataNode, Directive)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -250,6 +252,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
         # TODO #2668: remove options dictionary.
         self.validate(node, options=options, depth=depth, **kwargs)
 
+        # Update the DSL upper bound information.
         loop = node
         if loop.loop_type == "":
             # Loop is over cells
@@ -263,6 +266,25 @@ class LFRicRedundantComputationTrans(LoopTrans):
             raise TransformationError(
                 f"Unsupported loop_type '{loop.loop_type}' found in "
                 f"LFRicRedundant ComputationTrans.apply()")
+
+        # Update the initialisation of the upper bound.
+        if isinstance(loop.stop_expr, ArrayReference):
+            # If it needs a color look-up, it has to be in-place
+            loop.stop_expr = loop.upper_bound_psyir()
+        else:
+            # For a loop over cells in a colour, the upper bound is
+            # an array lookup. We do not want to change the initial
+            # assignment of the array as it's only the array access
+            # that must be changed.
+
+            # Update the upper loop bound.
+            ubound = loop.stop_expr.symbol
+            isched = loop.ancestor(LFRicInvokeSchedule)
+            # Find the existing assignment to the loop bound.
+            assign = next(assign for assign in isched.walk(Assignment)
+                          if assign.lhs.symbol is ubound)
+            assign.children[1].replace_with(loop.upper_bound_psyir())
+
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
