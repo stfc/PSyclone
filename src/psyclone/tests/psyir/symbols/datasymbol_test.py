@@ -563,6 +563,24 @@ def test_datasymbol_replace_symbols_using():
     assert sym4.datatype.precision.symbol is new_kind
 
 
+@pytest.mark.parametrize("unsupported", [False, True])
+def test_datasymbol_replace_symbols_once(unsupported):
+    '''Bounds in both array and partial datatypes are substituted once.'''
+    old, new, other = [DataSymbol(name, ScalarType.integer_type())
+                       for name in ("old", "new", "other")]
+    datatype = ArrayType(ScalarType.real_type(),
+                         [(Reference(old), Reference(old))])
+    if unsupported:
+        datatype = UnsupportedFortranType(
+            "real, pointer :: array(:)", partial_datatype=datatype)
+    symbol = DataSymbol("array", datatype)
+
+    symbol.replace_symbols_using({old: new, new: other})
+
+    assert symbol.shape[0].lower.symbol is new
+    assert symbol.shape[0].upper.symbol is new
+
+
 def test_datasymbol_get_all_accessed_symbols():
     '''
     Test that the get_all_accessed_symbols() specialisation for this class

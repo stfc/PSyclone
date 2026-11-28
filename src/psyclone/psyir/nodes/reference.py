@@ -7,7 +7,7 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from typing import Optional
+from typing import Optional, Union
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.errors import PSycloneError
@@ -16,6 +16,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     Symbol,
+    SymbolTable,
     AutomaticInterface,
     RoutineSymbol,
     IntrinsicSymbol, ArgumentInterface
@@ -405,30 +406,23 @@ class Reference(DataNode):
 
         return False
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Update any Symbols referenced by this Node with those in the
-        supplied table (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given
-        Symbol then it is left unchanged.
+        supplied table by name or dictionary by identity. If there is
+        no match for a given Symbol then it is left unchanged.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
-        if isinstance(table_or_symbol, Symbol):
-            if self.symbol.name.lower() == table_or_symbol.name.lower():
-                self.symbol = table_or_symbol
-        else:
-            try:
-                self.symbol = table_or_symbol.lookup(self.symbol.name)
-            except KeyError:
-                pass
+        self.symbol = self.symbol.get_replacement(mapping)
 
         # Walk on down the tree.
-        super().replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(mapping)
 
     def component_indices(self) -> tuple[tuple[Node]]:
         '''

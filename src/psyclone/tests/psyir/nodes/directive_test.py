@@ -138,6 +138,41 @@ end program my_prog
     assert Signature("d") in readwrites
 
 
+def test_create_data_movement_deep_copy_refs_missing_symbol(fortran_reader):
+    '''Ignore accesses to module symbols when a routine is detached from its
+    enclosing module, as happens temporarily when copying a tree.'''
+    psyir = fortran_reader.psyir_from_source('''
+module my_mod
+  use some_mod, only: grid_type
+  type(grid_type) :: grid
+contains
+  subroutine my_sub()
+    real :: target(10)
+    target(:) = grid%data(:)
+  end subroutine my_sub
+end module my_mod
+''')
+    routine = psyir.walk(nodes.Routine)[0]
+    directive = nodes.RegionDirective(children=[routine.children[0].detach()])
+    routine.addchild(directive)
+
+    reads, writes, readwrites = directive.create_data_movement_deep_copy_refs()
+    assert list(reads) == [Signature("grid"), Signature("grid%data")]
+    assert list(writes) == [Signature("target")]
+    assert not readwrites
+
+    # The reference to grid remains, but its symbol is no longer in scope.
+    # Local symbols must still be included in the data movement analysis.
+    routine.detach()
+    assert routine.symbol_table.lookup("grid", otherwise=None) is None
+    reads, writes, readwrites = directive.create_data_movement_deep_copy_refs()
+    assert not reads
+    assert list(writes) == [Signature("target")]
+    assert writes[Signature("target")].symbol is routine.symbol_table.lookup(
+        "target")
+    assert not readwrites
+
+
 def test_regiondirective_children_validation():
     '''Test that children added to RegionDirective are validated.
         RegionDirective accepts 1 Schedule as child.

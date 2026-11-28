@@ -163,34 +163,43 @@ class ScopingNode(Node):
         return var_accesses
 
     def replace_symbols_using(
-            self,
-            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
+        self, mapping: Union[SymbolTable, dict[Symbol, Symbol]]
+    ) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
-        those in the supplied table (or just the supplied Symbol instance) if
-        they have matching names. If there is no match for a given Symbol then
-        it is left unchanged.
+        those in the supplied table by name or dictionary by identity. If there
+        is no match for a given Symbol then it is left unchanged.
 
-        Since this is a ScopingNode, it is associated with a symbol table.
-        Therefore, if the supplied table is the one for the scope containing
-        this node (if any), the one passed to the child nodes is updated to be
-        the one associated with this node.
+        When mapping is a SymbolTable, if it is the symbol table of this node's
+        enclosing scope, pass this node's own table to its children instead.
+        This makes lookup respect local declarations while still searching
+        enclosing scopes.
 
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
+        If mapping is a dictionary, pass the same mapping to all descendants.
+        Also update references within declarations in this node's symbol table,
+        Skip declarations of Symbols that are keys or values in the mapping.
+
+        :param mapping: the symbol table from which to get replacement
+            symbols, or a dictionary mapping original Symbols to replacements
+            by identity.
 
         '''
-        next_table = table_or_symbol
-        if self.parent and isinstance(table_or_symbol, SymbolTable):
+        next_table = mapping
+        if isinstance(mapping, dict):
+            for symbol in self.symbol_table.symbols:
+                # Update references within other symbols' declarations, but
+                # skip declarations of the original and replacement symbols.
+                if (symbol not in mapping and
+                        symbol not in mapping.values()):
+                    symbol.replace_symbols_using(mapping)
+        if self.parent and isinstance(mapping, SymbolTable):
             try:
-                # If this node is not within a scope we get a SymbolError
-                if table_or_symbol is self.parent.scope.symbol_table:
+                if mapping is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass
 
-        for child in self.children:
-            child.replace_symbols_using(next_table)
+        super().replace_symbols_using(next_table)
 
     @property
     def symbol_table(self):
