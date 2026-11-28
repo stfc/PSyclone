@@ -117,9 +117,12 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
-                # If they're both reads then we should skip it.
+                # If they're both reads and not a loop variable
+                # then we should skip it.
                 if (signature in reads and isinstance(access, Reference)
-                        and access.is_read):
+                    and access.is_read and not
+                    (isinstance(access.parent, Loop) and
+                     access.parent.variable_reference is access)):
                     continue
                 # If it's inside the directive then we should skip it.
                 if access.is_descendant_of(directive):

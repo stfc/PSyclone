@@ -79,16 +79,3 @@ by clicking the 'show' link next to the 'Build logs' heading.)
  
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
 --->
-
-# Structure #
-
-Path                | Description
-------------------- | -----------
-bin/                | Top-level driver scripts for PSyclone and the PSyclone kernel tool
-changelog      	    | Information on changes between releases
-doc/           	    | Documentation source using Sphinx
-examples/      	    | Simple examples
-README.md      	    | This file
-src/psyclone   	    | The Python source code
-src/psyclone/tests/ | Unit and functional tests using pytest
-tutorial/practicals | Hands-on exercises using a local installation of PSyclone

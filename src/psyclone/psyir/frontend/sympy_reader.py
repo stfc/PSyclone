@@ -218,7 +218,11 @@ class SymPyReader():
 
         if not new_args and not function._is_call:
             # This reference is not a function call and didn't have parentheses
-            # originally so we reproduce that input.
+            # originally so we reproduce that input. Structure references use
+            # a flattened SymPy name (e.g. "a_b") and therefore need to be
+            # reconstructed from their signature.
+            if function._sig is not None:
+                return "%".join(function._sig)
             return name
 
         if function._sig is None or function._is_call:

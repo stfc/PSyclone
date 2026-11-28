@@ -69,10 +69,6 @@ SKIP_FOR_PERFORMANCE = [
 # parallelisation directives
 PARALLELISATION_ISSUES = []
 
-# These files change the results from the baseline when psyclone adds
-# offloading directives
-OFFLOADING_ISSUES = []
-
 if not NEMOV4:
     # NEMOv5 additional exclusions
     FILES_TO_SKIP.extend([
@@ -92,12 +88,6 @@ if not NEMOV4:
         "ldfc1d_c2d.f90",
         "tramle.f90",
         "traqsr.f90",
-    ])
-
-    OFFLOADING_ISSUES.extend([
-        # Signal 11 issues
-        "trcatf.f90",
-        "seddsrjac.f90"
     ])
 
 ASYNC_ISSUES = [
@@ -273,8 +263,7 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        elif (psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES
-              and gpu_loop_trans):
+        elif (psyir.name not in PARALLELISATION_ISSUES and gpu_loop_trans):
             print(
                 f"Adding offload directives to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
