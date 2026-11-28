@@ -10,14 +10,12 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-
-if TYPE_CHECKING:
-    from psyclone.psyir.symbols.datatypes import DataType
+from psyclone.psyir.symbols.datatypes import DataType
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -335,20 +333,21 @@ class BinaryOperation(Operation):
                 f"supported") from err
 
     @property
-    def datatype(self):
+    def datatype(self) -> DataType:
         '''
         Determines the datatype of this operation. If it cannot be determined
-        for any reason then an instance of UnresolvedType is returned.
+        from the available type information then an instance of
+        :py:class:`psyclone.psyir.symbols.UnresolvedType` is returned.
 
-        :returns: the datatype of the result of this BinaryOperation.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        :returns: the datatype of the result of this operation.
 
         :raises InternalError: if the operands are both arrays but are of
-                               different shapes.
+            different ranks.
         '''
-        # pylint: disable=import-outside-toplevel
+        # Avoid a circular import because datatypes use operation nodes.
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-            ArrayType, UnresolvedType, ScalarType,
+            ArrayType, ScalarType, UnresolvedType,
             UnsupportedFortranType, UnsupportedType)
         # Get the types of the operands.
         optypes = []
@@ -363,10 +362,6 @@ class BinaryOperation(Operation):
                     dtype = dtype.partial_datatype
                 else:
                     return UnresolvedType()
-            if isinstance(dtype, UnresolvedType):
-                # If either operand is of UnresolvedType then we can't do
-                # any better.
-                return UnresolvedType()
             if isinstance(dtype, ArrayType):
                 # We know this is an array but do we know its intrinsic type?
                 if isinstance(dtype.intrinsic, UnresolvedType):
@@ -378,6 +373,13 @@ class BinaryOperation(Operation):
                                           shape=dtype.shape)
                     else:
                         dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
+
+            if (not isinstance(dtype, (ScalarType, ArrayType)) or
+                    not isinstance(dtype.intrinsic, ScalarType.Intrinsic)):
+                # We can only infer results for intrinsic operand types.
+                # Derived types may use overloaded operators whose result
+                # type cannot be inferred from the operands alone.
+                return UnresolvedType()
 
             optypes.append(dtype)
         # Determine the base (scalar) type of the result.

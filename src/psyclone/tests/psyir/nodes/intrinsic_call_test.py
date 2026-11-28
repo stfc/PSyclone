@@ -12,8 +12,9 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 """
 
-import pytest
 from enum import Enum
+
+import pytest
 
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
@@ -24,32 +25,32 @@ from psyclone.psyir.nodes import (
     Call,
     DataNode,
     Literal,
-    Schedule,
     Reference,
+    Schedule,
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     ArgDesc,
-    IntrinsicCall,
     IAttr,
+    IntrinsicCall,
+    _findloc_return_type,
+    _get_bound_function_return_type,
+    _int_return_type,
+    _matmul_return_type,
     _type_of_arg_with_rank_minus_one,
-    _type_of_named_argument,
-    _type_of_named_arg_with_optional_kind_and_dim,
-    _type_of_named_arg_accounting_for_dim_arg,
-    _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
-    _findloc_return_type,
-    _int_return_type,
-    _get_bound_function_return_type,
-    _matmul_return_type,
+    _type_of_named_arg_accounting_for_dim_arg,
+    _type_of_named_arg_with_optional_kind_and_dim,
+    _type_of_named_argument,
+    _type_of_scalar_with_optional_kind,
 )
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
-    ScalarType,
     IntrinsicSymbol,
+    NoType,
+    ScalarType,
     UnresolvedType,
-    NoType
 )
 
 
@@ -126,7 +127,8 @@ def test_intrinsiccall_datatype(fortran_reader):
     with pytest.raises(InternalError) as err:
         _ = call.datatype
     assert ("Failed to compute the datatype of a 'ABS' intrinsic. This is "
-            "likely due to not fully initialising the intrinsic correctly."
+            "likely due to an incomplete node or the provided arguments are "
+            "not valid for the intrinsic."
             in str(err.value))
 
     # Test that when we get a AttributeError due to unresolved/unsupported
@@ -140,6 +142,22 @@ def test_intrinsiccall_datatype(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
     assert isinstance(call.datatype, UnresolvedType)
+
+
+def test_intrinsiccall_datatype_invalid_scalar_array_argument(fortran_reader):
+    '''A known scalar passed to TRANSPOSE is invalid, not unresolved.'''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine example
+          real :: a, result
+          result = transpose(a)
+        end subroutine example
+    ''')
+    call = psyir.walk(Assignment)[0].rhs
+    with pytest.raises(InternalError) as err:
+        _ = call.datatype
+    assert "Failed to compute the datatype" in str(err.value)
+    assert ("This is likely due to an incomplete node or the provided "
+            "arguments are not valid for the intrinsic.") in str(err.value)
 
 
 def test_intrinsiccall_datatype_typeerr_paths(
@@ -212,8 +230,9 @@ def test_intrinsiccall_datatype_typeerr_paths(
     with pytest.raises(InternalError) as err:
         _ = intrinsics[1].datatype
     assert ("Failed to compute the datatype of a 'MIN' intrinsic. "
-            "This is likely due to not fully initialising the intrinsic "
-            "correctly." in str(err.value))
+            "This is likely due to an incomplete node or the provided "
+            "arguments are not valid for the intrinsic."
+            in str(err.value))
 
 
 def test_intrinsiccall_reference_accesses_no_arg_names():
