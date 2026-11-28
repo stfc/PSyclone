@@ -23,17 +23,14 @@ def test_psyclone_info_properties():
     """
     Test initial properties and getters of PsyclonePhase.
     """
-    base_paths = [Path("/base1"), Path("/base2")]
     script_root = Path("/scripts")
 
-    info = PsyclonePhase(
-        name="test_phase", base_paths=base_paths, script_root=script_root
-    )
+    info = PsyclonePhase(name="test_phase", script_paths=[script_root])
 
     assert info.name == "test_phase"
     assert info.comment == ""
     assert info.api == ""
-    assert info.opt_path == Path()
+    assert info.opt_paths == [script_root]
 
 
 def test_psyclone_rule_validation_and_empty_files():
@@ -56,7 +53,7 @@ def test_psyclone_info_wildcard_handling(escaped_wildcard):
     """
     Verify different yaml wildcard string variants parse as expected.
     """
-    info = PsyclonePhase("phase", [], Path())
+    info = PsyclonePhase("phase", [Path()])
     # Indirectly hit _read_rule via update
     yaml_dict = {"rules": [{"script": "some_script.py",
                             "files": escaped_wildcard}]}
@@ -101,10 +98,9 @@ secondary:
     yaml_file_2 = tmp_path / "psyclone_info_override.yaml"
     yaml_file_2.write_text(yaml_content_2, encoding="utf-8")
 
-    base_paths = [tmp_path / "src", tmp_path / "build"]
     script_root = tmp_path / "scripts"
 
-    pc = PsycloneControl(script_root=script_root, base_paths=base_paths)
+    pc = PsycloneControl(script_paths=[script_root])
 
     # Read first file
     pc.read(yaml_file_1)
@@ -114,7 +110,7 @@ secondary:
     assert info_dsl.comment == "PSyclone DSL Phase"
     assert info_dsl.api == "lfric"
     assert info_dsl.file_pattern == "*x90"
-    assert info_dsl.opt_path == script_root / "psykal"
+    assert info_dsl.opt_paths == [script_root / "psykal"]
 
     # Read second file to test incremental overrides
     pc.read(yaml_file_2)
@@ -140,32 +136,29 @@ def test_file_specific_script_resolution(tmp_path):
     Validate looking up file-specific scripts inside source tree trees.
     """
     base_src = tmp_path / "src"
-    base_build = tmp_path / "build"
     script_root = tmp_path / "scripts"
 
     # Define an active script path destination directory
     opt_dir = script_root / "psykal"
     opt_dir.mkdir(parents=True)
 
-    info = PsyclonePhase(
-        name="dsl", base_paths=[base_src, base_build], script_root=script_root
-    )
+    info = PsyclonePhase(name="dsl", script_paths=[script_root])
     info.update({"script_dir": "psykal"})
 
     # Case 1: Target file is out of any base path boundary
     external_file = tmp_path / "outside" / "some_mod.x90"
-    assert info.file_specific_script(external_file) is None
+    assert info.file_specific_script(external_file, base_src) is None
 
     # Case 2: Target inside src directory, but no companion exists
     src_file = base_src / "kernel" / "some_mod.x90"
-    assert info.file_specific_script(src_file) is None
+    assert info.file_specific_script(src_file, base_src) is None
 
     # Case 3: Script target exists matching the relative structure
     expected_script = opt_dir / "kernel" / "some_mod.py"
     expected_script.parent.mkdir(parents=True, exist_ok=True)
     expected_script.touch()
 
-    assert info.file_specific_script(src_file) == expected_script
+    assert info.file_specific_script(src_file, base_src) == expected_script
 
 
 def test_get_script_matching_logic(tmp_path):
@@ -177,9 +170,7 @@ def test_get_script_matching_logic(tmp_path):
     opt_dir = script_root / "psykal"
     opt_dir.mkdir(parents=True)
 
-    info = PsyclonePhase(
-        name="dsl", base_paths=[base_src], script_root=script_root
-    )
+    info = PsyclonePhase(name="dsl", script_paths=[script_root])
 
     # Setup rules: non-matching pattern, NO_SCRIPT rule, then explicit scripts
     yaml_config = {
@@ -196,19 +187,19 @@ def test_get_script_matching_logic(tmp_path):
 
     # 1. Test standard pattern mismatch fallback
     assert (
-        info.get_script(Path("unmatched_file.x90"))
+        info.get_script(Path("unmatched_file.x90"), base_src)
         == (PsyclonePhase.RESULT_EXCLUDE, {})
     )
 
     # 2. Test explicit EXCLUDE rules matching
     assert (
-        info.get_script(Path("ignored_module.x90"))
+        info.get_script(Path("ignored_module.x90"), base_src)
         == (PsyclonePhase.RESULT_EXCLUDE, {})
     )
 
     # 3. Test explicit NO_SCRIPT matching
     assert (
-        info.get_script(Path("skipped_module.x90"))
+        info.get_script(Path("skipped_module.x90"), base_src)
         == (PsyclonePhase.RESULT_NO_SCRIPT, {})
     )
 
@@ -216,17 +207,16 @@ def test_get_script_matching_logic(tmp_path):
     with pytest.raises(
         FileNotFoundError, match="Cannot find script '.*missing_script.py'"
     ):
-        info.get_script(Path("broken_module.x90"))
+        info.get_script(Path("broken_module.x90"), base_src)
 
     # 5. Test explicit rule script that exists successfully
     valid_script_path = opt_dir / "valid_script.py"
     valid_script_path.touch()
-    assert info.get_script(Path("good_module.x90")) == (valid_script_path, {})
+    assert info.get_script(Path("good_module.x90"), base_src) == (
+        valid_script_path, {})
 
     # 6. Test file_specific script with non-existent explicit definition
-    info_strict = PsyclonePhase(
-        name="dsl", base_paths=[base_src], script_root=script_root
-    )
+    info_strict = PsyclonePhase(name="dsl", script_paths=[script_root])
     info_strict.update(
         {"script_dir": "psykal",
          "rules": [
@@ -235,13 +225,68 @@ def test_get_script_matching_logic(tmp_path):
     with pytest.raises(
         FileNotFoundError, match="Cannot find explicitly requested script"
     ):
-        info_strict.get_script(base_src / "explicit_custom.x90")
+        info_strict.get_script(base_src / "explicit_custom.x90", base_src)
 
     # 7. File_specific if the script exists:
     valid_script_path = opt_dir / "file_specific.py"
     valid_script_path.touch()
-    assert info.get_script(base_src / "file_specific.x90") == (
+    assert info.get_script(base_src / "file_specific.x90", base_src) == (
         valid_script_path, {})
+
+
+def test_script_search_paths(tmp_path):
+    """
+    Verify that scripts are searched in all script paths, in order, and that
+    an error is only raised if a script is in none of them.
+    """
+    base_src = tmp_path / "src"
+    root1 = tmp_path / "scripts1"
+    root2 = tmp_path / "scripts2"
+    for root in (root1, root2):
+        (root / "psykal").mkdir(parents=True)
+
+    pc = PsycloneControl(script_paths=[root1, root2])
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(yaml.dump({
+        "phases": ["dsl"],
+        "dsl": {
+            "script_dir": "psykal",
+            "rules": [
+                {"script": "global.py", "files": ["a.x90"]},
+                {"script": "both.py", "files": ["b.x90"]},
+                {"file_specific": {"files": ["c.x90"]}},
+                {"file_specific": {"files": ["\\*"]}},
+            ]}}), encoding="utf8")
+    pc.read(control_file)
+    info = pc.get_info("dsl")
+    assert info.opt_paths == [root1 / "psykal", root2 / "psykal"]
+
+    # A script that is not in any search path.
+    with pytest.raises(FileNotFoundError) as err:
+        info.get_script(Path("a.x90"), base_src)
+    assert "Cannot find script 'global.py'" in str(err.value)
+    assert str(root1 / "psykal" / "global.py") in str(err.value)
+    assert str(root2 / "psykal" / "global.py") in str(err.value)
+
+    # A script that is only in the second path is found.
+    second = root2 / "psykal" / "global.py"
+    second.touch()
+    assert info.get_script(Path("a.x90"), base_src) == (second, {})
+
+    # If it is in both, the first path wins.
+    (root1 / "psykal" / "both.py").touch()
+    (root2 / "psykal" / "both.py").touch()
+    assert info.get_script(Path("b.x90"), base_src) == (
+        root1 / "psykal" / "both.py", {})
+
+    # File-specific scripts: not found anywhere is an error for an
+    # explicit file name ...
+    with pytest.raises(FileNotFoundError, match="explicitly requested"):
+        info.get_script(base_src / "c.x90", base_src)
+    # ... but is found if it only exists in the second path.
+    specific = root2 / "psykal" / "c.py"
+    specific.touch()
+    assert info.get_script(base_src / "c.x90", base_src) == (specific, {})
 
 
 def test_get_script_parameters_use_last_matching_pattern(tmp_path):
@@ -251,7 +296,7 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
     script_path = script_dir / "global.py"
     script_path.touch()
 
-    info = PsyclonePhase("dsl", [], tmp_path / "scripts")
+    info = PsyclonePhase("dsl", [tmp_path / "scripts"])
     info.update({
         "script_dir": "psykal",
         "rules": [{
@@ -269,7 +314,7 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
         }],
     })
 
-    assert info.get_script(Path("other.f90")) == (
+    assert info.get_script(Path("other.f90"), tmp_path) == (
         script_path,
         {
             "offload": False,
@@ -277,7 +322,7 @@ def test_get_script_parameters_use_last_matching_pattern(tmp_path):
             "unchanged": "default",
         },
     )
-    assert info.get_script(Path("test4.f90")) == (
+    assert info.get_script(Path("test4.f90"), tmp_path) == (
         script_path,
         {
             "offload": True,
@@ -309,7 +354,6 @@ dsl:
     yaml_file_1 = tmp_path / "psyclone_info.yaml"
     yaml_file_1.write_text(yaml_content_1, encoding="utf-8")
 
-    base_paths = [tmp_path / "src", tmp_path / "build"]
     script_root = tmp_path / "scripts"
 
     # Create a script (since it will be checked if the script exists)
@@ -320,19 +364,20 @@ dsl:
     file_specific_path.parent.mkdir(parents=True, exist_ok=True)
     file_specific_path.write_text("PSyclone script\n")
 
-    pc = PsycloneControl(script_root=script_root, base_paths=base_paths)
+    pc = PsycloneControl(script_paths=[script_root])
     # Read file
     pc.read(yaml_file_1)
 
     # Check expected behaviour
     info = pc.get_info("dsl")
     assert info._relative_script_dir == "SITE_PLATFORM/psykal"
-    assert info.opt_path == script_root / "SITE_PLATFORM" / "psykal"
+    assert info.opt_paths == [script_root / "SITE_PLATFORM" / "psykal"]
 
     # Test that we get the expected global file:
-    script = info.get_script(Path("any_file.f90"))
+    script = info.get_script(Path("any_file.f90"), tmp_path / "src")
     assert script == (global_path, {})
-    script = info.get_script(tmp_path / "src" / "file.f90")
+    script = info.get_script(tmp_path / "src" / "file.f90",
+                             tmp_path / "src")
     assert script == (file_specific_path, {})
 
 
@@ -376,13 +421,12 @@ dsl:
         offload: False
       files: test4.f90 test5.f90
 """, encoding="utf-8")
-    pc = PsycloneControl(script_root=tmp_path / "scripts",
-                         base_paths=[tmp_path])
+    pc = PsycloneControl(script_paths=[tmp_path / "scripts"])
     pc.read(control)
     phase = pc.get_info("dsl")
-    assert phase.get_script(Path("other.f90")) == (
+    assert phase.get_script(Path("other.f90"), tmp_path) == (
         script_path, {"offload": True, "write_dependencies": True})
-    assert phase.get_script(Path("test4.f90")) == (
+    assert phase.get_script(Path("test4.f90"), tmp_path) == (
         script_path, {"offload": False, "write_dependencies": True})
     # Both instances survive writing the information back as yaml.
     parsed = yaml.safe_load(pc.to_yaml())
@@ -399,7 +443,7 @@ dsl:
 
 def test_invalid_rules_rejected():
     """Check that malformed rules or entries outside 'rules' are errors."""
-    info = PsyclonePhase("dsl", [], Path())
+    info = PsyclonePhase("dsl", [Path()])
     with pytest.raises(ValueError, match="Unknown entry 'global.py'"):
         info.update({"global.py": {"files": "*"}})
     with pytest.raises(ValueError, match="expected a mapping"):
@@ -413,7 +457,7 @@ def test_phase_output_template(tmp_path):
     src = tmp_path / "src"
     out = tmp_path / "out"
     source_file = src / "sub" / "test.f90"
-    info = PsyclonePhase("dsl", [], Path())
+    info = PsyclonePhase("dsl", [Path()])
 
     # The default keeps the relative path and the name.
     assert info.output_template == "{rel_path}/{name}"

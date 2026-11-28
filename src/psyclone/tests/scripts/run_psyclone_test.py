@@ -176,7 +176,7 @@ def test_main_passes_kernel_dirs(tmp_path, monkeypatch, capsys):
     class RecordRunner:
         """Record the runner arguments provided by main."""
 
-        def __init__(self, _input_path, _control_files, *_args, **kwargs):
+        def __init__(self, **kwargs):
             runner_args.update(kwargs)
 
         def run(self):
@@ -288,7 +288,7 @@ dsl:
 
 def test_get_phase_files_rejects_missing_pattern(tmp_path):
     """Check file discovery requires a configured phase pattern."""
-    phase = PsyclonePhase("dsl", [], tmp_path)
+    phase = PsyclonePhase("dsl", [tmp_path])
     runner = RunPsyclone(tmp_path, [])
 
     with pytest.raises(
@@ -357,8 +357,8 @@ dsl:
     runner = RunPsyclone(
         source_dir,
         [first_config, second_config],
-        optimisation=optimisation_dir,
         output_path=output_dir,
+        search_paths=[optimisation_dir],
     )
     runner.run()
 
@@ -433,6 +433,66 @@ transmute:
         tmp_path / "output" / "nested" / "file.psyclonified.f90")
 
 
+def test_main_passes_search_paths(tmp_path, monkeypatch):
+    """Check that repeated --search-path options are passed on in order."""
+    search_paths = [tmp_path / "search-a", tmp_path / "search-b"]
+    runner_args = {}
+
+    class RecordRunner:
+        """Record the runner arguments provided by main."""
+
+        def __init__(self, **kwargs):
+            runner_args.update(kwargs)
+
+        def run(self):
+            """RecordRunner does not process files."""
+
+    monkeypatch.setattr(run_psyclone, "RunPsyclone", RecordRunner)
+    base_args = ["--input", str(tmp_path),
+                 "--output", str(tmp_path / "output")]
+    run_psyclone.main(base_args + [
+        "--search-path", str(search_paths[0]),
+        "--search-path", str(search_paths[1]),
+        str(tmp_path / "control.yaml")])
+    assert runner_args["search_paths"] == search_paths
+
+    # The default is an empty list.
+    run_psyclone.main(base_args + [str(tmp_path / "control.yaml")])
+    assert runner_args["search_paths"] == []
+
+
+def test_run_uses_search_paths(tmp_path, monkeypatch):
+    """Check that scripts are found in later search paths."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    (source_dir / "file.f90").touch()
+    optimisation = tmp_path / "optimisation"
+    optimisation.mkdir()
+    search_path = tmp_path / "search"
+    search_path.mkdir()
+    script = search_path / "script.py"
+    script.touch()
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - transmute
+transmute:
+  file_pattern: "*.f90"
+  rules:
+    - script: script.py
+      files: "*"
+""", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(run_psyclone, "psyclone_main",
+                        lambda args: calls.append(list(args)))
+    RunPsyclone(source_dir, [control_file],
+                output_path=tmp_path / "output",
+                search_paths=[optimisation, search_path]).run()
+    assert len(calls) == 1
+    assert str(script) in calls[0]
+
+
 def test_get_files_from_calling_yaml(tmp_path):
     """Check that calling.yaml files are merged and module files found."""
     src = tmp_path / "src"
@@ -473,11 +533,11 @@ def test_get_phase_files_returns_kwargs(tmp_path):
         "a_mod:\n  routines: [r]\n  symbols: []\n", encoding="utf-8")
     runner = RunPsyclone(tmp_path, [])
 
-    phase = PsyclonePhase("normal", [], tmp_path)
+    phase = PsyclonePhase("normal", [tmp_path])
     phase.update({"file_pattern": "*.f90"})
     assert runner.get_phase_files(phase) == [(tmp_path / "a_mod.f90", {})]
 
-    phase = PsyclonePhase("calling", [], tmp_path)
+    phase = PsyclonePhase("calling", [tmp_path])
     phase.update({"file_pattern": RunPsyclone.CALLING_YAML_PATTERN})
     ModuleManager._instance = None
     try:

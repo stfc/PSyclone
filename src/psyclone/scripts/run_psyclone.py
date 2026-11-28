@@ -42,23 +42,23 @@ class RunPsyclone:
             self,
             input_path: Path,
             control_files: Sequence[Path],
-            optimisation: Optional[Path] = None,
             output_path: Optional[Path] = None,
             psyclone_options: Optional[str] = None,
             nprocs: int = 1,
-            kernel_dirs: Sequence[Path] = ()) -> None:
+            kernel_dirs: Sequence[Path] = (),
+            search_paths: Sequence[Path] = ()) -> None:
         """Configure the input files, directories and PSyclone options.
 
         :param input_path: the root directory containing source files.
         :param control_files: ordered PSyclone control YAML files to merge.
-        :param optimisation: the root directory containing optimisation
-            scripts.
         :param output_path: the root directory for output files (defaults to
             the input directory).
         :param psyclone_options: whitespace-separated options to pass to
             PSyclone.
         :param nprocs: maximum number of worker processes for each phase.
         :param kernel_dirs: root directories containing kernel source code.
+        :param search_paths: root directories to search for optimisation
+            scripts, in order of precedence.
         """
         if nprocs < 1:
             raise ValueError("nprocs must be at least 1")
@@ -66,9 +66,9 @@ class RunPsyclone:
         self._nprocs = nprocs
         self._input_path = input_path.resolve()
         self._output_path = (output_path or input_path).resolve()
-        self._optimisation = (optimisation or self._input_path).resolve()
         self._control_files = control_files
         self._kernel_dirs = kernel_dirs
+        self._search_paths = [path.resolve() for path in search_paths]
 
     def run(self) -> None:
         """
@@ -78,10 +78,7 @@ class RunPsyclone:
         directory, using the output template of each phase to determine
         the name of each file.
         """
-        control = PsycloneControl(
-            script_root=self._optimisation,
-            base_paths=[self._input_path],
-        )
+        control = PsycloneControl(script_paths=self._search_paths)
 
         for control_file in self._control_files:
             LOGGER.info("Reading control file %s", control_file)
@@ -101,9 +98,10 @@ class RunPsyclone:
 
             matched_files = self.get_phase_files(phase)
 
-            jobs: list[tuple[Path, Path, Optional[Path], dict, str ]] = []
+            jobs: list[tuple[Path, Path, Optional[Path], dict, str]] = []
             for source_file, file_kwargs in matched_files:
-                script, params = phase.get_script(source_file)
+                script, params = phase.get_script(source_file,
+                                                  self._input_path)
                 # Additional information about the file (e.g. module name,
                 # routines and symbols) is passed on as script parameters.
                 params = {**params, **file_kwargs}
@@ -339,11 +337,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         help="Control YAML files to read and merge, in the specified order.",
     )
     parser.add_argument(
-        "--optimisation",
+        "--search-path",
         type=Path,
+        action="append",
+        default=[],
         help=(
-            "Root directory containing optimisation scripts "
-            "(defaults to the source directory)."
+            "Root directory to search for optimisation scripts. "
+            "Can be specified several times; directories are searched in "
+            "the given order."
         ),
     )
     parser.add_argument(
@@ -379,13 +380,13 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         stream=sys.stdout,
     )
     runner = RunPsyclone(
-        args.input,
-        args.control_files,
-        args.optimisation,
+        input_path=args.input,
+        control_files=args.control_files,
         output_path=args.output,
         psyclone_options=args.psyclone_options,
         nprocs=args.nprocs,
         kernel_dirs=args.d,
+        search_paths=args.search_path,
     )
     runner.run()
 

@@ -135,10 +135,8 @@ class PsyclonePhase:
     phase.
 
     :param name: the name of this phase.
-    :param base_paths: the list of base paths to search for file-specific
-        scripts.
-    :param script_root: the root directory to find optimisation scripts in
-        (e.g. .../lfric_atm/optimisation)
+    :param script_paths: the root directories to search for optimisation
+        scripts (e.g. .../lfric_atm/optimisation), in order of precedence.
     """
 
     # Define some special 'script paths' strings to indicate special results.
@@ -161,12 +159,10 @@ class PsyclonePhase:
     DEFAULT_OUTPUT_TEMPLATE = "{rel_path}/{name}"
 
     def __init__(self, name: str,
-                 base_paths: list[Path],
-                 script_root: Path) -> None:
-        self._base_paths = base_paths
-        self._script_root = script_root
+                 script_paths: list[Path]) -> None:
+        self._script_paths = list(script_paths)
         # This will be initialised/updated each time when reading an info file.
-        self._opt_path = Path()
+        self._opt_paths: list[Path] = list(self._script_paths)
         self._relative_script_dir: str = ""
         self._name: str = name
         self._comment: str = ""
@@ -253,13 +249,14 @@ class PsyclonePhase:
         return result
 
     @property
-    def opt_path(self) -> Path:
+    def opt_paths(self) -> list[Path]:
         """
-        :return: the optimisation root as absolute path (including site-
-            and platform-specific settings, and subdirectory, e.g. psykal
-            or transmute).
+        :return: all optimisation directories in which scripts are searched
+            (in order of precedence). Each is an absolute path including the
+            site- and platform-specific settings, and subdirectory (e.g.
+            psykal or transmute).
         """
-        return self._opt_path
+        return self._opt_paths[:]
 
     def update(self, info: dict[str, Any]) -> None:
         """
@@ -294,7 +291,8 @@ class PsyclonePhase:
         # Store the potentially updated optimisation root path, i.e. the site-
         # and platform-specific location, followed by a script dir (typically
         # transmute or psykal). This path is used in a few places.
-        self._opt_path = self._script_root / self._relative_script_dir
+        self._opt_paths = [root / self._relative_script_dir
+                           for root in self._script_paths]
 
     def _add_rule(self, item: dict[str, Any]) -> None:
         """
@@ -345,38 +343,35 @@ class PsyclonePhase:
 
         return yaml_dict
 
-    def file_specific_script(self, fpath: Path) -> Optional[Path]:
+    def file_specific_script(self, fpath: Path,
+                             input_path: Path) -> Optional[Path]:
         """
-        Searches for a file-specific optimisation script. It will search
-        both under the source and the build directories of the project
-        directory.
+        Searches for a file-specific optimisation script in all script
+        search paths. The script is expected to have the same path relative
+        to the script directory as the source file has relative to the
+        input path, but with the suffix `.py`.
 
         :param fpath: the file path of the Fortran file.
-        :returns: the path of the file-specific optimisation script, or
-            None if no such file exists.
-        """
-        relative_path = None
-        # The source file might be either in build_output (e.g. a preprocessed
-        # .X90 file), or still in source (.x90 file). Check if the file
-        # is in one of the two sub-trees, and use the relative path to
-        # check if there is a file-specific optimisation script
-        for base_path in self._base_paths:
-            try:
-                relative_path = fpath.relative_to(base_path)
-            except ValueError:
-                # The file is not under the `base_path` - keep on checking
-                pass
+        :param input_path: the root directory of the source files.
 
-        if relative_path:
-            # The file was under either source or build. Check if there
-            # is a file-specific optimisation script:
-            local_transformation_script = (self.opt_path /
-                                           (relative_path.with_suffix('.py')))
+        :returns: the path of the file-specific optimisation script, or
+            None if no such file exists (including if the file is not
+            under the input path).
+        """
+        try:
+            relative_path = fpath.relative_to(input_path)
+        except ValueError:
+            return None
+
+        for opt_path in self._opt_paths:
+            local_transformation_script = (
+                opt_path / relative_path.with_suffix('.py'))
             if local_transformation_script.exists():
                 return local_transformation_script
         return None
 
-    def get_script(self, fpath: Path) -> tuple[Path, dict[str, Any]]:
+    def get_script(self, fpath: Path,
+                   input_path: Path) -> tuple[Path, dict[str, Any]]:
         """
         Return the script and its parameters for a given filename.
 
@@ -385,6 +380,8 @@ class PsyclonePhase:
 
         :param fpath: the Fortran source file for which to find a
             transformation script.
+        :param input_path: the root directory of the source files, used to
+            find file-specific scripts.
 
         :returns: the path to the transformation script (or a result marker
             if no script should be used) and its parameters.
@@ -406,7 +403,7 @@ class PsyclonePhase:
             # file_specific may fall through if only wildcard patterns
             # matched and no companion script exists.
             if rule.name == PsyclonePhase.FILE_SPECIFIC:
-                script = self.file_specific_script(fpath)
+                script = self.file_specific_script(fpath, input_path)
                 if script:
                     return script, params
                 if pattern == "*":
@@ -414,11 +411,13 @@ class PsyclonePhase:
                 raise FileNotFoundError(
                     f"Cannot find explicitly requested script for '{fpath}'.")
 
-            opt_script = self.opt_path / rule.name
-            if not opt_script.exists():
-                raise FileNotFoundError(f"Cannot find script "
-                                        f"'{opt_script}' for '{fpath}'.")
-            return opt_script, params
+            candidates = [opt_path / rule.name for opt_path in self._opt_paths]
+            for opt_script in candidates:
+                if opt_script.exists():
+                    return opt_script, params
+            searched = ", ".join(f"'{i}'" for i in candidates)
+            raise FileNotFoundError(f"Cannot find script '{rule.name}' for "
+                                    f"'{fpath}'. Searched: {searched}.")
 
         return PsyclonePhase.RESULT_EXCLUDE, {}
 
@@ -431,20 +430,17 @@ class PsycloneControl:
 
     Details of each phase will be stored in PSyclonePhase instances.
 
-    :param script_root: the root directory to find optimisation scripts in
-        (e.g. .../lfric_atm/optimisation)
-    :param base_paths:
+    :param script_paths: the root directories to search for optimisation
+        scripts (e.g. .../lfric_atm/optimisation), in order of precedence.
     :param fab_base: The FabBase derived application script. This is required
         to get site, platform and config information when searching for
         PSyclone scripts to be executed.
     """
 
     def __init__(self,
-                 script_root: Path,
-                 base_paths: list[Path]) -> None:
+                 script_paths: list[Path]) -> None:
         # Keep a copy in case that the user modifies the list later
-        self._base_paths = base_paths[:]
-        self._script_root = script_root
+        self._script_paths = list(script_paths)
         self._all_phases: list[str] = []
         self._psyclone_info: dict[str, PsyclonePhase] = {}
         # A list of all PSyclone info files that were read.
@@ -513,8 +509,7 @@ class PsycloneControl:
                 continue
             if key not in self._psyclone_info:
                 self._psyclone_info[key] = PsyclonePhase(key,
-                                                         self._base_paths,
-                                                         self._script_root)
+                                                         self._script_paths)
 
             self._psyclone_info[key].update(dependencies[key])
 
